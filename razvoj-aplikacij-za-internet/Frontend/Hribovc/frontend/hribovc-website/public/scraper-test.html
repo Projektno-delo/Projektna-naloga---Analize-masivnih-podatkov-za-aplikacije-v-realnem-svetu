@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>ARSO Scraper Test</title>
+  </head>
+  <body>
+    <h1>ARSO Scraper Test</h1>
+    <button id="loadButton" type="button">Load scraper data</button>
+    <div id="data"></div>
+
+    <script>
+      const loadButton = document.getElementById('loadButton');
+      const dataDiv = document.getElementById('data');
+
+      loadButton.addEventListener('click', async () => {
+        dataDiv.textContent = 'Loading...';
+
+        try {
+          const response = await fetch('http://localhost:3000/scrape');
+          if (!response.ok) {
+            throw new Error(`Request failed: ${response.status}`);
+          }
+          const data = await response.json();
+          dataDiv.innerHTML = Object.entries(data)
+            .map(([key, value]) => `<div class="field"><strong>${key}</strong>${value}</div>`)
+            .join('');
+        } catch (error) {
+          dataDiv.textContent = `Error: ${error.message}`;
+        }
+      });
+    </script>
+  </body>
+</html>
