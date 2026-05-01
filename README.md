@@ -1,16 +1,75 @@
-# React + Vite
+# Ideja: **Hribovc** inteligentni načrtovalec varnih in zdravih vzponov
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+Spletna stran Hribovc se osredotoča na nekaj, kar je nam Slovencem res blizu in sicer hribi. Cilj je združiti pohodništvo z realnimi podatki in pametno analizo, ki uporabniku pomaga pri varnem in zdravem odločanju v gorah.
 
-Currently, two official plugins are available:
+Uporabljali bomo web scraping za vreme po višinah
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+---
 
-## React Compiler
+## 1. Načrtovanje: idejni koncept
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+Spletna stran glede na uporabnikovo starost in BMI uvrsti v stopnje sposobnosti in mu priporoči primerne poti, pri odločitvi odsvetuje pot če vreme ni primerno
+(https://github.com/zejn/arsoapi)
 
-## Expanding the ESLint configuration
+---
 
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and [`typescript-eslint`](https://typescript-eslint.io) in your project.
+## 2. Podatki in viri
+
+### Web scraping
+
+**ARSO (https://github.com/zejn/arsoapi)**
+
+- podatki: temperatura, hitrost vetra, verjetnost neviht po višinah  
+- uporaba: napoved tveganja glede na lokacijo uporabnika  
+
+---
+
+## 3. Kako bomo implementirali scraping
+
+Scraping bo implementiran kot ločen backend modul v Node.js.
+
+**Tehnologije:**
+
+- axios za pridobivanje HTML strani  
+- cheerio za parsanje HTML (DOM manipulacija kot jQuery)
+
+**Postopek:**
+
+1. Periodično pošiljanje HTTP zahtevkov na izbrane strani.
+2. Parsanje HTML strukture in ekstrakcija relevantnih podatkov.
+3. Čiščenje in normalizacija podatkov
+4. Shranjevanje v podatkovno bazo MongoDB
+5. Izpostavitev podatkov preko REST API-ja frontend aplikaciji.
+
+**Primer:**
+
+- ARSO: iz strukturiranih tabel ali JSON endpointov pridobimo vremenske napovedi
+
+---
+
+## 4. Rezultati obdelave
+
+**Indeks pripravljenosti**  
+Ocena, ali je uporabnik sposoben varno doseči pot (tudi glede višinske razlike poti).
+
+**Vremenska opozorila**  
+Samodejna obvestila ob poslabšanju vremena glede na GPS lokacijo z uporabo .alert().
+
+**Vizualizacija**
+
+- prikaz poti na OpenStreetMaps  
+- barvne oznake težavnosti in nevarnosti  
+- grafi utrujenosti  
+
+---
+
+## 5. Razdelitev dela
+
+| Član | Vloga | Ključne odgovornosti |
+|------|------|----------------------|
+|  Žiga Pešti | Web scraping | razvoj scraperjev ARSO, ekstrakcija podatkov |
+| Anže Žunec  | Backend | API, baza podatkov, integracija |
+| Anja Grudnik| Frontend| UI, zemljevidi, grafi |
+
+---
+
