@@ -1,96 +1,316 @@
 ﻿.weather {
   min-height: 100vh;
-  background-color: #0d0d0d;
-  padding-bottom: 4rem;
-}
-
-.weather-hero {
-  padding: 4rem 8%;
-  border-bottom: 1px solid #1f1f1f;
-  background-image: url('../assets/hero_z.jpg');
+  background-image: url('../assets/ozadje_za_vreme_sreen.png');
   background-size: cover;
   background-position: center;
+  background-attachment: fixed;
+  padding-bottom: 4rem;
+  font-family: 'Inter', sans-serif; /* Ali tvoja privzeta pisava */
+}
+
+/* Hero sekcija */
+.weather-hero {
+  padding: 4rem 8%;
+  border-bottom: 1px solid rgba(255,255,255,0.06);
   position: relative;
 }
 
-.weather-hero::before {
-  content: '';
-  position: absolute;
-  inset: 0;
-  background: rgba(0, 0, 0, 0.6);
+.hero-content {
+  position: relative;
+  z-index: 1;
 }
 
 .weather-hero h1 {
-  position: relative;
-  z-index: 1;
   font-size: 3rem;
   font-weight: 800;
-  color: #ffffff;
+  color: #fff;
   margin: 0 0 0.5rem 0;
 }
 
 .weather-hero p {
-  position: relative;
-  z-index: 1;
-  color: #888888;
+  color: #888;
   font-size: 1.1rem;
+  margin: 0 0 1.5rem 0;
 }
 
+.hero-status {
+  display: flex;
+  align-items: center;
+  gap: 1.5rem;
+  margin-top: 1.5rem;
+}
+
+.status-badge-main {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background: rgba(255, 255, 255, 0.03); 
+  border: 1px solid rgba(255, 255, 255, 0.1); 
+  padding: 0.6rem 1.2rem;
+  border-radius: 12px; 
+  color: #ddd;
+  font-size: 0.95rem;
+}
+
+.icon-check {
+  color: #4ade80; 
+}
+
+.status-green {
+  color: #4ade80;
+  font-weight: 700;
+  margin-left: 4px;
+}
+
+.status-time {
+  color: #666;
+  font-size: 0.9rem;
+  font-weight: 400;
+}
+
+.status-good {
+  background: rgba(76, 175, 80, 0.15);
+  border: 1px solid rgba(76, 175, 80, 0.3);
+  padding: 0.4rem 1rem;
+  border-radius: 20px;
+  color: #4caf50;
+  font-size: 0.9rem;
+}
+
+.status-time {
+  color: #666;
+  font-size: 0.85rem;
+}
+
+/* Seznam kartic */
 .weather-list {
   display: flex;
   flex-direction: column;
-  gap: 2px;
-  padding: 3rem 8%;
+  gap: 1rem;
+  padding: 2.5rem 8%;
 }
 
-.weather-row {
-  background-color: #111111;
-  padding: 1.5rem 2rem;
-  border-bottom: 2px solid #333;
+.weather-card {
+  border-radius: 16px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  overflow: hidden;
+  cursor: pointer;
+  backdrop-filter: blur(10px);
+  background: rgba(0, 0, 0, 0.6); /* Malo temnejše za boljši kontrast */
+  transition: all 0.3s ease;
 }
 
-.risk-border-low { border-bottom-color: #4caf50; }
-.risk-border-medium { border-bottom-color: #ff9800; }
-.risk-border-high { border-bottom-color: #f44336; }
-.risk-border-extreme { border-bottom-color: #9c27b0; }
+.weather-card:hover {
+  box-shadow: 0 0 25px rgba(76, 175, 80, 0.1);
+  background: rgba(255, 255, 255, 0.02);
+}
 
-.row-top {
-  display: flex;
-  justify-content: space-between;
+/* Barve robov glede na tveganje */
+.card-low { border-color: rgba(76,175,80,0.3); }
+.card-medium { border-color: rgba(255,152,0,0.3); }
+.card-high { border-color: rgba(244,67,54,0.3); }
+.card-extreme { border-color: rgba(156,39,176,0.3); }
+
+/* GLAVNA VRSTICA KARTICE (KLJUČNI POPRAVEK) */
+.card-top {
+  display: grid;
+  /* Stolpci: Višina(220px) | Temp(180px) | Opis(flex) | Status/Gumb(auto) */
+  grid-template-columns: 220px 180px 1fr auto;
   align-items: center;
-  margin-bottom: 0.5rem;
+  padding: 1.8rem 2rem;
+  gap: 2rem;
 }
 
-.row-altitude {
-  font-size: 0.8rem;
-  color: #888888;
+/* Stolpec 1: Višina in Gora */
+.card-altitude-col {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  border-right: 1px solid rgba(255, 255, 255, 0.08); /* Vertikalna črta */
+  padding-right: 1.5rem;
+}
+
+.card-alt-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.card-alt-num {
+  font-size: 1.4rem;
+  font-weight: 700;
+}
+
+.card-alt-loc {
+  font-size: 0.75rem;
+  color: #666;
   letter-spacing: 1px;
 }
 
-.row-badge {
-  font-size: 0.75rem;
-  font-weight: 600;
-  padding: 0.25rem 0.9rem;
-  border-radius: 20px;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
+.card-gora-img {
+  width: 170px;
+  height: auto;
+  object-fit: contain;
+  margin-top: 5px;
+  filter: brightness(1.5) saturate(1.5);
+  opacity: 1;
+  margin-top: -5px;
 }
 
-.badge-low { background-color: rgba(76,175,80,0.2); color: #4caf50; }
-.badge-medium { background-color: rgba(255,152,0,0.2); color: #ff9800; }
-.badge-high { background-color: rgba(244,67,54,0.2); color: #f44336; }
-.badge-extreme { background-color: rgba(156,39,176,0.2); color: #ce93d8; }
-
-.row-temp {
-  font-size: 3rem;
-  font-weight: 700;
-  color: #ffffff;
-  margin: 0.25rem 0;
-}
-
-.row-details {
+/* Stolpec 2: Temperatura */
+.card-temp-col {
   display: flex;
-  gap: 1.5rem;
-  color: #888888;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.card-temp {
+  font-size: 3.2rem;
+  font-weight: 800;
+  color: #fff;
+  line-height: 1;
+}
+
+.card-feels {
+  font-size: 0.85rem;
+  color: #888;
+}
+
+.card-wind-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  padding: 4px 12px;
+  border-radius: 20px;
+  color: #aaa;
+  font-size: 0.8rem;
+  margin-top: 8px;
+  width: fit-content;
+}
+
+/* Stolpec 3: Opis z ikono */
+.card-desc-col {
+  display: flex;
+  align-items: center;
+}
+
+.card-desc-title {
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: #fff;
+  margin-bottom: 2px;
+}
+
+.card-desc-sub {
   font-size: 0.9rem;
+  color: #777;
+}
+
+/* Stolpec 4: Badge in Puščica */
+.card-right {
+  display: flex;
+  align-items: center;
+  gap: 1.5rem;
+}
+
+.card-badge {
+  padding: 0.5rem 1.2rem;
+  border-radius: 25px;
+  font-size: 0.8rem;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.badge-low {
+  background: rgba(76,175,80,0.12);
+  color: #4ade80;
+  border: 1px solid rgba(76,175,80,0.3);
+}
+
+.badge-medium {
+  background: rgba(255,152,0,0.12);
+  color: #ff9800;
+  border: 1px solid rgba(255,152,0,0.3);
+}
+
+.badge-high {
+  background: rgba(244,67,54,0.12);
+  color: #f44336;
+  border: 1px solid rgba(244,67,54,0.3);
+}
+
+.badge-extreme {
+  background: rgba(156,39,176,0.12);
+  color: #ce93d8;
+  border: 1px solid rgba(156,39,176,0.3);
+}
+
+/* RAZŠIRJENI DEL (PODATKI) */
+.card-expanded {
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
+  padding: 1.5rem 2rem 1.5rem 250px; /* Zamik, da se statistika začne pod temp. stolpcem */
+  background: rgba(0, 0, 0, 0.15);
+}
+
+.exp-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 2rem;
+}
+
+.exp-item {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.exp-label {
+  font-size: 0.7rem;
+  color: #555;
+  font-weight: 800;
+  letter-spacing: 1px;
+  margin-top: 8px;
+}
+
+.exp-value {
+  font-size: 1.2rem;
+  font-weight: 700;
+  color: #fff;
+}
+
+.exp-bar {
+  height: 3px;
+  background: rgba(255, 255, 255, 0.08);
+  border-radius: 2px;
+  margin-top: 10px;
+  overflow: hidden;
+}
+
+.exp-fill {
+  height: 100%;
+  border-radius: 2px;
+}
+
+/* Footer */
+.weather-footer {
+  margin: 2rem 8% 0 8%;
+  padding: 1.5rem;
+  background: rgba(0, 0, 0, 0.4);
+  border-radius: 12px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  color: #666;
+  font-size: 0.85rem;
+  border: 1px solid rgba(255,255,255,0.05);
+}
+
+.footer-source {
+  color: #ff6b35;
+  font-weight: 600;
 }
