@@ -1,0 +1,380 @@
+.trails {
+  min-height: 100vh;
+  background-color: #0d0d0d;
+  padding-bottom: 4rem;
+}
+
+.trails-hero {
+  padding: 4rem 8%;
+  background-image: url('../assets/ozadje_za_vreme_sreen.png');
+  background-size: cover;
+  background-position: center;
+  position: relative;
+}
+
+.trails-hero::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.65);
+}
+
+.trails-hero-content {
+  position: relative;
+  z-index: 1;
+}
+
+.trails-hero h1 {
+  font-size: 3rem;
+  font-weight: 800;
+  color: #fff;
+  margin: 0 0 0.5rem 0;
+}
+
+.trails-hero p {
+  color: #888;
+  font-size: 1.1rem;
+  margin: 0 0 2rem 0;
+}
+
+.trails-filters {
+  display: flex;
+  gap: 1rem;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.search-box {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid #333;
+  border-radius: 8px;
+  padding: 0.6rem 1rem;
+  flex: 1;
+  min-width: 200px;
+}
+
+.search-box input {
+  background: none;
+  border: none;
+  outline: none;
+  color: #fff;
+  font-size: 0.9rem;
+  width: 100%;
+}
+
+.search-box input::placeholder {
+  color: #666;
+}
+
+.filter-select {
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid #333;
+  border-radius: 8px;
+  padding: 0.6rem 1rem;
+  color: #ccc;
+  font-size: 0.9rem;
+  cursor: pointer;
+}
+
+.filter-btn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid #333;
+  border-radius: 8px;
+  padding: 0.6rem 1rem;
+  color: #ccc;
+  font-size: 0.9rem;
+  cursor: pointer;
+}
+
+.trails-content {
+  padding: 2rem 8%;
+}
+
+.section-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 1.5rem;
+}
+
+.section-title h2 {
+  font-size: 1.2rem;
+  font-weight: 600;
+  color: #fff;
+  margin: 0;
+}
+
+.recommended-list {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  margin-bottom: 2rem;
+}
+
+.trail-card {
+  display: grid;
+  grid-template-columns: 180px 1fr auto;
+  border-radius: 12px;
+  border: 1px solid #222;
+  overflow: hidden;
+  background: #111;
+}
+
+.trail-good { border-color: rgba(76, 175, 80, 0.3); }
+.trail-warn { border-color: rgba(255, 152, 0, 0.3); }
+.trail-bad { border-color: rgba(244, 67, 54, 0.3); }
+
+
+.trail-img {
+  width: 180px;
+  height: 100%; /* Spremenjeno iz 140px na 100% za polno višino */
+  object-fit: cover;
+  display: block;
+}
+
+.status-good .status-label {
+  color: #4caf50;
+  background: none;
+  border: none;
+  padding: 0;
+}
+
+.trail-info {
+  position:relative;
+  flex: 1;
+  padding: 1.5rem;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start; 
+  justify-content: space-between;
+}
+
+.trail-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+}
+
+.trail-header h3 {
+  font-size: 1.2rem;
+  font-weight: 700;
+  color: #fff;
+  margin: 0 0 4px 0;
+}
+
+.trail-location {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  color: #888;
+  font-size: 0.85rem;
+}
+
+.diff-badge {
+  font-size: 0.7rem;
+  font-weight: 600;
+  padding: 3px 10px;
+  border-radius: 20px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: 10px; 
+  position: absolute;
+  top: 1.5rem;
+  right: 1.5rem; 
+}
+
+.diff-easy { background: rgba(76, 175, 80, 0.15); color: #4caf50; }
+.diff-medium { background: rgba(255, 152, 0, 0.15); color: #ff9800; }
+.diff-hard { background: rgba(244, 67, 54, 0.15); color: #f44336; }
+
+.trail-stats {
+  display: flex;
+  gap: 1.5rem;
+  color: #888;
+  font-size: 0.85rem;
+}
+
+.trail-stats span {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.trail-score-col {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  justify-content: space-between;
+  padding: 1.2rem 1.5rem;
+  border-left: 1px solid rgba(255, 255, 255, 0.05);
+  min-width: 240px;
+  background: transparent;
+}
+
+.score-circle {
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  border: 3px solid;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.2rem;
+  font-weight: 700;
+  margin-bottom: auto 0;
+}
+
+.trail-status {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-top: 10px;
+  text-align: right;
+  background: transparent !important;
+  padding: 0 !important;
+  border: none !important;
+}
+
+.status-label {
+  font-size: 0.8rem;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+}
+
+.status-good .status-label { color: #4caf50; }
+.status-warn .status-label { color: #ff9800; }
+.status-bad .status-label { color: #f44336; }
+
+
+.status-desc {
+  font-size: 0.8rem;
+  color: #888;
+  max-width: 180px;
+}
+
+.podrobnosti-btn {
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid #333;
+  border-radius: 8px;
+  padding: 0.5rem 1rem;
+  color: #ccc;
+  font-size: 0.85rem;
+  cursor: pointer;
+  white-space: nowrap;
+  width: fit-content; 
+  margin-top: 8px;
+  transition: all 0.2s ease;
+}
+
+.podrobnosti-btn:hover {
+  background: rgba(255, 255, 255, 0.1);
+  color: #fff;
+  border-color: rgba(255, 255, 255, 0.2);
+}
+
+.smart-tip {
+  display: flex;
+  align-items: center;
+  gap: 1.5rem;
+  background: #111;
+  border: 1px solid #222;
+  border-radius: 12px;
+  padding: 1.5rem 2rem;
+  margin-bottom: 2rem;
+}
+
+.tip-icon {
+  font-size: 2rem;
+  background: rgba(76, 175, 80, 0.15);
+  border-radius: 50%;
+  width: 50px;
+  height: 50px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.tip-text {
+  flex: 1;
+}
+
+.tip-text strong {
+  color: #fff;
+  font-size: 1rem;
+}
+
+.tip-text p {
+  color: #888;
+  font-size: 0.85rem;
+  margin: 4px 0 0 0;
+}
+
+.tip-btn {
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid #333;
+  border-radius: 8px;
+  padding: 0.6rem 1.2rem;
+  color: #ccc;
+  font-size: 0.85rem;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.all-trails-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 1rem;
+}
+
+.all-trail-card {
+  background: #111;
+  border: 1px solid #222;
+  border-radius: 12px;
+  overflow: hidden;
+}
+
+.all-trail-img {
+  width: 100%;
+  height: 140px;
+  object-fit: cover;
+}
+
+.all-trail-info {
+  padding: 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.all-trail-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.all-trail-name {
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: #fff;
+}
+
+.all-trail-stats {
+  display: flex;
+  gap: 1rem;
+  color: #666;
+  font-size: 0.8rem;
+  margin-top: 4px;
+}
+
+.all-trail-stats span {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+}
