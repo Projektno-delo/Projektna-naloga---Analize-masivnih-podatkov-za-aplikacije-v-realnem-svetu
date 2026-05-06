@@ -1,0 +1,440 @@
+.profile-page {
+  background-color: #080a0c;
+  color: #fff;
+  min-height: 100vh;
+  padding-bottom: 50px;
+}
+
+.profile-hero {
+  padding: 120px 8% 100px 8%; 
+  background-image: linear-gradient(to bottom, rgba(8, 10, 12, 0.4), #080a0c), 
+                    url('../assets/ozadje_za_vreme_sreen.png');
+  
+  background-size: cover;      
+  background-position: center; 
+  background-repeat: no-repeat;
+  
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+}
+
+.profile-hero h1 { font-size: 2.5rem; margin-bottom: 10px; }
+.profile-hero p { color: #888; }
+
+.profile-container {
+  padding: 0 8%;
+  margin-top: 2rem;
+  display: flex;
+  flex-direction: column;
+  gap: 25px;
+}
+
+.main-profile-card {
+  background: #111418;
+  border-radius: 20px;
+  padding: 30px;
+  display: flex;
+  align-items: center;
+  gap: 40px;
+  border: 1px solid #222;
+}
+
+.avatar-placeholder {
+  width: 120px;
+  height: 120px;
+  background: #222;
+  border-radius: 50%;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  position: relative;
+}
+
+.camera-badge {
+  position: absolute;
+  bottom: 0;
+  right: 0;
+  background: #ff6b35;
+  padding: 8px;
+  border-radius: 50%;
+  font-size: 12px;
+}
+
+.fitness-badge {
+  display: inline-block;
+  margin-top: 15px;
+  background: rgba(74, 222, 128, 0.1);
+  color: #4ade80;
+  padding: 5px 15px;
+  border-radius: 20px;
+  font-size: 0.75rem;
+  font-weight: bold;
+}
+
+.circular-progress {
+  width: 100px;
+  height: 100px;
+  border-radius: 50%;
+  background: conic-gradient(#4ade80 78%, #222 0);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  position: relative;
+}
+
+.circular-progress::after {
+  content: "";
+  width: 85px;
+  height: 85px;
+  background: #111418;
+  border-radius: 50%;
+  position: absolute;
+}
+
+.progress-value {
+  position: relative;
+  z-index: 1;
+  font-size: 1.8rem;
+  font-weight: 700;
+}
+
+.stats-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 20px;
+}
+
+.stat-card {
+  background: #111418;
+  padding: 25px;
+  border-radius: 15px;
+  border: 1px solid #222;
+}
+
+.stat-icon { font-size: 1.5rem; margin-bottom: 15px; }
+.stat-icon.green { color: #4ade80; }
+.stat-icon.blue { color: #3b82f6; }
+.stat-icon.orange { color: #fbbf24; }
+
+.stat-val { font-size: 1.5rem; font-weight: 800; }
+.stat-label { color: #666; font-size: 0.9rem; margin-bottom: 10px; }
+
+.trend-badge {
+  font-size: 0.75rem;
+  padding: 4px 8px;
+  background: rgba(74, 222, 128, 0.05);
+  color: #4ade80;
+  border-radius: 5px;
+}
+
+.main-content-grid {
+  display: grid;
+  grid-template-columns: 1.5fr 1fr;
+  gap: 25px;
+}
+
+.activity-section, .ai-section {
+  background: #111418;
+  padding: 25px;
+  border-radius: 20px;
+  border: 1px solid #222;
+}
+
+.activity-item {
+  display: flex;
+  align-items: center;
+  gap: 15px;
+  padding: 15px 0;
+  border-bottom: 1px solid #222;
+}
+
+.status-icon.success { color: #4ade80; }
+.status-icon.warning { color: #fbbf24; }
+
+.ai-item {
+  display: flex;
+  gap: 15px;
+  margin-top: 20px;
+}
+
+.ai-icon-box {
+  width: 45px;
+  height: 45px;
+  border-radius: 12px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.ai-icon-box.purple { background: rgba(168, 85, 247, 0.1); color: #a855f7; }
+.ai-icon-box.blue { background: rgba(59, 130, 246, 0.1); color: #3b82f6; }
+
+.progress-section {
+  background: #111418;
+  padding: 30px;
+  border-radius: 20px;
+  display: grid;
+  grid-template-columns: 2fr 1fr;
+  gap: 40px;
+}
+
+.goal-progress-bar {
+  height: 8px;
+  background: #222;
+  border-radius: 10px;
+  position: relative;
+  margin-top: 20px;
+}
+
+.goal-fill {
+  height: 100%;
+  background: #4ade80;
+  border-radius: 10px;
+}
+
+.progress-section {
+  background: #111418;
+  border: 1px solid #222;
+  border-radius: 20px;
+  padding: 30px;
+  display: grid;
+  grid-template-columns: 2.2fr 1fr; 
+  gap: 50px;
+  margin-top: 20px;
+}
+
+.chart-header-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 30px;
+}
+
+.chart-icon-small {
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid #333;
+  padding: 6px;
+  border-radius: 6px;
+  display: flex;
+  color: #fff;
+}
+
+.chart-body {
+  display: flex;
+  gap: 20px;
+}
+
+.y-axis-labels {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  height: 140px;
+  color: #555;
+  font-size: 0.75rem;
+  padding-bottom: 25px; 
+}
+
+.chart-visual {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+
+.svg-container {
+  height: 140px;
+  border-bottom: 1px solid #222;
+  position: relative;
+}
+
+.graph-svg {
+  width: 100%;
+  height: 100%;
+}
+
+.x-axis-months {
+  display: flex;
+  justify-content: space-between;
+  padding-top: 12px;
+  color: #555;
+  font-size: 0.85rem;
+}
+
+.next-goal-card {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+
+.next-goal-card h4 {
+  color: #fff;
+  margin-bottom: 12px;
+  font-size: 1rem;
+}
+
+.goal-big-number {
+  font-size: 2.4rem;
+  font-weight: 800;
+  color: #fff;
+  margin-bottom: 5px;
+}
+
+.goal-subtext {
+  color: #888;
+  font-size: 0.95rem;
+  margin-bottom: 25px;
+}
+
+.highlight-yellow {
+  color: #fbbf24;
+  font-weight: 600;
+}
+
+.goal-progress-row {
+  display: flex;
+  align-items: center;
+  gap: 15px;
+}
+
+.goal-bar-track {
+  flex: 1;
+  height: 8px;
+  background: #222;
+  border-radius: 10px;
+  overflow: hidden;
+}
+
+.goal-bar-fill {
+  height: 100%;
+  background: #4ade80;
+  border-radius: 10px;
+  box-shadow: 0 0 10px rgba(74, 222, 128, 0.3);
+}
+
+.goal-percentage-text {
+  color: #4ade80;
+  font-size: 0.9rem;
+  font-weight: bold;
+}
+
+.main-profile-card {
+  background: #111418;
+  border-radius: 20px;
+  border: 1px solid #222;
+  display: flex;
+  padding: 30px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+}
+
+.profile-main-info {
+  display: flex;
+  align-items: center;
+  gap: 30px;
+  flex: 1;
+}
+
+.avatar-circle {
+  width: 110px;
+  height: 110px;
+  background: linear-gradient(135deg, #333, #111);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 2px solid #222;
+}
+
+.avatar-wrapper { position: relative; }
+
+.camera-badge-orange {
+  position: absolute;
+  bottom: 5px;
+  right: 5px;
+  background: #f97316; 
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 3px solid #111418;
+}
+
+.meta-info-block {
+  margin: 10px 0;
+}
+
+.meta-line {
+  border-left: 2px solid #a855f7; 
+  padding-left: 12px;
+  margin-bottom: 6px;
+  color: #999;
+  font-size: 0.9rem;
+  line-height: 1.2;
+}
+
+.meta-line strong { color: #fff; }
+.dot { margin: 0 8px; color: #444; }
+
+.fitness-pill {
+  display: inline-block;
+  background: rgba(34, 197, 94, 0.1);
+  color: #4ade80;
+  padding: 4px 16px;
+  border-radius: 20px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  margin-top: 10px;
+}
+
+.readiness-divider-section {
+  border-left: 1px solid #222; 
+  padding-left: 40px;
+  flex: 1;
+}
+
+.readiness-content-row {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+}
+
+.circular-progress-v2 {
+  width: 85px;
+  height: 85px;
+  border-radius: 50%;
+  background: conic-gradient(#4ade80 78%, #222 0);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.inner-circle {
+  width: 73px;
+  height: 73px;
+  background: #111418;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.4rem;
+  font-weight: 700;
+  color: #fff;
+}
+
+.inner-circle span { font-size: 0.8rem; color: #666; }
+
+.readiness-text-v2 h3 { font-size: 1.1rem; color: #fff; margin-bottom: 4px; }
+.readiness-text-v2 p { font-size: 0.85rem; color: #777; margin-bottom: 8px; }
+
+.analysis-yellow-link {
+  color: #fbbf24; 
+  text-decoration: none;
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+
+.analysis-yellow-link:hover { text-decoration: underline; }
