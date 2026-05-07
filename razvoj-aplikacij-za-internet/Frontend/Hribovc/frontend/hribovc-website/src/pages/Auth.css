@@ -1,0 +1,220 @@
+.auth-page {
+  display: grid;
+  grid-template-columns: 1.1fr 0.9fr; 
+  min-height: 100vh;
+  background: #0d0d0d;
+}
+
+.auth-left {
+  position: relative;
+  overflow: hidden;
+  height: 100vh;
+}
+
+.auth-bg {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center;
+}
+
+.auth-overlay {
+  position: absolute;
+  inset: 0;
+  pointer-events: none; 
+  background: linear-gradient(
+    135deg, 
+    rgba(0, 0, 0, 0.85) 0%, 
+    rgba(0, 0, 0, 0.4) 50%, 
+    rgba(0, 0, 0, 0.1) 100%
+  );
+  z-index: 1;
+}
+
+.auth-left-content {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-start; 
+  padding: 5rem 4rem; 
+  z-index: 2;
+  max-width: 100%; 
+  pointer-events: none; /* To prepreči, da bi leva stran blokirala desno */
+}
+
+/* Ker ima starš pointer-events: none, moramo elementom znotraj, 
+   če bi bili klikljivi, to vrniti. Zaenkrat ni nujno, a je dobra praksa. */
+.auth-left-content > * {
+  pointer-events: auto;
+}
+
+.auth-brand {
+  font-size: 1.4rem;
+  font-weight: 900;
+  letter-spacing: 3px;
+  color: #fff;
+  margin-bottom: 5rem; 
+}
+
+.auth-tagline {
+  margin-bottom: 2.5rem; 
+}
+
+.auth-tagline h2 {
+  font-size: 4rem;
+  font-weight: 800;
+  line-height: 1.1;
+  margin-bottom: 1.2rem;
+  text-shadow: 0 4px 20px rgba(0,0,0,0.5);
+}
+
+.auth-highlight {
+  color: #ff6b35; 
+}
+
+.auth-tagline p {
+  font-size: 1.15rem;
+  line-height: 1.6;
+  color: rgba(255, 255, 255, 0.85);
+  max-width: 420px;
+}
+
+.auth-features {
+  display: flex;
+  flex-direction: column;
+  gap: 1.2rem;
+}
+
+.auth-feature {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  font-size: 1.05rem;
+  font-weight: 500;
+  color: #fff;
+}
+
+.feat-icon {
+  font-size: 1.4rem;
+  color: #ff6b35;
+}
+
+.auth-right {
+  background: #0a0a0a;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 2rem;
+  z-index: 5; /* Dodano, da bo desna stran vedno "nad" levo */
+}
+
+.auth-box {
+  width: 100%;
+  max-width: 380px;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start; 
+}
+
+.auth-box h1 {
+  font-size: 2.2rem;
+  font-weight: 800;
+  color: #fff;
+  margin: 0 0 0.5rem 0;
+  letter-spacing: -1px;
+}
+
+.auth-sub {
+  color: #888;
+  font-size: 1rem;
+  margin: 0 0 2rem 0; 
+}
+
+.auth-form {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 1.2rem; 
+}
+
+/* ZDRUŽEN AUTH-ROW (Starost, višina v isti vrsti, teža pod njima) */
+.auth-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr; 
+  gap: 1.2rem;
+  width: 100%;
+}
+
+.auth-row .auth-field:last-child {
+  grid-column: span 2;
+}
+
+.auth-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px; 
+}
+
+.auth-field label {
+  font-size: 0.85rem;
+  font-weight: 500;
+  color: #bbb;
+}
+
+.auth-field input {
+  background: #141414;
+  border: 1px solid #222;
+  border-radius: 10px;
+  padding: 0.8rem 1rem; 
+  color: #fff;
+  font-size: 0.95rem;
+  outline: none;
+  transition: all 0.2s;
+}
+
+.auth-field input:focus {
+  border-color: #ff6b35;
+  background: #1a1a1a;
+  box-shadow: 0 0 0 4px rgba(255, 107, 53, 0.1);
+}
+
+.auth-btn {
+  background: #ff6b35;
+  color: #fff;
+  border: none;
+  border-radius: 10px;
+  padding: 1rem;
+  font-size: 1.05rem;
+  font-weight: 700;
+  cursor: pointer;
+  margin-top: 0.5rem;
+  transition: transform 0.2s, background 0.2s;
+  box-shadow: 0 4px 15px rgba(255, 107, 53, 0.2);
+}
+
+.auth-btn:hover {
+  background: #e85d04;
+  transform: translateY(-1px);
+}
+
+.auth-switch {
+  width: 100%;
+  text-align: left;
+  color: #666;
+  font-size: 0.95rem;
+  margin-top: 1.5rem; 
+  padding-top: 1.5rem;
+  border-top: 1px solid #1a1a1a;
+}
+
+.auth-switch a {
+  color: #ff6b35;
+  font-weight: 600;
+  text-decoration: none;
+  cursor: pointer; /* Zagotovimo, da se kurzor spremeni */
+}
+
+.auth-switch a:hover {
+  text-decoration: underline;
+}
