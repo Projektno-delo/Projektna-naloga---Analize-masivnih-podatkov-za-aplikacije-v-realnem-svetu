@@ -40,11 +40,9 @@
   padding: 5rem 4rem; 
   z-index: 2;
   max-width: 100%; 
-  pointer-events: none; /* To prepreči, da bi leva stran blokirala desno */
+  pointer-events: none; 
 }
 
-/* Ker ima starš pointer-events: none, moramo elementom znotraj, 
-   če bi bili klikljivi, to vrniti. Zaenkrat ni nujno, a je dobra praksa. */
 .auth-left-content > * {
   pointer-events: auto;
 }
@@ -106,7 +104,7 @@
   align-items: center;
   justify-content: center;
   padding: 2rem;
-  z-index: 5; /* Dodano, da bo desna stran vedno "nad" levo */
+  z-index: 5; 
 }
 
 .auth-box {
@@ -138,7 +136,6 @@
   gap: 1.2rem; 
 }
 
-/* ZDRUŽEN AUTH-ROW (Starost, višina v isti vrsti, teža pod njima) */
 .auth-row {
   display: grid;
   grid-template-columns: 1fr 1fr; 
