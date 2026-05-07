@@ -209,7 +209,7 @@
   color: #ff6b35;
   font-weight: 600;
   text-decoration: none;
-  cursor: pointer; /* Zagotovimo, da se kurzor spremeni */
+  cursor: pointer; 
 }
 
 .auth-switch a:hover {
