@@ -1,5 +1,6 @@
 const http = require('http');
 const { scrapeWeather } = require('./scraper');
+const { getCollection, connect } = require('./db');
 
 const PORT = 3000;
 
@@ -7,6 +8,10 @@ const server = http.createServer(async (req, res) => {
   if (req.method === 'GET' && req.url === '/scrape') {
     try {
       const data = await scrapeWeather();
+      const collection = await getCollection('weather');
+      const document = { ...data, scrapedAt: new Date() };
+      await collection.insertOne(document);
+
       res.writeHead(200, {
         'Content-Type': 'application/json',
         'Access-Control-Allow-Origin': '*',
@@ -26,6 +31,13 @@ const server = http.createServer(async (req, res) => {
   res.end('Not found');
 });
 
-server.listen(PORT, () => {
-  console.log(`Server listening on http://localhost:${PORT}`);
-});
+connect()
+  .then(() => {
+    server.listen(PORT, () => {
+      console.log(`Server listening on http://localhost:${PORT}`);
+    });
+  })
+  .catch((error) => {
+    console.error('Unable to connect to MongoDB:', error.message || error);
+    process.exit(1);
+  });

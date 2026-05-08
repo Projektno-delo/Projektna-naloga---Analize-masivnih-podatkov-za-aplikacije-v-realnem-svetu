@@ -73,3 +73,20 @@ Samodejna obvestila ob poslabšanju vremena glede na GPS lokacijo z uporabo .ale
 
 ---
 
+## 6. Uporaba in zagon scraperja
+
+---BACKEND---
+
+cd \Users\Ziga\Documents\GitHub\Projektna-naloga---Analize-masivnih-podatkov-za-aplikacije-v-realnem-svetu\razvoj-aplikacij-za-internet\backend  
+
+node server.js
+
+----;
+
+---FRONTEND---
+
+cd "C:\Users\Ziga\Documents\GitHub\Projektna-naloga---Analize-masivnih-podatkov-za-aplikacije-v-realnem-svetu\razvoj-aplikacij-za-internet\Frontend\Hribovc\frontend\hribovc-website"
+
+npm run dev
+
+----;
