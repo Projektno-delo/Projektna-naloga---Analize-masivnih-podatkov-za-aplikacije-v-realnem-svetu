@@ -1,7 +1,7 @@
 ﻿import './Weather.css'
 import goraImg from '../assets/gora.png'
 import weatherHero from '../assets/ozadje_za_vreme_sreen.png'
-import { LuShieldCheck } from 'react-icons/lu' // Dodaj to med ostale uvoze
+import { LuShieldCheck } from 'react-icons/lu' 
 import { useState } from 'react'
 import { LuChevronDown, LuChevronUp, LuWind, LuDroplets, LuEye, LuGauge } from 'react-icons/lu'
 
@@ -56,7 +56,7 @@ function Weather() {
     <div className="weather">
       <div className="weather-hero" style={{ backgroundImage: 'url(' + weatherHero + ')' }}>
         <div className="hero-content">
-          <h1>Vremenska napoved</h1>
+          <h1 style={{ textAlign: 'left' }}>Vremenska napoved</h1>
           <p>Podatki po višinah za varno načrtovanje vzpona</p>
           <div className="hero-status">
             <div className="status-badge-main">
@@ -74,9 +74,11 @@ function Weather() {
               
               <div className="card-altitude-col">
                 <div className="card-alt-header">
-                  <span className="card-alt-icon">△</span>
-                  <span className="card-alt-num" style={{ color: riskColors[item.risk] }}>{item.altitude}</span>
-                </div>
+                <span className="card-alt-icon">△</span>
+                <span className="card-alt-num" style={{ color: '#FF6B35' }}>
+                  {item.altitude}
+                </span>
+              </div>
                 <div className="card-alt-loc">{item.location.toUpperCase()}</div>
                 <img src={goraImg} alt="gora" className="card-gora-img" />
               </div>
@@ -101,7 +103,7 @@ function Weather() {
 
               <div className="card-right">
                 <span className={['card-badge', 'badge-' + item.risk].join(' ')}>
-                    {item.risk === 'low' && '🛡️ '}
+                    {item.risk === 'low'}
                     {item.riskLabel.toUpperCase()}
                 </span>
                 {expanded === i ? <LuChevronUp size="1.2em" color="#888" /> : <LuChevronDown size="1.2em" color="#888" />}
@@ -112,29 +114,40 @@ function Weather() {
               <div className="card-expanded">
                 <div className="exp-grid">
                   <div className="exp-item">
-                    <LuDroplets size="1.5em" color="#378ADD" />
-                    <span className="exp-label">VLAŽNOST</span>
-                    <span className="exp-value">{item.humidity}%</span>
-                    <div className="exp-bar"><div className="exp-fill" style={{ width: item.humidity + '%', background: '#378ADD' }}></div></div>
+                  <LuDroplets size="1.5em" className="weather-stat-icon" />
+                  <span className="exp-label">VLAŽNOST</span>
+                  <span className="exp-value">{item.humidity}%</span>
+                  <div className="exp-bar">
+                    <div className="exp-fill" style={{ width: item.humidity + '%', background: '#8FA998' }}></div>
                   </div>
-                  <div className="exp-item">
-                    <LuWind size="1.5em" color={riskColors[item.risk]} />
-                    <span className="exp-label">VETER</span>
-                    <span className="exp-value">{item.wind}</span>
-                    <div className="exp-bar"><div className="exp-fill" style={{ width: '45%', background: riskColors[item.risk] }}></div></div>
+                </div>
+
+                <div className="exp-item">
+                  <LuWind size="1.5em" className="weather-stat-icon" />
+                  <span className="exp-label">VETER</span>
+                  <span className="exp-value">{item.wind}</span>
+                  <div className="exp-bar">
+                    <div className="exp-fill" style={{ width: '45%', background: '#8FA998' }}></div>
                   </div>
-                  <div className="exp-item">
-                    <LuEye size="1.5em" color="#ff6b35" />
-                    <span className="exp-label">VIDLJIVOST</span>
-                    <span className="exp-value">{item.visibility}</span>
-                    <div className="exp-bar"><div className="exp-fill" style={{ width: '70%', background: '#ff6b35' }}></div></div>
+                </div>
+
+                <div className="exp-item">
+                  <LuEye size="1.5em" className="weather-stat-icon" />
+                  <span className="exp-label">VIDLJIVOST</span>
+                  <span className="exp-value">{item.visibility}</span>
+                  <div className="exp-bar">
+                    <div className="exp-fill" style={{ width: '70%', background: '#8FA998' }}></div>
                   </div>
-                  <div className="exp-item">
-                    <LuGauge size="1.5em" color="#9c27b0" />
-                    <span className="exp-label">TLAK</span>
-                    <span className="exp-value">{item.pressure}</span>
-                    <div className="exp-bar"><div className="exp-fill" style={{ width: '85%', background: '#9c27b0' }}></div></div>
+                </div>
+
+                <div className="exp-item">
+                  <LuGauge size="1.5em" className="weather-stat-icon" />
+                  <span className="exp-label">TLAK</span>
+                  <span className="exp-value">{item.pressure}</span>
+                  <div className="exp-bar">
+                    <div className="exp-fill" style={{ width: '85%', background: '#8FA998' }}></div>
                   </div>
+                </div>
                 </div>
               </div>
             )}

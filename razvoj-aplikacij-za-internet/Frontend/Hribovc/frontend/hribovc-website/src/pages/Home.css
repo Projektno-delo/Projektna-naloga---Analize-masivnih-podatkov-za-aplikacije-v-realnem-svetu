@@ -35,6 +35,8 @@
   left: 8%;
   color: #ffffff;
   z-index: 1;
+  max-width: 700px;
+  padding-left: -10rem;
 }
 
 .hero-content h1 {
@@ -53,7 +55,7 @@
 }
 
 .hero-btn {
-  background-color: #ff6b35;
+  background-color: #FF6B35;
   color: #ffffff;
   border: none;
   padding: 1rem 2.5rem;
@@ -62,41 +64,67 @@
   letter-spacing: 1px;
   text-transform: uppercase;
   cursor: pointer;
-  transition: background-color 0.2s;
+  border-radius: 14px;
+  transition: all 0.25s ease;
 }
 
 .hero-btn:hover {
-  background-color: #e85d04;
+  background-color: #ff7c4d;
+  transform: translateY(-2px);
 }
 
 .features {
   display: flex;
-  gap: 2rem;
-  padding: 4rem 8%;
-  background-color: #111111;
+  justify-content: center;
+  gap: 6rem;
+  padding: 5rem 8%;
+  background: #0A0A0A;
 }
 
 .feature-card {
   flex: 1;
-  background-color: #1a1a1a;
-  padding: 2rem;
-  border: 1px solid #2a2a2a;
-  border-radius: 8px;
+  max-width: 320px;
+
+  display: flex;
+  flex-direction: column;
+  align-items: center;
   text-align: center;
+
+  cursor: pointer;
+  transition: transform 0.25s ease;
+}
+
+.feature-card:hover {
+  transform: translateY(-6px) scale(1.03);
+}
+
+.feature-card:hover h3 {
+  color: #FF6B35;
+  transform: scale(1.05);
 }
 
 .feature-icon {
-  font-size: 2.5rem;
+  font-size: 3rem;
+  color: #FF6B35;
+  margin-bottom: 1.5rem;
+  transition: transform 0.25s ease;
+}
+
+.feature-card:hover .feature-icon {
+  transform: scale(1.12);
 }
 
 .feature-card h3 {
   color: #ffffff;
-  font-size: 1.2rem;
-  margin: 1rem 0 0.5rem;
+  font-size: 2rem;
+  font-weight: 700;
+  margin-bottom: 0.8rem;
+  transition: all 0.25s ease;
 }
 
 .feature-card p {
-  color: #888888;
-  font-size: 0.9rem;
-  line-height: 1.5;
+  color: #8FA998;
+  font-size: 1rem;
+  line-height: 1.6;
+  max-width: 260px;
 }

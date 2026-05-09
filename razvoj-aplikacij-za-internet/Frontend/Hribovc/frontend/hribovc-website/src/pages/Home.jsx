@@ -1,8 +1,10 @@
 ﻿import heroImg from '../assets/hero.jpg'
+import { useNavigate } from 'react-router-dom'
 import './Home.css'
 import { LuCloudSun, LuMap, LuActivity } from 'react-icons/lu'
 
 function Home() {
+  const navigate = useNavigate()
   return (
     <div className="home">
       <section className="hero">
@@ -11,8 +13,8 @@ function Home() {
         <div className="hero-content">
           <h1>Hribovc</h1>
           <p>Inteligentni načrtovalec varnih in zdravih vzponov</p>
-          <button className="hero-btn">Začni načrtovati</button>
-        </div>
+          <button className="hero-btn" onClick={() => navigate('/login')}> Začni načrtovati</button>        
+          </div>
       </section>
 
       <section className="features">        
