@@ -5,19 +5,22 @@
   background-position: center;
   background-attachment: fixed;
   padding-bottom: 4rem;
-  font-family: 'Inter', sans-serif; /* Ali tvoja privzeta pisava */
+  font-family: 'Inter', sans-serif; 
 }
 
-/* Hero sekcija */
 .weather-hero {
-  padding: 4rem 8%;
+  padding: 7rem 8% 4rem 8%;
   border-bottom: 1px solid rgba(255,255,255,0.06);
   position: relative;
+  display: flex;
+  align-items: flex-end;
 }
 
 .hero-content {
   position: relative;
   z-index: 1;
+  width: 100%;
+  text-align: left;
 }
 
 .weather-hero h1 {
@@ -25,6 +28,8 @@
   font-weight: 800;
   color: #fff;
   margin: 0 0 0.5rem 0;
+  text-align: left;
+  padding-left: 0;
 }
 
 .weather-hero p {
@@ -105,23 +110,29 @@
   background: rgba(255, 255, 255, 0.02);
 }
 
-/* Barve robov glede na tveganje */
-.card-low { border-color: rgba(76,175,80,0.3); }
-.card-medium { border-color: rgba(255,152,0,0.3); }
-.card-high { border-color: rgba(244,67,54,0.3); }
-.card-extreme { border-color: rgba(156,39,176,0.3); }
+.card-low {
+  border-color: rgba(255,255,255,0.08);
+}
 
-/* GLAVNA VRSTICA KARTICE (KLJUČNI POPRAVEK) */
+.card-medium {
+  border-color: rgba(255,255,255,0.08);
+}
+
+.card-high {
+  border-color: rgba(255,255,255,0.08);
+}
+
+.card-extreme {
+  border-color: rgba(255,255,255,0.08);
+}
 .card-top {
   display: grid;
-  /* Stolpci: Višina(220px) | Temp(180px) | Opis(flex) | Status/Gumb(auto) */
   grid-template-columns: 220px 180px 1fr auto;
   align-items: center;
   padding: 1.8rem 2rem;
   gap: 2rem;
 }
 
-/* Stolpec 1: Višina in Gora */
 .card-altitude-col {
   display: flex;
   flex-direction: column;
@@ -157,7 +168,6 @@
   margin-top: -5px;
 }
 
-/* Stolpec 2: Temperatura */
 .card-temp-col {
   display: flex;
   flex-direction: column;
@@ -190,7 +200,6 @@
   width: fit-content;
 }
 
-/* Stolpec 3: Opis z ikono */
 .card-desc-col {
   display: flex;
   align-items: center;
@@ -208,7 +217,6 @@
   color: #777;
 }
 
-/* Stolpec 4: Badge in Puščica */
 .card-right {
   display: flex;
   align-items: center;
@@ -250,7 +258,6 @@
   border: 1px solid rgba(156,39,176,0.3);
 }
 
-/* RAZŠIRJENI DEL (PODATKI) */
 .card-expanded {
   border-top: 1px solid rgba(255, 255, 255, 0.06);
   padding: 1.5rem 2rem 1.5rem 250px; /* Zamik, da se statistika začne pod temp. stolpcem */
@@ -296,7 +303,11 @@
   border-radius: 2px;
 }
 
-/* Footer */
+.exp-item svg {
+  color: #8FA998;
+  opacity: 0.95;
+}
+
 .weather-footer {
   margin: 2rem 8% 0 8%;
   padding: 1.5rem;
