@@ -22,6 +22,7 @@
 .trails-hero-content {
   position: relative;
   z-index: 1;
+  padding-top: 4rem;
 }
 
 .trails-hero h1 {
@@ -121,15 +122,22 @@
   display: grid;
   grid-template-columns: 180px 1fr auto;
   border-radius: 12px;
-  border: 1px solid #222;
+  border: none;
   overflow: hidden;
   background: #111;
 }
 
-.trail-good { border-color: rgba(76, 175, 80, 0.3); }
-.trail-warn { border-color: rgba(255, 152, 0, 0.3); }
-.trail-bad { border-color: rgba(244, 67, 54, 0.3); }
+.trail-good {
+  border: none;
+}
 
+.trail-warn {
+  border: none;
+}
+
+.trail-bad {
+  border: none;
+}
 
 .trail-img {
   width: 180px;
