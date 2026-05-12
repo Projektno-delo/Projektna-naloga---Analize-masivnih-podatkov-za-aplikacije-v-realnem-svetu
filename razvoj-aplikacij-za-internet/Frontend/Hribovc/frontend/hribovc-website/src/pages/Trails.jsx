@@ -65,7 +65,7 @@ function Trails() {
       </div>
 
       <div className="trails-content">
-        <div className="section-title"><LuStar size="1.1em" color="#4caf50" /><h2>Priporočene poti</h2></div>
+        <div className="section-title"><LuStar size="1.1em" color="#8FA998;" /><h2>Priporočene poti</h2></div>
         <div className="recommended-list">
           {filteredRec.length === 0 && <p style={{color:'#666'}}>Ni rezultatov.</p>}
           {filteredRec.map(trail => (
