@@ -8,9 +8,35 @@ function Login() {
   const [password, setPassword] = useState('')
   const navigate = useNavigate()
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault()
-    navigate('/')
+    
+    try {
+      const response = await fetch('http://localhost:3000/login', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          email,
+          password,
+        }),
+      })
+
+      const data = await response.json()
+
+      if (response.ok) {
+        // Store user data in localStorage for session management
+        localStorage.setItem('user', JSON.stringify(data.user))
+        alert(`Dobrodošli nazaj, ${data.user.ime}!`)
+        navigate('/')
+      } else {
+        alert(data.error || 'Napaka pri prijavi')
+      }
+    } catch (error) {
+      console.error('Login error:', error)
+      alert('Napaka pri povezavi s strežnikom')
+    }
   }
 
   return (
@@ -35,17 +61,17 @@ function Login() {
         <div className="auth-box">
           <h1>Dobrodošli nazaj</h1>
           <p className="auth-sub">Prijavite se v svoj račun</p>
-          <div className="auth-form">
+          <form className="auth-form" onSubmit={handleSubmit}>
             <div className="auth-field">
               <label>Email</label>
-              <input type="email" placeholder="vas@email.com" value={email} onChange={e => setEmail(e.target.value)} />
+              <input type="email" placeholder="vas@email.com" value={email} onChange={e => setEmail(e.target.value)} required />
             </div>
             <div className="auth-field">
               <label>Geslo</label>
-              <input type="password" placeholder="••••••••" value={password} onChange={e => setPassword(e.target.value)} />
+              <input type="password" placeholder="••••••••" value={password} onChange={e => setPassword(e.target.value)} required />
             </div>
-            <button className="auth-btn" onClick={handleSubmit}>Prijava</button>
-          </div>
+            <button type="submit" className="auth-btn">Prijava</button>
+          </form>
           <p className="auth-switch">Nimate računa? <Link to="/register">Registracija</Link></p>
         </div>
       </div>

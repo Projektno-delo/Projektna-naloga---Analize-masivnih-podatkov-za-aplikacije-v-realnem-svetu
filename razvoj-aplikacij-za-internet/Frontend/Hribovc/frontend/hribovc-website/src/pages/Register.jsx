@@ -12,9 +12,37 @@ function Register() {
   const [teza, setTeza] = useState('')
   const navigate = useNavigate()
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault()
-    navigate('/')
+    
+    try {
+      const response = await fetch('http://localhost:3000/register', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          ime,
+          email,
+          password,
+          starost: parseInt(starost) || null,
+          visina: parseInt(visina) || null,
+          teza: parseInt(teza) || null,
+        }),
+      })
+
+      const data = await response.json()
+
+      if (response.ok) {
+        alert('Registracija uspešna! Sedaj se lahko prijavite.')
+        navigate('/login')
+      } else {
+        alert(data.error || 'Napaka pri registraciji')
+      }
+    } catch (error) {
+      console.error('Registration error:', error)
+      alert('Napaka pri povezavi s strežnikom')
+    }
   }
 
   return (

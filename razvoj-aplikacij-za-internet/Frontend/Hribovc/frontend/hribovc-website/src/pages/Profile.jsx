@@ -1,6 +1,6 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import './Profile.css';
-import sloveniaMap from '../assets/Slovenia_silhouette.png'; 
+
 import { 
   LuMountain, LuList, LuPlus, LuTrendingUp, 
   LuClock, LuChevronRight, LuCircleCheck, LuTriangleAlert
@@ -8,6 +8,14 @@ import {
 
 const Profil = () => {
   const [activeTab, setActiveTab] = useState('pregled');
+  const [user, setUser] = useState(null);
+
+  useEffect(() => {
+    const storedUser = localStorage.getItem('user');
+    if (storedUser) {
+      setUser(JSON.parse(storedUser));
+    }
+  }, []);
 
   const nedavniPohodi = [
     {
@@ -59,9 +67,9 @@ const Profil = () => {
             </div>
 
             <div className="user-basic-info">
-              <h2>User name</h2>
-              <p className="location-text">Njegovo prebivalisce</p>
-              <p className="member-since">Od kdaj je član</p>
+              <h2>{user ? user.ime : 'User name'}</h2>
+              <p className="location-text">{user ? user.email : 'Njegovo prebivalisce'}</p>
+              <p className="member-since">Član od {user ? new Date(user.createdAt).toLocaleDateString('sl-SI') : 'kdaj'}</p>
             </div>
 
             <nav className="sidebar-nav">
@@ -133,7 +141,10 @@ const Profil = () => {
                   </div>
                   
                   <div className="map-viz-container">
-                    <img src={sloveniaMap} alt="Zemljevid" className="slovenia-map-img" />
+                    <div className="map-placeholder">
+                      <LuMountain size={80} color="#8FA998" />
+                      <p>Zemljevid bo kmalu dostopen</p>
+                    </div>
                     
                     <div className="map-overlay">
                       <div className="marker" style={{ top: '35%', left: '30%' }}>
