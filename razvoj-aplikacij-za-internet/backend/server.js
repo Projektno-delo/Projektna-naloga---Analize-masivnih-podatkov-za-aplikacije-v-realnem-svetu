@@ -154,6 +154,99 @@ const server = http.createServer(async (req, res) => {
     return;
   }
 
+  // GET all trails
+  if (req.method === 'GET' && req.url === '/trails') {
+    try {
+      const trailsCollection = await getCollection('trails');
+      const trails = await trailsCollection.find({}).toArray();
+      
+      res.writeHead(200, {
+        'Content-Type': 'application/json',
+        ...corsHeaders,
+      });
+      res.end(JSON.stringify(trails));
+    } catch (error) {
+      res.writeHead(500, {
+        'Content-Type': 'application/json',
+        ...corsHeaders,
+      });
+      res.end(JSON.stringify({ error: error.message || String(error) }));
+    }
+    return;
+  }
+
+  // GET single trail by ID
+  if (req.method === 'GET' && req.url.startsWith('/trails/')) {
+    try {
+      const trailId = req.url.split('/')[2];
+      const { ObjectId } = require('mongodb');
+      const trailsCollection = await getCollection('trails');
+      
+      let trail;
+      try {
+        trail = await trailsCollection.findOne({ _id: new ObjectId(trailId) });
+      } catch {
+        trail = await trailsCollection.findOne({ name: trailId });
+      }
+      
+      if (!trail) {
+        res.writeHead(404, {
+          'Content-Type': 'application/json',
+          ...corsHeaders,
+        });
+        res.end(JSON.stringify({ error: 'Trail not found' }));
+        return;
+      }
+      
+      res.writeHead(200, {
+        'Content-Type': 'application/json',
+        ...corsHeaders,
+      });
+      res.end(JSON.stringify(trail));
+    } catch (error) {
+      res.writeHead(500, {
+        'Content-Type': 'application/json',
+        ...corsHeaders,
+      });
+      res.end(JSON.stringify({ error: error.message || String(error) }));
+    }
+    return;
+  }
+
+  // POST scrape trails (admin endpoint)
+  if (req.method === 'POST' && req.url === '/scrape-trails') {
+    try {
+      console.log('Starting trail scrape...');
+      const { scrapeAndSaveTrails } = require('./trail-scraper');
+      
+      scrapeAndSaveTrails()
+        .then(trails => {
+          res.writeHead(200, {
+            'Content-Type': 'application/json',
+            ...corsHeaders,
+          });
+          res.end(JSON.stringify({ 
+            message: `Successfully scraped and saved ${trails.length} trails`,
+            trails: trails 
+          }));
+        })
+        .catch(err => {
+          res.writeHead(500, {
+            'Content-Type': 'application/json',
+            ...corsHeaders,
+          });
+          res.end(JSON.stringify({ error: err.message }));
+        });
+    } catch (error) {
+      res.writeHead(500, {
+        'Content-Type': 'application/json',
+        ...corsHeaders,
+      });
+      res.end(JSON.stringify({ error: error.message || String(error) }));
+    }
+    return;
+  }
+
   res.writeHead(404, { 'Content-Type': 'text/plain' });
   res.end('Not found');
 });
