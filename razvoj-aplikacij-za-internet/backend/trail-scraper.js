@@ -4,173 +4,165 @@ const { getCollection, connect } = require('./db');
 
 const BASE_URL = 'https://www.hribi.net';
 
-// Scrape all trails from Hribi.net
-async function scrapeTrails() {
-  try {
-    console.log('Starting trail scraping from hribi.net...');
-    const trails = [];
-    
-    // Popular Slovenian hiking categories/regions
-    const regions = [
-      '/poti/slovenija/triglav',
-      '/poti/slovenija/pohorje',
-      '/poti/slovenija/karawanke',
-      '/poti/slovenija/savinja-alps',
-    ];
+// Slovenian hiking regions
+const REGIONS = [
+  { name: 'Julijske Alpe', url: '/gorovje/julijske_alpe/1' },
+  { name: 'Karavanke', url: '/gorovje/karavanke/11' },
+  { name: 'Kamniško-Savinjske Alpe', url: '/gorovje/kamnisko_savinjske_alpe/3' },
+  { name: 'Pohorje', url: '/gorovje/pohorje_dravinjske_gorice_in_haloze/4' },
+];
 
-    for (const region of regions) {
-      try {
-        const response = await axios.get(`${BASE_URL}${region}`, {
-          headers: {
-            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
-          },
-          timeout: 10000
-        });
-
-        const $ = cheerio.load(response.data);
-        
-        // Scrape trail links
-        $('a[href*="/pot/"]').each((idx, element) => {
-          const href = $(element).attr('href');
-          const name = $(element).text().trim();
-          
-          if (href && name && !trails.some(t => t.url === href)) {
-            trails.push({
-              name: name,
-              url: `${BASE_URL}${href}`,
-              region: region.split('/').pop(),
-              scraped: false
-            });
-          }
-        });
-
-        console.log(`Found ${trails.length} trails so far...`);
-      } catch (error) {
-        console.error(`Error scraping region ${region}:`, error.message);
-      }
-    }
-
-    return trails.slice(0, 50); // Limit to first 50 for testing
-  } catch (error) {
-    console.error('Error in scrapeTrails:', error.message);
-    throw error;
-  }
-}
-
-// Scrape individual trail details
-async function scrapeTrailDetails(trailUrl) {
-  try {
-    const response = await axios.get(trailUrl, {
-      headers: {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
-      },
-      timeout: 10000
-    });
-
-    const $ = cheerio.load(response.data);
-    
-    // Extract trail information
-    const title = $('h1').first().text().trim();
-    const description = $('meta[name="description"]').attr('content') || '';
-    
-    // Try to extract difficulty, elevation, duration
-    let difficulty = 'srednje';
-    let elevation = 0;
-    let duration = '';
-    let distance = 0;
-
-    // Look for difficulty indicators
-    const diffText = $('body').text();
-    if (diffText.includes('lahka') || diffText.includes('easy')) difficulty = 'lahka';
-    if (diffText.includes('zahtevna') || diffText.includes('hard')) difficulty = 'zahtevna';
-
-    // Extract numeric data from page text
-    const elevMatch = diffText.match(/(\d{3,4})\s*m/);
-    if (elevMatch) elevation = parseInt(elevMatch[1]);
-
-    const distMatch = diffText.match(/(\d+(?:\.\d+)?)\s*km/);
-    if (distMatch) distance = parseFloat(distMatch[1]);
-
-    const durationMatch = diffText.match(/(\d+)\s*h/);
-    if (durationMatch) duration = `${durationMatch[1]}h`;
-
-    return {
-      name: title || 'Neznana pot',
-      description: description,
-      difficulty: difficulty,
-      elevation: elevation,
-      distance: distance,
-      duration: duration,
-      url: trailUrl,
-      sourceWebsite: 'hribi.net',
-      scrapedAt: new Date()
-    };
-  } catch (error) {
-    console.error(`Error scraping trail details from ${trailUrl}:`, error.message);
-    return null;
-  }
-}
-
-// Main scrape and save function
 async function scrapeAndSaveTrails() {
   try {
     await connect();
-    
-    console.log('Fetching trail listings...');
-    const trailListings = await scrapeTrails();
-    
-    console.log(`Found ${trailListings.length} trails to process`);
-    
     const trailsCollection = await getCollection('trails');
-    const savedTrails = [];
-
-    // Scrape details for each trail
-    for (let i = 0; i < trailListings.length; i++) {
-      console.log(`Processing trail ${i + 1}/${trailListings.length}: ${trailListings[i].name}`);
-      
-      const trailDetails = await scrapeTrailDetails(trailListings[i].url);
-      
-      if (trailDetails) {
-        // Check if trail already exists
-        const existing = await trailsCollection.findOne({ url: trailDetails.url });
-        
-        if (!existing) {
-          await trailsCollection.insertOne(trailDetails);
-          savedTrails.push(trailDetails);
-          console.log(` Saved: ${trailDetails.name}`);
-        } else {
-          console.log(`- Already exists: ${trailDetails.name}`);
-        }
-      }
-      
-      // Be nice to the server - add delay between requests
-      await new Promise(resolve => setTimeout(resolve, 1000));
+    
+    // Check if we already have trails to avoid re-scraping
+    const count = await trailsCollection.countDocuments();
+    if (count > 0) {
+      console.log(`Database already contains ${count} trails. Skipping initial scrape.`);
+      return [];
     }
 
-    console.log(`\n✓ Scraping complete! Saved ${savedTrails.length} new trails`);
-    return savedTrails;
+    console.log('Starting trail scraping from hribi.net...');
+    const allTrails = [];
+
+    for (const region of REGIONS) {
+      console.log(`\n--- Region: ${region.name} ---`);
+      try {
+        const response = await axios.get(`${BASE_URL}${region.url}`, {
+          headers: { 'User-Agent': 'Mozilla/5.0' },
+          timeout: 10000
+        });
+        const $ = cheerio.load(response.data);
+        
+        // Find mountain links (vrhovi)
+        const mountainLinks = [];
+        $('a[href^="/gora/"]').each((idx, el) => {
+          const href = $(el).attr('href');
+          if (href && !mountainLinks.includes(href)) {
+            mountainLinks.push(href);
+          }
+        });
+
+        console.log(`Found ${mountainLinks.length} mountains in ${region.name}.`);
+
+        // Process a subset of mountains (e.g., first 5-10 to be efficient)
+        for (const mountainHref of mountainLinks.slice(0, 8)) {
+          try {
+            console.log(`  Scraping mountain: ${mountainHref}`);
+            const mountainResponse = await axios.get(`${BASE_URL}${mountainHref}`, {
+              headers: { 'User-Agent': 'Mozilla/5.0' },
+              timeout: 10000
+            });
+            const $m = cheerio.load(mountainResponse.data);
+            
+            // Look for trails in the table
+            const trailRows = $m('table tr').toArray();
+            for (const tr of trailRows) {
+              const trailLink = $m(tr).find('a[href^="/izlet/"]').first();
+              if (trailLink.length > 0) {
+                let name = trailLink.text().trim();
+                const relativeUrl = trailLink.attr('href');
+                const duration = $m(tr).find('td:nth-child(2)').text().trim();
+                const difficulty = $m(tr).find('td:nth-child(3)').text().trim();
+                
+                // Clean name: if it contains duration or difficulty, strip them
+                // Sometimes .text() captures child spans even if we don't want them
+                if (duration && name.includes(duration)) {
+                  name = name.split(duration)[0].trim();
+                }
+
+                if (name && relativeUrl) {
+                  const trailUrl = `${BASE_URL}${relativeUrl}`;
+                  console.log(`    Fetching details for: ${name}`);
+                  
+                  let elevation = '';
+                  let distance = '';
+                  
+                  try {
+                    const trailPageResponse = await axios.get(trailUrl, {
+                      headers: { 'User-Agent': 'Mozilla/5.0' },
+                      timeout: 10000
+                    });
+                    const $t = cheerio.load(trailPageResponse.data);
+                    
+                    const detailsText = $t('.naslov_desno').text() || $t('body').text();
+                    
+                    const elevMatch = detailsText.match(/Višinska razlika:\s*([\d\s]+)m/i) || detailsText.match(/(\d{3,4})\s*m/);
+                    if (elevMatch) elevation = elevMatch[1].trim();
+                    
+                    const distMatch = detailsText.match(/Dolžina:\s*([\d,.]+)\s*km/i) || detailsText.match(/(\d+(?:[.,]\d+)?)\s*km/);
+                    if (distMatch) distance = distMatch[1].trim();
+
+                    if (!elevation) {
+                       $t('table.izlet_podatki tr').each((i, row) => {
+                         const label = $t(row).find('td').first().text();
+                         if (label.includes('Višina cilja')) {
+                           elevation = $t(row).find('td').last().text().trim();
+                         }
+                       });
+                    }
+                  } catch (e) {
+                    console.error(`      Error fetching trail details: ${e.message}`);
+                  }
+
+                  const trailData = {
+                    name: name,
+                    url: trailUrl,
+                    region: region.name,
+                    mountain: $m('h1').first().text().trim(),
+                    duration: duration || 'N/A',
+                    difficulty: difficulty.toLowerCase() || 'srednje',
+                    elevation: elevation,
+                    distance: distance,
+                    scrapedAt: new Date()
+                  };
+                  
+                  allTrails.push(trailData);
+                  await new Promise(resolve => setTimeout(resolve, 300));
+                }
+              }
+              if (allTrails.length >= 50) break;
+            }
+            
+            // Be nice to the server
+            await new Promise(resolve => setTimeout(resolve, 500));
+          } catch (err) {
+            console.error(`  Error scraping mountain ${mountainHref}:`, err.message);
+          }
+          
+          if (allTrails.length >= 50) break;
+        }
+      } catch (error) {
+        console.error(`Error scraping region ${region.name}:`, error.message);
+      }
+      
+      if (allTrails.length >= 100) break;
+    }
+
+    if (allTrails.length > 0) {
+      console.log(`\nSaving ${allTrails.length} trails to database...`);
+      // Use bulk insert for efficiency
+      // First, filter out potential duplicates (though we checked count > 0 at start)
+      await trailsCollection.insertMany(allTrails);
+      console.log('✓ Successfully saved all trails!');
+    }
+
+    return allTrails;
   } catch (error) {
     console.error('Fatal error in scrapeAndSaveTrails:', error);
     throw error;
   }
 }
 
-// Export for use as API endpoint or standalone script
 module.exports = {
-  scrapeTrails,
-  scrapeTrailDetails,
   scrapeAndSaveTrails
 };
 
-// Run if called directly
 if (require.main === module) {
   scrapeAndSaveTrails()
-    .then(trails => {
-      console.log('Done!');
-      process.exit(0);
-    })
-    .catch(err => {
-      console.error('Error:', err);
-      process.exit(1);
-    });
+    .then(() => process.exit(0))
+    .catch(() => process.exit(1));
 }
+
