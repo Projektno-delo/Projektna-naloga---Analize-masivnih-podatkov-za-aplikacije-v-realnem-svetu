@@ -22,7 +22,7 @@ function Navbar() {
   return (
     <nav className="navbar">
       <Link to="/" className="navbar-logo">
-      Hribovc
+        HRIBOVC
       </Link>
       <div className="navbar-links">
         <NavLink to="/" end className={({ isActive }) => isActive ? 'active' : ''}>
