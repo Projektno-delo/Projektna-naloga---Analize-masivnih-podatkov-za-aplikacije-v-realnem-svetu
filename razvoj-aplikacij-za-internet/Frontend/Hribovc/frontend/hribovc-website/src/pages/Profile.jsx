@@ -1,5 +1,10 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import './Profile.css';
+
+import sloveniaMap from '../assets/Slovenia_silhouette.png'; 
+import italiaMap from '../assets/italia_silhueta.png';
+import hungaryMap from '../assets/hungary-map-silhouette.png'; 
+import austriaMap from '../assets/austria_silhuete.png'; 
 
 import { 
   LuMountain, LuList, LuPlus, LuTrendingUp, LuClock, 
@@ -173,9 +178,9 @@ const Profil = () => {
           <div className="sidebar-content-wrapper">
             <div className="avatar-circle-huge"><LuMountain size={100} color="#ff6b35" /></div>
             <div className="user-basic-info">
-              <h2>{user ? user.ime : 'User name'}</h2>
-              <p className="location-text">{user ? user.email : 'Njegovo prebivalisce'}</p>
-              <p className="member-since">Član od {user ? new Date(user.createdAt).toLocaleDateString('sl-SI') : 'kdaj'}</p>
+              <h2>User name</h2>
+              <p className="location-text">Njegovo prebivalisce</p>
+              <p className="member-since">Od kdaj je član</p>
             </div>
             <nav className="sidebar-nav">
               <button className={`nav-btn ${activeTab === 'pregled' ? 'active' : ''}`} onClick={() => setActiveTab('pregled')}><LuTrendingUp size={20} /> Statistika</button>
