@@ -252,7 +252,21 @@ const server = http.createServer(async (req, res) => {
 });
 
 connect()
-  .then(() => {
+  .then(async () => {
+    // Run trail scraper once on startup if database is empty
+    try {
+      const { scrapeAndSaveTrails } = require('./trail-scraper');
+      const trailsCollection = await getCollection('trails');
+      const count = await trailsCollection.countDocuments();
+      if (count === 0) {
+        console.log('Trails database is empty, starting initial scrape...');
+        // We don't await this to avoid blocking server startup
+        scrapeAndSaveTrails().catch(err => console.error('Initial scrape failed:', err));
+      }
+    } catch (err) {
+      console.error('Error checking trails database:', err);
+    }
+
     server.listen(PORT, () => {
       console.log(`Server listening on http://localhost:${PORT}`);
     });

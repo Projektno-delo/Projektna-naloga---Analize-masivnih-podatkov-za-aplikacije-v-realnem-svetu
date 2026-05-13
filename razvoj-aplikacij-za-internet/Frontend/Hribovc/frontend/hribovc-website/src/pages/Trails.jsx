@@ -53,22 +53,30 @@ function Trails() {
         const data = await response.json()
         
         // Process trails and add default values
-        const processedTrails = data.map((trail, idx) => ({
-          ...trail,
-          id: trail._id || idx,
-          difficulty: trail.difficulty || 'srednje',
-          diffClass: getDifficultyClass(trail.difficulty),
-          location: trail.region || 'Slovenija',
-          time: trail.duration || '5h',
-          elevation: trail.elevation ? `${trail.elevation} m` : '1000 m',
-          distance: trail.distance ? `${trail.distance} km` : '10 km',
-          score: 70,
-          status: 'DOSTOPNO',
-          statusDesc: 'Pot je dostopna',
-          statusClass: 'good',
-          img: getImageForTrail(trail),
-          region: trail.region || 'Slovenija'
-        }))
+        const processedTrails = data.map((trail, idx) => {
+          const rawDifficulty = trail.difficulty?.toLowerCase() || 'srednje';
+          let difficulty = 'srednja';
+          if (rawDifficulty.includes('lahka')) difficulty = 'lahka';
+          if (rawDifficulty.includes('zahtevna')) difficulty = 'zahtevna';
+          if (rawDifficulty.includes('zelo zahtevna')) difficulty = 'zelo zahtevna';
+
+          return {
+            ...trail,
+            id: trail._id || idx,
+            difficulty: difficulty,
+            diffClass: getDifficultyClass(rawDifficulty),
+            location: trail.mountain ? `${trail.mountain}, ${trail.region}` : trail.region || 'Slovenija',
+            time: trail.duration || 'N/A',
+            elevation: trail.elevation ? (trail.elevation.includes('m') ? trail.elevation : `${trail.elevation} m`) : 'N/A',
+            distance: trail.distance ? (trail.distance.includes('km') ? trail.distance : `${trail.distance} km`) : 'N/A',
+            score: 70 + Math.floor(Math.random() * 20), // Placeholder score
+            status: 'DOSTOPNO',
+            statusDesc: 'Pot je dostopna',
+            statusClass: 'good',
+            img: getImageForTrail(trail),
+            region: trail.region || 'Slovenija'
+          };
+        })
         
         setTrails(processedTrails)
         setError(null)
