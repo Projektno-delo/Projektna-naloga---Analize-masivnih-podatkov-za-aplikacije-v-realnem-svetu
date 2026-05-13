@@ -1,114 +1,87 @@
 const axios = require('axios');
 const cheerio = require('cheerio');
 
+const STATIONS = [
+  { id: 'dolina', name: 'Dolina', location: 'Ljubljana', altitude: '300 m', url: 'https://meteo.arso.gov.si/uploads/probase/www/observ/surface/text/sl/observation_LJUBL-ANA_BEZIGRAD_latest.xml' },
+  { id: 'sredogorje', name: 'Sredogorje', location: 'Vogel', altitude: '1500 m', url: 'https://meteo.arso.gov.si/uploads/probase/www/observ/surface/text/sl/observation_VOGEL_latest.xml' },
+  { id: 'visokogorje', name: 'Visokogorje', location: 'Kredarica', altitude: '2500 m', url: 'https://meteo.arso.gov.si/uploads/probase/www/observ/surface/text/sl/observation_KREDA-ICA_latest.xml' }
+];
+
+function calculateRisk(temp, windSpeed) {
+  const wind = parseFloat(windSpeed) || 0;
+  const t = parseFloat(temp) || 20;
+
+  if (wind > 60 || t < -10) return { risk: 'extreme', riskLabel: 'Ekstremno' };
+  if (wind > 40 || t < 0) return { risk: 'high', riskLabel: 'Nevarno' };
+  if (wind > 20 || t < 10) return { risk: 'medium', riskLabel: 'Previdno' };
+  return { risk: 'low', riskLabel: 'Varno' };
+}
+
+function getDescription(risk) {
+  switch (risk) {
+    case 'low': return { title: 'Jasno in sončno.', sub: 'Idealni pogoji za pohod.' };
+    case 'medium': return { title: 'Zmeren veter.', sub: 'Bodite previdni pri višjih predelih.' };
+    case 'high': return { title: 'Močan veter.', sub: 'Odsvetujemo vzpon za manj izkušene.' };
+    case 'extreme': return { title: 'Zelo močan veter / mraz.', sub: 'Vzpon je nevaren.' };
+    default: return { title: 'Podatki niso na voljo.', sub: '' };
+  }
+}
+
 async function scrapeWeather() {
-  const postaja = 'https://meteo.arso.gov.si/uploads/probase/www/observ/surface/text/sl/observation_LJUBL-ANA_BEZIGRAD_latest.xml';
-  const odgovor = await axios.get(postaja);
+  const results = [];
 
-  const $xml = cheerio.load(odgovor.data, { xmlMode: true });
+  for (const station of STATIONS) {
+    try {
+      const response = await axios.get(station.url, { timeout: 10000 });
+      const $xml = cheerio.load(response.data, { xmlMode: true });
 
-  const temperatura = $xml('t').first().text();
-  const veter_v_km_h = $xml('ff_val_kmh').first().text();
-  const smer_vetra = $xml('dd_longText').first().text();
+      const temp = $xml('t').first().text();
+      const windSpeed = $xml('ff_val_kmh').first().text();
+      const windDir = $xml('dd_shortText').first().text();
+      const humidity = $xml('rh').first().text();
+      const pressure = $xml('p').first().text();
+      const visibility = $xml('vis_value').first().text() + ' ' + $xml('vis_unit').first().text();
+      const time = $xml('tsValid_issued').first().text();
 
-  const vlaga = $xml('rh').first().text();
-  const tlak = $xml('p').first().text();
-  const vidljivost_value = $xml('vis_value').first().text();
-  const vidljivost_unit = $xml('vis_unit').first().text();
-  const padavine = $xml('rr24h_val').first().text();
-  const cas_meritve = $xml('tsValid_issued').first().text();
-  const rosa_point = $xml('td').first().text();
-  const tlak_morje = $xml('msl').first().text();
+      const { risk, riskLabel } = calculateRisk(temp, windSpeed);
+      const { title, sub } = getDescription(risk);
 
-  let temperatureOutput = 'Not found';
-  if (temperatura) {
-    temperatureOutput = `${temperatura} °C`;
+      results.push({
+        id: station.id,
+        altitude: station.altitude,
+        location: station.location,
+        temp: temp ? `${temp}°C` : 'N/A',
+        feelsLike: temp ? `${(parseFloat(temp) - 2).toFixed(0)}°C` : 'N/A', // Simple approximation
+        wind: windSpeed ? `${windSpeed} km/h` : 'N/A',
+        windDir: windDir || 'N/A',
+        risk: risk,
+        riskLabel: riskLabel,
+        humidity: parseInt(humidity) || 0,
+        pressure: pressure ? `${pressure} hPa` : 'N/A',
+        visibility: visibility.trim() || 'N/A',
+        descTitle: title,
+        descSub: sub,
+        updatedAt: time
+      });
+    } catch (error) {
+      console.error(`Error scraping station ${station.name}:`, error.message);
+      // Fallback for this station if needed
+    }
   }
 
-  let wind = 'Not found';
-  if (veter_v_km_h) {
-    wind = `${veter_v_km_h} km/h`;
-  }
-
-  let windDirection = 'Not found';
-  if (smer_vetra) {
-    windDirection = smer_vetra;
-  }
-
-  let humidity = 'Not found';
-  if (vlaga) {
-    humidity = `${vlaga} %`;
-  }
-
-  let pressure = 'Not found';
-  if (tlak) {
-    pressure = `${tlak} hPa`;
-  }
-
-  let visibility = 'Not found';
-  if (vidljivost_value && vidljivost_unit) {
-    visibility = `${vidljivost_value} ${vidljivost_unit}`;
-  }
-
-  let precipitation = '0 mm';
-  if (padavine) {
-    precipitation = `${padavine} mm`;
-  }
-
-  let measurementTime = 'Not found';
-  if (cas_meritve) {
-    measurementTime = cas_meritve;
-  }
-
-  let dewPoint = 'Not found';
-  if (rosa_point) {
-    dewPoint = `${rosa_point} °C`;
-  }
-
-  let seaLevelPressure = 'Not found';
-  if (tlak_morje) {
-    seaLevelPressure = `${tlak_morje} hPa`;
-  }
-
-  const url = 'https://meteo.arso.gov.si/uploads/probase/www/warning/text/sl/bundle/warning_TS_si-region_d1.html';
-  const response = await axios.get(url);
-  const $ts = cheerio.load(response.data);
-  const text = $ts('body').text();
-  let thunderstorms = 'Thunderstorms possible';
-  if (text.includes('Dodatnega opozorila ni')) {
-    thunderstorms = 'No thunderstorms';
-  }
-
-  const result = {
-    temperature: temperatureOutput,
-    windSpeed: wind,
-    windDirection,
-    humidity,
-    pressure,
-    visibility,
-    precipitation,
-    measurementTime,
-    dewPoint,
-    seaLevelPressure,
-    thunderstorms,
-  };
-
-  console.log('Temperature:', temperatureOutput);
-  console.log('Wind Speed:', wind);
-  console.log('Wind Direction:', windDirection);
-  console.log('Humidity:', humidity);
-  console.log('Pressure:', pressure);
-  console.log('Visibility:', visibility);
-  console.log('Precipitation:', precipitation);
-  console.log('Thunderstorms:', thunderstorms);
-
-  return result;
+  return results;
 }
 
 if (require.main === module) {
-  scrapeWeather().catch((error) => {
-    console.error('Error scraping:', error.message || error);
-  });
+  scrapeWeather()
+    .then(data => {
+      console.log(JSON.stringify(data, null, 2));
+      process.exit(0);
+    })
+    .catch(err => {
+      console.error('Error:', err);
+      process.exit(1);
+    });
 }
 
-module.exports = { scrapeWeather };
+module.exports = { scrapeWeather };

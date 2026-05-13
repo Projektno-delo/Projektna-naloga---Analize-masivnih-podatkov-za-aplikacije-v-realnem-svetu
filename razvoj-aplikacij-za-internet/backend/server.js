@@ -23,7 +23,7 @@ const server = http.createServer(async (req, res) => {
     try {
       const data = await scrapeWeather();
       const collection = await getCollection('weather');
-      const document = { ...data, scrapedAt: new Date() };
+      const document = { stations: data, scrapedAt: new Date() };
       await collection.insertOne(document);
 
       res.writeHead(200, {
@@ -31,6 +31,28 @@ const server = http.createServer(async (req, res) => {
         ...corsHeaders,
       });
       res.end(JSON.stringify(data));
+    } catch (error) {
+      res.writeHead(500, {
+        'Content-Type': 'application/json',
+        ...corsHeaders,
+      });
+      res.end(JSON.stringify({ error: error.message || String(error) }));
+    }
+    return;
+  }
+
+  // GET latest weather
+  if (req.method === 'GET' && req.url === '/weather') {
+    try {
+      const collection = await getCollection('weather');
+      // Get the most recent weather document
+      const latestWeather = await collection.find({}).sort({ scrapedAt: -1 }).limit(1).toArray();
+      
+      res.writeHead(200, {
+        'Content-Type': 'application/json',
+        ...corsHeaders,
+      });
+      res.end(JSON.stringify(latestWeather[0] || { stations: [] }));
     } catch (error) {
       res.writeHead(500, {
         'Content-Type': 'application/json',
