@@ -331,7 +331,8 @@ const Profil = () => {
                   <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
                   <MapEvents isDrawing={isDrawing} setPathPoints={setPathPoints} />
                   <Polyline positions={pathPoints} color="#ff6b35" weight={5} />
-                  {pathPoints.map((pos, idx) => <Marker key={idx} position={pos} />)}
+                  {pathPoints.map((pos, idx) => <Marker key={`path-${idx}`} position={pos} />)}
+
                 </MapContainer>
               </div>
             </div>
