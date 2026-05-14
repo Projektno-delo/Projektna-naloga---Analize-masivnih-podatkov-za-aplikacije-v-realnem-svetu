@@ -77,7 +77,7 @@ Samodejna obvestila ob poslabšanju vremena glede na GPS lokacijo z uporabo .ale
 
 ---BACKEND---
 
-cd \Users\Ziga\Documents\GitHub\Projektna-naloga---Analize-masivnih-podatkov-za-aplikacije-v-realnem-svetu\razvoj-aplikacij-za-internet\backend  
+cd C:\Users\Ziga\Desktop\Projektna-naloga---Analize-masivnih-podatkov-za-aplikacije-v-realnem-svetu\razvoj-aplikacij-za-internet\backend
 
 node server.js
 
@@ -85,8 +85,11 @@ node server.js
 
 ---FRONTEND---
 
-cd "C:\Users\Ziga\Documents\GitHub\Projektna-naloga---Analize-masivnih-podatkov-za-aplikacije-v-realnem-svetu\razvoj-aplikacij-za-internet\Frontend\Hribovc\frontend\hribovc-website"
 
+cd "C:\Users\Ziga\Desktop\Projektna-naloga---Analize-masivnih-podatkov-za-aplikacije-v-realnem-svetu\razvoj-aplikacij-za-internet\Frontend\Hribovc\frontend\hribovc-website"
+
+npm install
+npm install leaflet react-leaflet
 npm run dev
 
 ----;
