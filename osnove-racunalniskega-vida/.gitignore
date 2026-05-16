@@ -1,0 +1,3 @@
+__pycache__/
+data/users/
+data/login-attempts.jsonl

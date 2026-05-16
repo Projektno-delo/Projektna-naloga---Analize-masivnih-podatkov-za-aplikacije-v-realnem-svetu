@@ -5,14 +5,12 @@ const { getCollection, connect } = require('./db');
 const PORT = 3000;
 
 const server = http.createServer(async (req, res) => {
-  // CORS headers
   const corsHeaders = {
     'Access-Control-Allow-Origin': '*',
     'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
     'Access-Control-Allow-Headers': 'Content-Type',
   };
 
-  // Handle preflight requests
   if (req.method === 'OPTIONS') {
     res.writeHead(200, corsHeaders);
     res.end();
@@ -41,11 +39,9 @@ const server = http.createServer(async (req, res) => {
     return;
   }
 
-  // GET latest weather
   if (req.method === 'GET' && req.url === '/weather') {
     try {
       const collection = await getCollection('weather');
-      // Get the most recent weather document
       const latestWeather = await collection.find({}).sort({ scrapedAt: -1 }).limit(1).toArray();
       
       res.writeHead(200, {
@@ -77,7 +73,6 @@ const server = http.createServer(async (req, res) => {
         console.log('Parsed user data:', userData);
         const usersCollection = await getCollection('users');
 
-        // Check if user already exists
         const existingUser = await usersCollection.findOne({ email: userData.email });
         if (existingUser) {
           res.writeHead(400, {
@@ -88,11 +83,10 @@ const server = http.createServer(async (req, res) => {
           return;
         }
 
-        // Create new user
         const newUser = {
           ime: userData.ime,
           email: userData.email,
-          password: userData.password, // In production, hash this password!
+          password: userData.password,
           starost: userData.starost,
           visina: userData.visina,
           teza: userData.teza,
@@ -128,7 +122,6 @@ const server = http.createServer(async (req, res) => {
         const loginData = JSON.parse(body);
         const usersCollection = await getCollection('users');
 
-        // Find user by email
         const user = await usersCollection.findOne({ email: loginData.email });
         if (!user) {
           res.writeHead(401, {
@@ -138,8 +131,6 @@ const server = http.createServer(async (req, res) => {
           res.end(JSON.stringify({ error: 'Invalid email or password' }));
           return;
         }
-
-        // Check password (in production, use proper password hashing)
         if (user.password !== loginData.password) {
           res.writeHead(401, {
             'Content-Type': 'application/json',
@@ -149,7 +140,6 @@ const server = http.createServer(async (req, res) => {
           return;
         }
 
-        // Return user data (excluding password)
         const userResponse = {
           _id: user._id,
           ime: user.ime,
@@ -176,7 +166,6 @@ const server = http.createServer(async (req, res) => {
     return;
   }
 
-  // GET all trails
   if (req.method === 'GET' && req.url === '/trails') {
     try {
       const trailsCollection = await getCollection('trails');
@@ -197,7 +186,6 @@ const server = http.createServer(async (req, res) => {
     return;
   }
 
-  // GET single trail by ID
   if (req.method === 'GET' && req.url.startsWith('/trails/')) {
     try {
       const trailId = req.url.split('/')[2];
@@ -235,7 +223,6 @@ const server = http.createServer(async (req, res) => {
     return;
   }
 
-  // POST scrape trails (admin endpoint)
   if (req.method === 'POST' && req.url === '/scrape-trails') {
     try {
       console.log('Starting trail scrape...');
@@ -275,14 +262,12 @@ const server = http.createServer(async (req, res) => {
 
 connect()
   .then(async () => {
-    // Run trail scraper once on startup if database is empty
     try {
       const { scrapeAndSaveTrails } = require('./trail-scraper');
       const trailsCollection = await getCollection('trails');
       const count = await trailsCollection.countDocuments();
       if (count === 0) {
         console.log('Trails database is empty, starting initial scrape...');
-        // We don't await this to avoid blocking server startup
         scrapeAndSaveTrails().catch(err => console.error('Initial scrape failed:', err));
       }
     } catch (err) {

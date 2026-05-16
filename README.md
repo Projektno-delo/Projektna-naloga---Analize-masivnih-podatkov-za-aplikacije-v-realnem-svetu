@@ -85,11 +85,28 @@ node server.js
 
 ---FRONTEND---
 
-
 cd "C:\Users\Ziga\Desktop\Projektna-naloga---Analize-masivnih-podatkov-za-aplikacije-v-realnem-svetu\razvoj-aplikacij-za-internet\Frontend\Hribovc\frontend\hribovc-website"
 
 npm install
+
 npm install leaflet react-leaflet
+
 npm run dev
 
 ----;
+
+## 7. ORV 2FA face login
+
+To register your face:
+
+python .\detect-face.py register ziga
+A camera window opens. Look at the camera and press SPACE several times until it captures enough samples. Press q to quit.
+
+Then test login:
+
+python .\detect-face.py login ziga
+Again, look at the camera and press SPACE to verify. It will print LOGIN DOVOLJEN or LOGIN ZAVRNJEN.
+
+To process existing raw images:
+
+python .\detect-face.py preprocess
