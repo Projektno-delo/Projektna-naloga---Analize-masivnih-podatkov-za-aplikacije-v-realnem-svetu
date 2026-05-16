@@ -51,7 +51,7 @@ async function scrapeWeather() {
         altitude: station.altitude,
         location: station.location,
         temp: temp ? `${temp}°C` : 'N/A',
-        feelsLike: temp ? `${(parseFloat(temp) - 2).toFixed(0)}°C` : 'N/A', // Simple approximation
+        feelsLike: temp ? `${(parseFloat(temp) - 2).toFixed(0)}°C` : 'N/A',
         wind: windSpeed ? `${windSpeed} km/h` : 'N/A',
         windDir: windDir || 'N/A',
         risk: risk,
@@ -65,7 +65,6 @@ async function scrapeWeather() {
       });
     } catch (error) {
       console.error(`Error scraping station ${station.name}:`, error.message);
-      // Fallback for this station if needed
     }
   }
 
@@ -84,4 +83,4 @@ if (require.main === module) {
     });
 }
 
-module.exports = { scrapeWeather };
+module.exports = { scrapeWeather };

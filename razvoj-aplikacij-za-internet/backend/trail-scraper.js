@@ -4,7 +4,6 @@ const { getCollection, connect } = require('./db');
 
 const BASE_URL = 'https://www.hribi.net';
 
-// Slovenian hiking regions
 const REGIONS = [
   { name: 'Julijske Alpe', url: '/gorovje/julijske_alpe/1' },
   { name: 'Karavanke', url: '/gorovje/karavanke/11' },
@@ -17,14 +16,11 @@ async function scrapeAndSaveTrails() {
     await connect();
     const trailsCollection = await getCollection('trails');
     
-    // Check if we already have trails to avoid re-scraping
     const count = await trailsCollection.countDocuments();
     if (count > 0) {
       console.log(`Database already contains ${count} trails. Skipping initial scrape.`);
       return [];
     }
-
-    console.log('Starting trail scraping from hribi.net...');
     const allTrails = [];
 
     for (const region of REGIONS) {
@@ -36,7 +32,6 @@ async function scrapeAndSaveTrails() {
         });
         const $ = cheerio.load(response.data);
         
-        // Find mountain links (vrhovi)
         const mountainLinks = [];
         $('a[href^="/gora/"]').each((idx, el) => {
           const href = $(el).attr('href');
@@ -47,7 +42,6 @@ async function scrapeAndSaveTrails() {
 
         console.log(`Found ${mountainLinks.length} mountains in ${region.name}.`);
 
-        // Process a subset of mountains (e.g., first 5-10 to be efficient)
         for (const mountainHref of mountainLinks.slice(0, 8)) {
           try {
             console.log(`  Scraping mountain: ${mountainHref}`);
@@ -57,7 +51,6 @@ async function scrapeAndSaveTrails() {
             });
             const $m = cheerio.load(mountainResponse.data);
             
-            // Look for trails in the table
             const trailRows = $m('table tr').toArray();
             for (const tr of trailRows) {
               const trailLink = $m(tr).find('a[href^="/izlet/"]').first();
@@ -67,8 +60,6 @@ async function scrapeAndSaveTrails() {
                 const duration = $m(tr).find('td:nth-child(2)').text().trim();
                 const difficulty = $m(tr).find('td:nth-child(3)').text().trim();
                 
-                // Clean name: if it contains duration or difficulty, strip them
-                // Sometimes .text() captures child spans even if we don't want them
                 if (duration && name.includes(duration)) {
                   name = name.split(duration)[0].trim();
                 }
@@ -104,7 +95,7 @@ async function scrapeAndSaveTrails() {
                        });
                     }
                   } catch (e) {
-                    console.error(`      Error fetching trail details: ${e.message}`);
+                    console.error(`Error fetching trail details: ${e.message}`);
                   }
 
                   const trailData = {
@@ -123,10 +114,10 @@ async function scrapeAndSaveTrails() {
                   await new Promise(resolve => setTimeout(resolve, 300));
                 }
               }
-              if (allTrails.length >= 50) break;
+              if (allTrails.length >= 50) 
+                break;
             }
-            
-            // Be nice to the server
+
             await new Promise(resolve => setTimeout(resolve, 500));
           } catch (err) {
             console.error(`  Error scraping mountain ${mountainHref}:`, err.message);
@@ -142,11 +133,9 @@ async function scrapeAndSaveTrails() {
     }
 
     if (allTrails.length > 0) {
-      console.log(`\nSaving ${allTrails.length} trails to database...`);
-      // Use bulk insert for efficiency
-      // First, filter out potential duplicates (though we checked count > 0 at start)
+      console.log(`\nSaving ${allTrails.length} trails to database`);
+
       await trailsCollection.insertMany(allTrails);
-      console.log('✓ Successfully saved all trails!');
     }
 
     return allTrails;
