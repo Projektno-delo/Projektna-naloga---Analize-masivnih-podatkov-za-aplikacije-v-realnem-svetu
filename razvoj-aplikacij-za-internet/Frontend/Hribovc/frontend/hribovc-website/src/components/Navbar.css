@@ -2,7 +2,7 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 1.5rem 3rem;
+  padding: 2.2rem 8%; 
   position: absolute;
   top: 0;
   left: 0;
@@ -13,17 +13,17 @@
 }
 
 .navbar-logo {
-  font-size: 1.4rem;
-  font-weight: 700;
+  font-size: 1.7rem; 
+  font-weight: 800;
   color: #ffffff !important;
   text-decoration: none;
-  letter-spacing: 2px;
+  letter-spacing: 3px;
   text-transform: uppercase;
 }
 
 .navbar-links {
   display: flex;
-  gap: 2rem;
+  gap: 3rem; 
 }
 
 .navbar-links a, 
@@ -32,21 +32,23 @@
 .navbar a {
   color: #ffffff !important;
   text-decoration: none !important;
-  font-size: 0.9rem;
-  font-weight: 500;
+  font-size: 1.05rem; 
+  font-weight: 600; 
   letter-spacing: 1px;
   text-transform: uppercase;
-  transition: color 0.2s;
+  transition: all 0.3s ease;
 }
 
 .navbar-links a:hover, 
 .auth-buttons a:hover {
   color: #ff6b35 !important;
+  transform: translateY(-2px); 
 }
 
 .navbar-links a.active {
   color: #ff6b35 !important;
-  border-bottom: 2px solid #ff6b35;
+  border-bottom: 3px solid #ff6b35; 
+  padding-bottom: 5px;
 }
 
 .navbar-auth {
@@ -56,29 +58,30 @@
 
 .auth-buttons {
   display: flex;
-  gap: 1.5rem;
+  gap: 2.5rem; 
 }
 
 .user-menu {
   display: flex;
   align-items: center;
-  gap: 1.5rem;
+  gap: 2rem;
 }
 
 .logout-btn {
   background: transparent;
-  border: 1px solid #ff6b35;
+  border: 2px solid #ff6b35; 
   color: #ff6b35;
-  padding: 6px 16px;
-  border-radius: 20px;
+  padding: 8px 22px; 
+  border-radius: 25px;
   cursor: pointer;
-  font-size: 0.8rem;
+  font-size: 0.9rem; 
   text-transform: uppercase;
-  font-weight: 600;
-  transition: 0.2s;
+  font-weight: 700;
+  transition: all 0.3s ease;
 }
 
 .logout-btn:hover {
   background: #ff6b35;
   color: #ffffff;
+  box-shadow: 0 0 15px rgba(255, 107, 53, 0.4);
 }

@@ -9,7 +9,7 @@ import austriaMap from '../assets/austria_silhuete.png';
 import { 
   LuMountain, LuList, LuPlus, LuTrendingUp, LuClock, 
   LuChevronRight, LuChevronLeft, LuX,
-  LuTrash2, LuPencil, LuCheck, LuNavigation, LuNavigation2
+  LuTrash2, LuPencil, LuCheck, LuNavigation
 } from 'react-icons/lu';
 
 import { MapContainer, TileLayer, useMap, Polyline } from 'react-leaflet';
@@ -22,6 +22,7 @@ const ChangeView = ({ center, zoom = 13 }) => {
   const map = useMap();
   useEffect(() => {
     map.setView(center, zoom);
+    setTimeout(() => { map.invalidateSize(); }, 100);
   }, [center, zoom, map]);
   return null;
 };
@@ -175,7 +176,6 @@ const Profil = () => {
             <div className="user-basic-info">
               <h2>User name</h2>
               <p className="location-text">Njegovo prebivalisce</p>
-              <p className="member-since">Od kdaj je član</p>
             </div>
             <nav className="sidebar-nav">
               <button className={`nav-btn ${activeTab === 'pregled' ? 'active' : ''}`} onClick={() => setActiveTab('pregled')}><LuTrendingUp size={20} /> Statistika</button>
@@ -235,11 +235,21 @@ const Profil = () => {
             <div className="recent-hikes-section">
               <div className="hikes-list">
                 {vsiPohodi.map(p => (
-                  <div key={p.id} className="hike-item" onClick={() => setSelectedRoute(p)}>
+                  <div key={p.id} className="hike-item" onClick={() => setSelectedRoute(p)} style={{cursor: 'pointer'}}>
                     <img src={p.slika} alt="" className="hike-thumb" />
-                    <div className="hike-main-info"><h4>{p.ime}</h4><span>{p.datum} - {p.razdalja} km</span></div>
-                    <div className="hike-stats">
-                      <LuTrash2 color="#ff4d4d" onClick={(e) => { e.stopPropagation(); if(window.confirm("Izbrišem?")) setVsiPohodi(vsiPohodi.filter(x => x.id !== p.id)); }} />
+                    <div className="hike-main-info">
+                      {editingId === p.id ? (
+                        <div onClick={e => e.stopPropagation()} style={{display:'flex', gap:'5px'}}>
+                          <input autoFocus value={tempName} onChange={e=>setTempName(e.target.value)} style={{background:'#222', color:'#fff', border:'1px solid #ff6b35', borderRadius:'5px', padding:'2px 5px'}} />
+                          <button onClick={(e) => { e.stopPropagation(); setVsiPohodi(vsiPohodi.map(x => x.id === p.id ? {...x, ime: tempName} : x)); setEditingId(null); }} style={{background:'#ff6b35', border:'none', borderRadius:'5px', cursor:'pointer', color:'white'}}><LuCheck size={14}/></button>
+                        </div>
+                      ) : (
+                        <><h4>{p.ime}</h4><span>{p.datum} - {p.razdalja} km</span></>
+                      )}
+                    </div>
+                    <div className="hike-stats" style={{display:'flex', gap:'10px'}}>
+                      <LuPencil onClick={(e) => { e.stopPropagation(); setEditingId(p.id); setTempName(p.ime); }} style={{cursor:'pointer'}} />
+                      <LuTrash2 color="#ff4d4d" onClick={(e) => { e.stopPropagation(); if(window.confirm("Izbrišem?")) setVsiPohodi(vsiPohodi.filter(x => x.id !== p.id)); }} style={{cursor:'pointer'}} />
                     </div>
                   </div>
                 ))}
@@ -254,7 +264,7 @@ const Profil = () => {
                 <input className="editor-input" placeholder="Vnesi kraj..." value={searchQuery} onChange={e=>setSearchQuery(e.target.value)} onKeyDown={handleSearch} />
                 <h3>Nariši pot</h3>
                 <div className="btn-row">
-                  <button className="editor-small-btn" onClick={() => { if(activeLayer) activeLayer.remove(); setActiveLayer(null); }}>Reset</button>
+                  <button className="editor-small-btn" onClick={() => { if(activeLayer) activeLayer.remove(); setActiveLayer(null); setIsDrawing(false); }}>Reset</button>
                   <button className={`editor-small-btn ${isDrawing ? 'active-draw' : ''}`} onClick={() => setIsDrawing(!isDrawing)}>{isDrawing ? "Končaj" : "Začni risati"}</button>
                 </div>
                 <div className="editor-footer"><button className="save-btn" onClick={handleSaveRoute}>Shrani pot</button></div>
@@ -262,10 +272,8 @@ const Profil = () => {
               <div className="editor-map-area">
                 <MapContainer center={mapCenter} zoom={13} style={{ height: '100%', width: '100%' }}>
                   <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
-                  <MapEvents isDrawing={isDrawing} setPathPoints={setPathPoints} />
-                  <Polyline positions={pathPoints} color="#ff6b35" weight={5} />
-                  {pathPoints.map((pos, idx) => <Marker key={`path-${idx}`} position={pos} />)}
-
+                  <ChangeView center={mapCenter} />
+                  <GeomanController isDrawing={isDrawing} onRouteCreated={setActiveLayer} />
                 </MapContainer>
               </div>
             </div>
