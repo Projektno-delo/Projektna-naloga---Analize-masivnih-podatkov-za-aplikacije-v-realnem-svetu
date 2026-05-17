@@ -1,8 +1,21 @@
 const http = require('http');
+const bcrypt = require('bcryptjs');
 const { scrapeWeather } = require('./scraper');
 const { getCollection, connect, initDb } = require('./db');
 
 const PORT = 3000;
+
+function calculateBmi(visina, teza) {
+  const heightCm = Number(visina);
+  const weightKg = Number(teza);
+
+  if (!heightCm || !weightKg) {
+    return null;
+  }
+
+  const heightM = heightCm / 100;
+  return Number((weightKg / (heightM * heightM)).toFixed(1));
+}
 
 const server = http.createServer(async (req, res) => {
   const corsHeaders = {
@@ -83,23 +96,28 @@ const server = http.createServer(async (req, res) => {
           return;
         }
 
+        const passwordHash = await bcrypt.hash(userData.password, 10);
+        const now = new Date();
+
         const newUser = {
           ime: userData.ime,
           email: userData.email,
-          password: userData.password,
-          starost: userData.starost,
-          visina: userData.visina,
-          teza: userData.teza,
-          createdAt: new Date()
+          passwordHash,
+          starost: Number(userData.starost),
+          visina: Number(userData.visina),
+          teza: Number(userData.teza),
+          bmi: calculateBmi(userData.visina, userData.teza),
+          createdAt: now,
+          updatedAt: now
         };
 
-        await usersCollection.insertOne(newUser);
+const result = await usersCollection.insertOne(newUser);
 
         res.writeHead(201, {
           'Content-Type': 'application/json',
           ...corsHeaders,
         });
-        res.end(JSON.stringify({ message: 'User registered successfully', userId: newUser._id }));
+        res.end(JSON.stringify({ message: 'User registered successfully', userId: result.insertedId }));
       } catch (error) {
         res.writeHead(500, {
           'Content-Type': 'application/json',
@@ -131,7 +149,9 @@ const server = http.createServer(async (req, res) => {
           res.end(JSON.stringify({ error: 'Invalid email or password' }));
           return;
         }
-        if (user.password !== loginData.password) {
+
+        const passwordMatches = await bcrypt.compare(loginData.password, user.passwordHash);
+        if (!passwordMatches) {
           res.writeHead(401, {
             'Content-Type': 'application/json',
             ...corsHeaders,
@@ -147,7 +167,9 @@ const server = http.createServer(async (req, res) => {
           starost: user.starost,
           visina: user.visina,
           teza: user.teza,
-          createdAt: user.createdAt
+          bmi: user.bmi,
+          createdAt: user.createdAt,
+          updatedAt: user.updatedAt
         };
 
         res.writeHead(200, {
