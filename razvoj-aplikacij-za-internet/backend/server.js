@@ -1,9 +1,16 @@
 const http = require('http');
 const bcrypt = require('bcryptjs');
+
 const {
   scrapeAndStoreWeather,
   getLatestWeather
 } = require('./services/weatherService');
+
+const {
+  getTrails,
+  getTrailById
+} = require('./services/trailService');
+
 const { getCollection, connect, initDb } = require('./db');
 
 const PORT = 3000;
@@ -189,9 +196,8 @@ const result = await usersCollection.insertOne(newUser);
 
   if (req.method === 'GET' && req.url === '/trails') {
     try {
-      const trailsCollection = await getCollection('trails');
-      const trails = await trailsCollection.find({}).toArray();
-      
+      const trails = await getTrails();
+
       res.writeHead(200, {
         'Content-Type': 'application/json',
         ...corsHeaders,
@@ -209,17 +215,9 @@ const result = await usersCollection.insertOne(newUser);
 
   if (req.method === 'GET' && req.url.startsWith('/trails/')) {
     try {
-      const trailId = req.url.split('/')[2];
-      const { ObjectId } = require('mongodb');
-      const trailsCollection = await getCollection('trails');
-      
-      let trail;
-      try {
-        trail = await trailsCollection.findOne({ _id: new ObjectId(trailId) });
-      } catch {
-        trail = await trailsCollection.findOne({ name: trailId });
-      }
-      
+      const trailId = decodeURIComponent(req.url.split('/')[2]);
+      const trail = await getTrailById(trailId);
+
       if (!trail) {
         res.writeHead(404, {
           'Content-Type': 'application/json',
@@ -228,7 +226,7 @@ const result = await usersCollection.insertOne(newUser);
         res.end(JSON.stringify({ error: 'Trail not found' }));
         return;
       }
-      
+
       res.writeHead(200, {
         'Content-Type': 'application/json',
         ...corsHeaders,

@@ -1,6 +1,7 @@
 const axios = require('axios');
 const cheerio = require('cheerio');
 const { getCollection, connect } = require('./db');
+const { upsertTrails } = require('./services/trailService');
 
 const BASE_URL = 'https://www.hribi.net';
 
@@ -133,10 +134,10 @@ async function scrapeAndSaveTrails() {
     }
 
     if (allTrails.length > 0) {
-      console.log(`\nSaving ${allTrails.length} trails to database`);
+    console.log(`\nSaving ${allTrails.length} trails to database`);
 
-      await trailsCollection.insertMany(allTrails);
-    }
+    await upsertTrails(allTrails);
+  }
 
     return allTrails;
   } catch (error) {
