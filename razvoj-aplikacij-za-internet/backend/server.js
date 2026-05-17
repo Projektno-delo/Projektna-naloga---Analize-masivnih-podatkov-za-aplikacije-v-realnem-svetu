@@ -1,6 +1,9 @@
 const http = require('http');
 const bcrypt = require('bcryptjs');
-const { scrapeWeather } = require('./scraper');
+const {
+  scrapeAndStoreWeather,
+  getLatestWeather
+} = require('./services/weatherService');
 const { getCollection, connect, initDb } = require('./db');
 
 const PORT = 3000;
@@ -32,16 +35,13 @@ const server = http.createServer(async (req, res) => {
 
   if (req.method === 'GET' && req.url === '/scrape') {
     try {
-      const data = await scrapeWeather();
-      const collection = await getCollection('weather');
-      const document = { stations: data, scrapedAt: new Date() };
-      await collection.insertOne(document);
+      const weather = await scrapeAndStoreWeather();
 
       res.writeHead(200, {
         'Content-Type': 'application/json',
         ...corsHeaders,
       });
-      res.end(JSON.stringify(data));
+      res.end(JSON.stringify(weather.stations));
     } catch (error) {
       res.writeHead(500, {
         'Content-Type': 'application/json',
@@ -54,14 +54,13 @@ const server = http.createServer(async (req, res) => {
 
   if (req.method === 'GET' && req.url === '/weather') {
     try {
-      const collection = await getCollection('weather');
-      const latestWeather = await collection.find({}).sort({ scrapedAt: -1 }).limit(1).toArray();
-      
+      const weather = await getLatestWeather();
+
       res.writeHead(200, {
         'Content-Type': 'application/json',
         ...corsHeaders,
       });
-      res.end(JSON.stringify(latestWeather[0] || { stations: [] }));
+      res.end(JSON.stringify(weather));
     } catch (error) {
       res.writeHead(500, {
         'Content-Type': 'application/json',
@@ -285,6 +284,14 @@ const result = await usersCollection.insertOne(newUser);
 connect()
   .then(async () => {
     await initDb();
+
+    try {
+      console.log('Running weather scraper on server start...');
+      await scrapeAndStoreWeather();
+      console.log('Weather scraped and saved successfully');
+    } catch (err) {
+      console.error('Weather scrape on startup failed:', err.message || err);
+    }
 
     try {
       const { scrapeAndSaveTrails } = require('./trail-scraper');
