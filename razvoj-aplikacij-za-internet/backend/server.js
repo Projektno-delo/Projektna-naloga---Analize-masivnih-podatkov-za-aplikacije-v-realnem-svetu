@@ -1,6 +1,6 @@
 const http = require('http');
 const { scrapeWeather } = require('./scraper');
-const { getCollection, connect } = require('./db');
+const { getCollection, connect, initDb } = require('./db');
 
 const PORT = 3000;
 
@@ -262,10 +262,13 @@ const server = http.createServer(async (req, res) => {
 
 connect()
   .then(async () => {
+    await initDb();
+
     try {
       const { scrapeAndSaveTrails } = require('./trail-scraper');
       const trailsCollection = await getCollection('trails');
       const count = await trailsCollection.countDocuments();
+
       if (count === 0) {
         console.log('Trails database is empty, starting initial scrape...');
         scrapeAndSaveTrails().catch(err => console.error('Initial scrape failed:', err));
