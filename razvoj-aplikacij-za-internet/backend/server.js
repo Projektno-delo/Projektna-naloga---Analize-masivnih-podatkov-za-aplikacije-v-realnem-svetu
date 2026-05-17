@@ -335,6 +335,48 @@ const server = http.createServer(async (req, res) => {
     return;
   }
 
+  if (req.method === 'GET' && req.url === '/stats') {
+  try {
+    const usersCollection = await getCollection('users');
+    const weatherCollection = await getCollection('weather');
+    const trailsCollection = await getCollection('trails');
+    const riskAnalysesCollection = await getCollection('riskAnalyses');
+
+    const usersCount = await usersCollection.countDocuments();
+    const weatherCount = await weatherCollection.countDocuments();
+    const trailsCount = await trailsCollection.countDocuments();
+    const riskAnalysesCount = await riskAnalysesCollection.countDocuments();
+
+    const latestWeather = await weatherCollection
+      .find({})
+      .sort({ scrapedAt: -1 })
+      .limit(1)
+      .toArray();
+
+    res.writeHead(200, {
+      'Content-Type': 'application/json',
+      ...corsHeaders,
+    });
+
+    res.end(JSON.stringify({
+      usersCount,
+      weatherCount,
+      trailsCount,
+      riskAnalysesCount,
+      lastWeatherScrape: latestWeather[0]?.scrapedAt || null
+    }));
+  } catch (error) {
+    res.writeHead(500, {
+      'Content-Type': 'application/json',
+      ...corsHeaders,
+    });
+
+    res.end(JSON.stringify({ error: error.message || String(error) }));
+  }
+
+  return;
+}
+
   res.writeHead(404, { 'Content-Type': 'text/plain' });
   res.end('Not found');
 });
