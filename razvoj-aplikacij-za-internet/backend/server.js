@@ -11,6 +11,8 @@ const {
   getTrailById
 } = require('./services/trailService');
 
+const { analyzeTrail } = require('./services/riskService');
+
 const { getCollection, connect, initDb } = require('./db');
 
 const PORT = 3000;
@@ -80,19 +82,24 @@ const server = http.createServer(async (req, res) => {
 
   if (req.method === 'POST' && req.url === '/register') {
     console.log('Register endpoint called');
+
     let body = '';
+
     req.on('data', chunk => {
       body += chunk.toString();
     });
 
     req.on('end', async () => {
       console.log('Register request body:', body);
+
       try {
         const userData = JSON.parse(body);
         console.log('Parsed user data:', userData);
+
         const usersCollection = await getCollection('users');
 
         const existingUser = await usersCollection.findOne({ email: userData.email });
+
         if (existingUser) {
           res.writeHead(400, {
             'Content-Type': 'application/json',
@@ -117,13 +124,16 @@ const server = http.createServer(async (req, res) => {
           updatedAt: now
         };
 
-const result = await usersCollection.insertOne(newUser);
+        const result = await usersCollection.insertOne(newUser);
 
         res.writeHead(201, {
           'Content-Type': 'application/json',
           ...corsHeaders,
         });
-        res.end(JSON.stringify({ message: 'User registered successfully', userId: result.insertedId }));
+        res.end(JSON.stringify({
+          message: 'User registered successfully',
+          userId: result.insertedId
+        }));
       } catch (error) {
         res.writeHead(500, {
           'Content-Type': 'application/json',
@@ -132,11 +142,13 @@ const result = await usersCollection.insertOne(newUser);
         res.end(JSON.stringify({ error: error.message || String(error) }));
       }
     });
+
     return;
   }
 
   if (req.method === 'POST' && req.url === '/login') {
     let body = '';
+
     req.on('data', chunk => {
       body += chunk.toString();
     });
@@ -147,6 +159,7 @@ const result = await usersCollection.insertOne(newUser);
         const usersCollection = await getCollection('users');
 
         const user = await usersCollection.findOne({ email: loginData.email });
+
         if (!user) {
           res.writeHead(401, {
             'Content-Type': 'application/json',
@@ -157,6 +170,7 @@ const result = await usersCollection.insertOne(newUser);
         }
 
         const passwordMatches = await bcrypt.compare(loginData.password, user.passwordHash);
+
         if (!passwordMatches) {
           res.writeHead(401, {
             'Content-Type': 'application/json',
@@ -182,7 +196,10 @@ const result = await usersCollection.insertOne(newUser);
           'Content-Type': 'application/json',
           ...corsHeaders,
         });
-        res.end(JSON.stringify({ message: 'Login successful', user: userResponse }));
+        res.end(JSON.stringify({
+          message: 'Login successful',
+          user: userResponse
+        }));
       } catch (error) {
         res.writeHead(500, {
           'Content-Type': 'application/json',
@@ -191,6 +208,7 @@ const result = await usersCollection.insertOne(newUser);
         res.end(JSON.stringify({ error: error.message || String(error) }));
       }
     });
+
     return;
   }
 
@@ -210,6 +228,7 @@ const result = await usersCollection.insertOne(newUser);
       });
       res.end(JSON.stringify({ error: error.message || String(error) }));
     }
+
     return;
   }
 
@@ -239,23 +258,25 @@ const result = await usersCollection.insertOne(newUser);
       });
       res.end(JSON.stringify({ error: error.message || String(error) }));
     }
+
     return;
   }
 
   if (req.method === 'POST' && req.url === '/scrape-trails') {
     try {
       console.log('Starting trail scrape...');
+
       const { scrapeAndSaveTrails } = require('./trail-scraper');
-      
+
       scrapeAndSaveTrails()
         .then(trails => {
           res.writeHead(200, {
             'Content-Type': 'application/json',
             ...corsHeaders,
           });
-          res.end(JSON.stringify({ 
+          res.end(JSON.stringify({
             message: `Successfully scraped and saved ${trails.length} trails`,
-            trails: trails 
+            trails: trails
           }));
         })
         .catch(err => {
@@ -272,6 +293,45 @@ const result = await usersCollection.insertOne(newUser);
       });
       res.end(JSON.stringify({ error: error.message || String(error) }));
     }
+
+    return;
+  }
+
+  if (req.method === 'POST' && req.url === '/analyze-trail') {
+    let body = '';
+
+    req.on('data', chunk => {
+      body += chunk.toString();
+    });
+
+    req.on('end', async () => {
+      try {
+        const data = JSON.parse(body);
+
+        const analysis = await analyzeTrail({
+          userId: data.userId,
+          trailId: data.trailId
+        });
+
+        res.writeHead(201, {
+          'Content-Type': 'application/json',
+          ...corsHeaders,
+        });
+
+        res.end(JSON.stringify({
+          message: 'Trail analysis created successfully',
+          analysis
+        }));
+      } catch (error) {
+        res.writeHead(400, {
+          'Content-Type': 'application/json',
+          ...corsHeaders,
+        });
+
+        res.end(JSON.stringify({ error: error.message || String(error) }));
+      }
+    });
+
     return;
   }
 
