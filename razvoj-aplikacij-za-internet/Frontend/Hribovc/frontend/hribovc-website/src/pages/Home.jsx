@@ -2,39 +2,14 @@
 import heroImg from '../assets/hero.jpg'
 import { useNavigate } from 'react-router-dom'
 import './Home.css'
-import 'leaflet/dist/leaflet.css'
 import { 
   LuCloudSun, LuMap, LuNavigation, LuChevronRight, LuX, 
   LuUserPlus, LuLogIn, LuList 
 } from 'react-icons/lu'
-import { MapContainer, TileLayer, Marker, Popup, useMapEvents } from 'react-leaflet'
-import L from 'leaflet'
-
-delete L.Icon.Default.prototype._getIconUrl
-L.Icon.Default.mergeOptions({
-  iconRetinaUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon-2x.png',
-  iconUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon.png',
-  shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-shadow.png'
-})
-
-function LocationMarker({ position, setPosition }) {
-  const map = useMapEvents({
-    click() { map.locate() },
-    locationfound(e) {
-      setPosition(e.latlng)
-      map.flyTo(e.latlng, map.getZoom())
-    }
-  })
-  return position === null ? null : (
-    <Marker position={position}><Popup>Vaša lokacija</Popup></Marker>
-  )
-}
 
 function Home() {
   const navigate = useNavigate()
-  const [position, setPosition] = useState(null)
   const [activeStep, setActiveStep] = useState(null)
-  const mapCenter = [46.1199, 14.4896]
 
   useEffect(() => {
     if (activeStep !== null) {
@@ -57,7 +32,7 @@ function Home() {
     },
     {
       title: "Načrtuj pot",
-      desc: "Uporabi naš pametni urejevalnik in si sam nariši svojo unikatno traso. Sistem ti bo sproti računal kilometre in ti pomagal predvideti časovni okvir tvojega pohoda.",
+      desc: "V zavihku 'Dodaj pot' s preprostim klikanjem na zemljevid izriši svojo traso. Mi ti sproti izračunamo kilometre, ti pa svojo novo avanturo le še shraniš v osebni seznam.",
       icon: <LuMap size={120} />,
       path: "/profile"
     },
@@ -69,13 +44,13 @@ function Home() {
     },
     {
       title: "Preveri pogoje",
-      desc: "Gore so nepredvidljive. Pred odhodom preveri natančno vremensko napoved za svojo ciljno višino. Naš sistem te bo opozoril na morebitne nevarne pogoje na poti.",
+      desc: "Pred odhodom preveri vremensko napoved za točno določeno lokacijo. Naša inteligentna napoved upošteva nadmorsko višino in ti svetuje o primernosti vzpona glede na trenutne razmere.",
       icon: <LuCloudSun size={120} />,
       path: "/weather"
     },
     {
       title: "Osvoji vrh",
-      desc: "Na koncu tvoji dosežki oživijo! Na silhuetah držav označi vrhove, ki si jih že osvojil, in zgradi svojo digitalno zbirko planinskih podvigov.",
+      desc: "V zavihku 'Statistika' tvoji dosežki oživijo. Na silhuetah držav s klikom dodajaj oznake za vrhove, ki si jih že osvojil, in spremljaj svojo rastočo zbirko gorskih podvigov.",
       icon: <LuNavigation size={120} />,
       path: "/profile"
     }
@@ -95,12 +70,7 @@ function Home() {
                 Začni načrtovati
               </button>
             </div>
-            <div className="hero-map-small">
-              <MapContainer center={mapCenter} zoom={10} className="small-map" zoomControl={false} attributionControl={false}>
-                <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
-                <LocationMarker position={position} setPosition={setPosition} />
-              </MapContainer>
-            </div>
+            {/* Tukaj je bil hero-map-small, ki smo ga odstranili */}
           </>
         ) : (
           <div className="tutorial-view">

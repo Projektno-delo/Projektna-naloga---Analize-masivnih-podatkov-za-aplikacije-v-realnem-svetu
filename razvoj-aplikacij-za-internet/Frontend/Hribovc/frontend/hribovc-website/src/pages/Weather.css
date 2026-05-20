@@ -87,7 +87,6 @@
   font-size: 0.85rem;
 }
 
-/* Seznam kartic */
 .weather-list {
   display: flex;
   flex-direction: column;
@@ -101,7 +100,7 @@
   overflow: hidden;
   cursor: pointer;
   backdrop-filter: blur(10px);
-  background: rgba(0, 0, 0, 0.6); /* Malo temnejše za boljši kontrast */
+  background: rgba(0, 0, 0, 0.6); 
   transition: all 0.3s ease;
 }
 
