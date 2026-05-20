@@ -8,6 +8,137 @@
   color: white;
 }
 
+.peak-search-overlay, .delete-confirm-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 350px;
+  background: linear-gradient(to bottom, #111 85%, transparent);
+  z-index: 10010;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  transform: translateY(-105%);
+  transition: transform 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+.peak-search-overlay.open, .delete-confirm-overlay.open {
+  transform: translateY(0);
+}
+
+.peak-search-box {
+  width: 90%;
+  max-width: 600px;
+  text-align: center;
+  position: relative;
+}
+
+.peak-search-box h2 {
+  color: #ff6b35;
+  margin-bottom: 25px;
+  font-size: 2.2rem;
+}
+
+.peak-search-box input {
+  width: 100%;
+  padding: 18px 30px;
+  border-radius: 40px;
+  border: 2px solid #ff6b35;
+  background: #1a1a1a;
+  color: white;
+  font-size: 1.3rem;
+  outline: none;
+}
+
+.confirm-btns {
+  display: flex;
+  gap: 20px;
+  justify-content: center;
+  width: 100%;
+}
+
+.confirm-yes, .confirm-no {
+  flex: 1;
+  max-width: 200px;
+  padding: 15px 0;
+  border-radius: 40px;
+  font-size: 1.1rem;
+  font-weight: 800;
+  cursor: pointer;
+  transition: 0.3s;
+  background: #1a1a1a;
+  color: white;
+  border: 2px solid #ff6b35;
+}
+
+.confirm-yes:hover {
+  background: #ff6b35;
+  color: #000;
+}
+
+.confirm-no {
+  border-color: #555;
+}
+
+.confirm-no:hover {
+  background: #333;
+}
+
+.close-search-btn {
+  position: absolute;
+  top: -60px;
+  right: -20px;
+  background: none;
+  border: none;
+  color: #555;
+  cursor: pointer;
+}
+
+.map-hint {
+  color: #6E9075;         
+  font-size: 0.9rem;      
+  margin-top: 20px;       
+  width: 100%;            
+  max-width: 800px;       
+  margin-left: auto;      
+  margin-right: auto;     
+  font-weight: 500;    
+}   
+
+.map-viz-container {
+  position: relative;
+  width: 100%;
+  max-width: 800px;
+  height: 550px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  cursor: crosshair;
+  border-radius: 24px;
+  overflow: hidden;
+}
+
+.masked-map-layer {
+  position: absolute;
+  inset: 0;
+  z-index: 5;
+  opacity: 1;
+  pointer-events: none;
+  mask-size: contain;
+  mask-repeat: no-repeat;
+  mask-position: center;
+  -webkit-mask-size: contain;
+  -webkit-mask-repeat: no-repeat;
+  -webkit-mask-position: center;
+  transition: opacity 0.4s ease;
+}
+
+@keyframes pulse-ring {
+  0% { transform: scale(1); opacity: 0.8; }
+  100% { transform: scale(3); opacity: 0; }
+}
+
 .profile-hero {
   padding: 160px 10% 120px;
   background: transparent;
@@ -43,7 +174,7 @@
 .avatar-circle-huge {
   width: 200px;
   height: 200px;
-  background: rgba(20, 20, 20, 0.2);
+  background: rgba(255, 107, 53, 0.1);
   border-radius: 50%;
   margin: 0 auto 15px auto; 
   display: flex;
@@ -55,7 +186,6 @@
 
 .user-basic-info {
   text-align: center; 
-  padding-left: 0 !important; 
   margin-bottom: 50px;
   width: 100%;
 }
@@ -68,12 +198,6 @@
 .location-text {
   color: #ccc;
   font-size: 1.2rem;
-  display: block;
-}
-
-.member-since {
-  color: #888;
-  font-size: 1rem;
   display: block;
 }
 
@@ -108,63 +232,11 @@
   padding-top: 100px;
 }
 
-.dashboard-content-grid {
-  display: flex;
-  flex-direction: column;
-  gap: 40px;
-  align-items: flex-start;
-}
-
 .recent-hikes-section {
   background: transparent;
   border: none;
   padding: 0;
   width: 100%;
-}
-
-.map-section {
-  background: transparent;
-  border: none;
-  padding: 0;
-  width: 100%;
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-}
-
-.section-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 5px;
-  width: 100%;
-  gap: 15px;
-}
-
-.title-with-icon {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-}
-
-.title-with-icon h3 {
-  font-size: 1.2rem;
-  font-weight: 600;
-}
-
-.view-all-link {
-  color: #8FA998;  
-  text-decoration: none;
-  font-size: 0.9rem;
-  display: flex;
-  align-items: center;
-  gap: 4px;
-}
-
-.hikes-list {
-  display: flex;
-  flex-direction: column;
-  gap: 5px;
 }
 
 .hike-item {
@@ -177,10 +249,6 @@
   transition: 0.2s;
 }
 
-.hike-item:hover {
-  background: rgba(255, 255, 255, 0.05);
-}
-
 .hike-thumb {
   width: 65px;
   height: 45px;
@@ -188,117 +256,12 @@
   object-fit: cover;
 }
 
-.hike-main-info h4 {
-  font-size: 1rem;
-}
-
-.hike-stats {
-  display: flex;
-  gap: 25px;
-  color: #ccc;
-  font-size: 0.9rem;
-}
-
-.stat {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.status-badge {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
-  padding: 8px 16px;
-  border-radius: 12px;
-  font-size: 0.85rem;
-  font-weight: 500;
-  width: fit-content;
-  justify-self: end;
-}
-
 .status-badge.success {
   background: rgba(143, 169, 152, 0.2); 
   color: #8FA998;
   border: 1px solid rgba(143, 169, 152, 0.3);
-}
-
-.map-viz-container {
-  position: relative;
-  width: 100%;
-  max-width: 750px;
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  background: transparent;
-  margin-top: -20px;
-}
-
-.slovenia-map-img {
-  width: 100%;
-  height: auto;
-  max-height: 500px;
-  object-fit: contain;
-}
-
-.map-overlay {
-  position: absolute;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  pointer-events: none;
-}
-
-.map-controls-row {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 15px;
-  align-items: center;
-  margin: 20px 0;
-}
-
-.profile-map-container {
-  width: 100%;
-  max-width: 100%;
-  border-radius: 20px;
-  overflow: hidden;
-  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.25);
-  border: 1px solid rgba(255, 255, 255, 0.08);
-}
-
-.gps-status {
-  color: #ccc;
-  font-size: 0.95rem;
-}
-
-.marker {
-  position: absolute;
-  width: 12px !important;
-  height: 12px !important;
-  background: #ff6b35;
-  border-radius: 50%;
-  box-shadow: 0 0 10px #ff6b35;
-  z-index: 10;
-  pointer-events: auto;
-}
-
-.marker-pulse {
-  position: absolute;
-  top: 0;
-  left: 0;
-  width: 12px !important;
-  height: 12px !important;
-  background: #ff6b35;
-  border-radius: 50%;
-  z-index: -1;
-  animation: pulse-ring 2s infinite;
-}
-
-@keyframes pulse-ring {
-  0% { transform: scale(1); opacity: 0.8; }
-  100% { transform: scale(3); opacity: 0; }
+  padding: 8px 16px;
+  border-radius: 12px;
 }
 
 .map-editor-container {
@@ -317,12 +280,14 @@
   flex-direction: column;
   border-right: 1px solid #eee;
   background: #fff;
+  height: 100%;
+  overflow-y: auto;
 }
 
-.editor-group h3 {
-  font-size: 1.1rem;
-  margin-bottom: 15px;
-  color: #111;
+.editor-sidebar h3 {
+  margin-bottom: 25px; 
+  font-size: 1.5rem;
+  color: #333;
 }
 
 .editor-input {
@@ -330,136 +295,246 @@
   padding: 12px;
   border-radius: 10px;
   border: 1px solid #ccc;
-  margin-bottom: 30px;
+  margin-bottom: 15px;
   background: #fff;
   color: #333;
 }
 
-.btn-row {
+.mode-selector {
   display: flex;
   gap: 10px;
-  margin: 10px 0 25px;
+  margin-bottom: 20px;
 }
 
-.editor-small-btn {
-  padding: 8px 16px;
-  border-radius: 20px;
-  border: 1px solid #ddd;
+.mode-btn {
+  flex: 1;
+  padding: 10px;
+  border-radius: 10px;
+  border: 1px solid #eee;
   background: #f9f9f9;
   cursor: pointer;
-  font-weight: 600;
-  color: #333;
+  display: flex;
+  justify-content: center;
   transition: 0.2s;
 }
 
-.editor-small-btn.active-draw {
+.mode-btn.active {
   background: #ff6b35;
   color: white;
   border-color: #ff6b35;
 }
 
-.editor-footer {
-  margin-top: auto;
+.btn-row {
   display: flex;
-  justify-content: space-between;
-  align-items: center;
-  border-top: 1px solid #eee;
-  padding-top: 20px;
+  gap: 10px;
+  margin-bottom: 20px;
 }
 
-.footer-btns {
-  display: flex;
-  gap: 15px;
+.editor-small-btn {
+  flex: 1;
+  padding: 10px;
+  border-radius: 10px;
+  border: 1px solid #ddd;
+  background: #f9f9f9;
+  cursor: pointer;
+  font-weight: 600;
+}
+
+.editor-small-btn.active-draw {
+  background: #111;
+  color: white;
 }
 
 .save-btn {
   background: #111;
   color: #fff;
-  padding: 10px 25px;
+  padding: 12px 25px;
   border-radius: 20px;
   border: none;
   font-weight: 600;
   cursor: pointer;
-}
-
-.cancel-btn {
-  background: #eee;
-  color: #333;
-  padding: 10px 20px;
-  border-radius: 20px;
-  border: none;
-  cursor: pointer;
-}
-
-.editor-map-area {
-  flex: 1;
-  height: 100%;
-  position: relative;
-  z-index: 1;
-}
-
-.leaflet-container {
   width: 100%;
-  height: 100%;
+  margin-top: 10px;
+  margin-bottom: 10px;
 }
 
-@media (max-width: 1100px) {
-  .profile-layout-container { grid-template-columns: 1fr; }
+.route-options-selector {
+  margin-top: 10px;
+  padding-top: 20px;
+  border-top: 1px solid #eee;
+}
+
+.route-options-selector p {
+  font-size: 0.9rem;
+  color: #666;
+  margin-bottom: 25px; 
+}
+
+/* NOVO: WRAPPER ZA SCROLL */
+.options-list-wrapper {
+  max-height: 190px; /* Tukaj se nastavi, kdaj se scroll pojavi */
+  overflow-y: auto;
+  padding-right: 8px;
+  margin-bottom: 10px;
+}
+
+/* LEPŠI DRSNIK */
+.options-list-wrapper::-webkit-scrollbar {
+  width: 5px;
+}
+.options-list-wrapper::-webkit-scrollbar-thumb {
+  background: #eee;
+  border-radius: 10px;
+}
+
+.route-option-card {
+  position: relative;
+  background: #f8f8f8;
+  padding: 15px 15px 15px 22px; /* Več prostora na levi za oranžno črto */
+  border-radius: 12px;
+  margin-bottom: 12px;
+  cursor: pointer;
+  border: 1px solid transparent;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* NOVO: EFEKTI OB IZBIRI */
+.route-option-card.selected {
+  background: #fff4f0;
+  border-color: transparent;
+  transform: translateY(-3px); /* Dvig kartice */
+  box-shadow: 0 8px 20px rgba(255, 107, 53, 0.12); /* Mehka senca */
+}
+
+/* NOVO: ORANŽNA ČRTA NA LEVI */
+.route-option-card.selected::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 15%;
+  height: 70%;
+  width: 4px;
+  background: #ff6b35;
+  border-radius: 0 4px 4px 0;
+}
+
+.option-info {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 4px;
+}
+
+.option-name {
+  font-weight: 700;
+}
+
+.option-dist {
+  color: #ff6b35;
+  font-weight: 700;
 }
 
 .route-modal-overlay {
   position: fixed;
-  top: 0; left: 0; width: 100vw; height: 100vh;
+  inset: 0;
   background: rgba(0,0,0,0.9);
   z-index: 10000;
-  display: flex; justify-content: center; align-items: center;
+  display: flex;
+  justify-content: center;
+  align-items: center;
 }
 
 .route-modal {
   background: white;
-  width: 90%; height: 85vh;
+  width: 90%;
+  height: 85vh;
   border-radius: 30px;
   overflow: hidden;
+  display: flex;
+  flex-direction: column;
   position: relative;
-  display: flex; flex-direction: column;
+}
+
+.close-modal {
+  position: absolute;
+  top: 20px;
+  right: 20px;
+  z-index: 10;
+  background: white;
+  border: none;
+  border-radius: 50%;
+  width: 40px;
+  height: 40px;
 }
 
 .modal-header {
-  padding: 20px 40px;
-  color: #111;
-  display: flex; justify-content: space-between; align-items: center;
+  padding: 30px;
+  color: #333;
 }
 
 .modal-stats {
-  display: flex; align-items: center; gap: 20px;
-}
-
-.modal-stats span {
-  font-weight: 600; font-size: 1.2rem;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 10px;
 }
 
 .nav-google-btn {
-  background:#ff6b35; 
+  background: #ff6b35;
   color: white;
   border: none;
   padding: 10px 20px;
   border-radius: 12px;
-  cursor: pointer;
-  display: flex; align-items: center; gap: 8px;
   font-weight: 600;
 }
 
-.modal-map-container { flex: 1; }
-
-.close-modal {
-  position: absolute; top: 20px; right: 20px;
-  background: #111; color: white; border: none;
-  width: 40px; height: 40px; border-radius: 50%;
-  cursor: pointer; z-index: 10001;
+.modal-map-container {
+  flex: 1;
 }
 
-.marker-label {
-  position: absolute; top: 15px; left: 50%; transform: translateX(-50%);
-  background: rgba(0,0,0,0.8); padding: 2px 8px; border-radius: 4px;
-  font-size: 11px; white-space: nowrap; border: 1px solid #ff6b35; color: #fff;
+.editor-map-area {
+  flex: 1;
+}
+
+.search-route-btn {
+  width: 100%;
+  padding: 12px;
+  background: #ff6b35;
+  color: white;
+  border: none;
+  border-radius: 10px;
+  font-weight: 600;
+  font-size: 1rem;
+  cursor: pointer;
+  margin-bottom: 15px;
+}
+
+.pace-selector {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 20px;
+}
+
+.pace-btn {
+  flex: 1;
+  padding: 8px 5px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  border-radius: 10px;
+  border: 1px solid #eee;
+  background: #f9f9f9;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  text-align: center;
+}
+
+.pace-btn:hover {
+  background: #f0f0f0;
+  border-color: #ccc;
+}
+
+.pace-btn.active {
+  background: #ff6b35;
+  color: white;
+  border-color: #ff6b35;
+  box-shadow: 0 4px 10px rgba(255, 107, 53, 0.2);
 }

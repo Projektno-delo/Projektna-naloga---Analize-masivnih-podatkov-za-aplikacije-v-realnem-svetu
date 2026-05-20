@@ -1,54 +1,80 @@
 import React, { useState, useEffect, useRef } from 'react';
 import './Profile.css';
-
 import sloveniaMap from '../assets/Slovenia_silhouette.png'; 
 import italiaMap from '../assets/italia_silhueta.png';
 import hungaryMap from '../assets/hungary-map-silhouette.png'; 
 import austriaMap from '../assets/austria_silhuete.png'; 
-
-import { 
-  LuMountain, LuList, LuPlus, LuTrendingUp, LuClock, 
-  LuChevronRight, LuChevronLeft, LuX,
-  LuTrash2, LuPencil, LuCheck, LuNavigation
-} from 'react-icons/lu';
-
+import { LuMountain, LuList, LuPlus, LuTrendingUp, LuX, LuTrash2, LuPencil, LuCheck, LuChevronLeft, LuChevronRight, LuFootprints, LuBike } from 'react-icons/lu';
 import { MapContainer, TileLayer, useMap, Polyline } from 'react-leaflet';
 import 'leaflet/dist/leaflet.css';
 import L from 'leaflet';
-import '@geoman-io/leaflet-geoman-free';
-import '@geoman-io/leaflet-geoman-free/dist/leaflet-geoman.css';
+
+const PeakMarkers = ({ vrhovi, onDelete }) => {
+  const map = useMap();
+  useEffect(() => {
+    const markers = [];
+    vrhovi.forEach(vrh => {
+      const icon = L.divIcon({
+        className: '',
+        html: `<div style="width:14px;height:14px;background:#ff6b35;border-radius:50%;box-shadow:0 0 10px rgba(255,255,255,0.3);position:relative;cursor:grab;">
+          <div style="position:absolute;top:0;left:0;width:14px;height:14px;background:#ff6b35;border-radius:50%;z-index:-1;animation:pulse-ring 2s infinite;"></div>
+        </div>`,
+        iconSize: [14, 14],
+        iconAnchor: [7, 7],
+      });
+      const marker = L.marker([vrh.lat, vrh.lon], { icon })
+        .addTo(map)
+        .bindTooltip(vrh.ime, { permanent: true, className: 'peak-tooltip', offset: [0, 10] });
+      marker.on('click', () => onDelete(vrh));
+      markers.push(marker);
+    });
+    return () => markers.forEach(m => m.remove());
+  }, [vrhovi, map, onDelete]);
+  return null;
+};
 
 const ChangeView = ({ center, zoom = 13 }) => {
   const map = useMap();
   useEffect(() => {
-    map.setView(center, zoom);
-    setTimeout(() => { map.invalidateSize(); }, 100);
+    if (center) {
+      map.setView(center, zoom);
+      setTimeout(() => { map.invalidateSize(); }, 100);
+    }
   }, [center, zoom, map]);
   return null;
 };
 
-const GeomanController = ({ isDrawing, onRouteCreated }) => {
+const ClickController = ({ onPointsSet, active }) => {
   const map = useMap();
-  useEffect(() => {
-    if (!map.pm) return;
-    map.pm.setGlobalOptions({ 
-      snappable: true, 
-      snapDistance: 20,
-      pathOptions: { color: '#ff6b35', weight: 5 }
-    });
-    map.on('pm:create', (e) => {
-      if (e.shape === 'Line') {
-        e.layer.pm.enable();
-        onRouteCreated(e.layer);
-      }
-    });
-    return () => map.off('pm:create');
-  }, [map, onRouteCreated]);
+  const points = useRef([]);
+  const markers = useRef([]);
 
   useEffect(() => {
-    if (isDrawing) map.pm.enableDraw('Line');
-    else map.pm.disableDraw();
-  }, [isDrawing, map]);
+    if (!active) return;
+
+    const handleClick = (e) => {
+      const marker = L.circleMarker(e.latlng, {
+        radius: 8,
+        color: '#ff6b35',
+        fillColor: '#ff6b35',
+        fillOpacity: 1
+      }).addTo(map);
+      markers.current.push(marker);
+      points.current.push(e.latlng);
+
+      if (points.current.length === 2) {
+        onPointsSet(points.current[0], points.current[1]);
+        points.current = [];
+      }
+    };
+
+    map.on('click', handleClick);
+    return () => {
+      map.off('click', handleClick);
+      markers.current.forEach(m => m.remove());
+      markers.current = [];
+    };
+  }, [map, onPointsSet, active]);
 
   return null;
 };
@@ -58,23 +84,35 @@ const Profil = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [mapCenter, setMapCenter] = useState([46.1512, 14.9955]);
   const [isDrawing, setIsDrawing] = useState(false);
-  const [activeLayer, setActiveLayer] = useState(null);
   const [selectedRoute, setSelectedRoute] = useState(null);
   const [editingId, setEditingId] = useState(null);
   const [tempName, setTempName] = useState("");
   const [draggingPinId, setDraggingPinId] = useState(null);
+  const [isSearchOpen, setIsSearchOpen] = useState(false);
+  const [peakSearch, setPeakSearch] = useState("");
+  const [isDraggingActive, setIsDraggingActive] = useState(false);
+  const [deleteConfirm, setDeleteConfirm] = useState(null);
+  const [routeToDelete, setRouteToDelete] = useState(null);
+  const [suggestedRoutes, setSuggestedRoutes] = useState([]);
+  const [selectedPreviewIdx, setSelectedPreviewIdx] = useState(0);
+  const [travelMode, setTravelMode] = useState('foot');
+  const [pace, setPace] = useState('average'); 
+  const [isLoading, setIsLoading] = useState(false);
+  const [startQuery, setStartQuery] = useState('');
+  const [endQuery, setEndQuery] = useState('');
+  const [startPoint, setStartPoint] = useState(null);
+  const [endPoint, setEndPoint] = useState(null);
+    
+  const isDraggingInternal = useRef(false);
   const mapRef = useRef(null);
 
-  const [currentCountryIdx, setCurrentCountryIdx] = useState(0);
   const countries = [
-    { name: "Slovenija", img: sloveniaMap, key: 'si' },
-    { name: "Italija", img: italiaMap, key: 'it' },
-    { name: "Avstrija", img: austriaMap, key: 'at' },
-    { name: "Madžarska", img: hungaryMap, key: 'hu' }
+    { name: "Slovenija", img: sloveniaMap, key: 'si', center: [46.12, 14.82], zoom: 8 },
+    { name: "Italija", img: italiaMap, key: 'it', center: [42.5, 12.5], zoom: 6 },
+    { name: "Avstrija", img: austriaMap, key: 'at', center: [47.5, 14.0], zoom: 7 },
+    { name: "Madžarska", img: hungaryMap, key: 'hu', center: [47.0, 19.5], zoom: 7 }
   ];
-
-  const nextCountry = () => setCurrentCountryIdx((prev) => (prev + 1) % countries.length);
-  const prevCountry = () => setCurrentCountryIdx((prev) => (prev - 1 + countries.length) % countries.length);
+  const [currentCountryIdx, setCurrentCountryIdx] = useState(0);
 
   const [dosezeniVrhovi, setDosezeniVrhovi] = useState(() => JSON.parse(localStorage.getItem('pini_silhuete')) || []);
   const [vsiPohodi, setVsiPohodi] = useState(() => JSON.parse(localStorage.getItem('moje_poti')) || []);
@@ -84,59 +122,158 @@ const Profil = () => {
     localStorage.setItem('pini_silhuete', JSON.stringify(dosezeniVrhovi));
   }, [vsiPohodi, dosezeniVrhovi]);
 
-  const calculateDistance = (coords) => {
-    let total = 0;
-    for (let i = 0; i < coords.length - 1; i++) {
-      total += L.latLng(coords[i]).distanceTo(L.latLng(coords[i+1]));
+  const handlePeakSearch = async (e) => {
+    if (e.key === 'Enter' && peakSearch) {
+      try {
+        const countryName = countries[currentCountryIdx].name;
+        const res = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${peakSearch}, ${countryName}`);
+        const data = await res.json();
+        if (data && data[0]) {
+          const lat = parseFloat(data[0].lat);
+          const lon = parseFloat(data[0].lon);
+          setDosezeniVrhovi([...dosezeniVrhovi, { 
+            id: Date.now(), 
+            countryKey: countries[currentCountryIdx].key, 
+            lat, lon,
+            ime: peakSearch, 
+            type: 'peak' 
+          }]);
+          setIsSearchOpen(false);
+          setPeakSearch("");
+        }
+      } catch (err) { console.error(err); }
     }
-    return (total / 1000).toFixed(2);
   };
 
-  const openInGoogleMaps = (route) => {
-    const coords = route.koordinate;
-    const origin = `${coords[0][0]},${coords[0][1]}`;
-    const destination = `${coords[coords.length-1][0]},${coords[coords.length-1][1]}`;
-    const waypoints = coords.slice(1, -1).map(c => `${c[0]},${c[1]}`).join('|');
-    const url = `https://www.google.com/maps/dir/?api=1&origin=${origin}&destination=${destination}&waypoints=${waypoints}&travelmode=walking`;
-    window.open(url, '_blank');
+  const executeDelete = () => {
+    if (!deleteConfirm) return;
+    setDosezeniVrhovi(dosezeniVrhovi.filter(v => v.id !== deleteConfirm.id));
+    setDeleteConfirm(null);
   };
+
+  const executeDeleteRoute = () => {
+    if (routeToDelete) {
+        setVsiPohodi(vsiPohodi.filter(p => p.id !== routeToDelete.id));
+        setRouteToDelete(null);
+    }
+  };
+
+  const fetchRouteOptions = async (start, end) => {
+    setIsLoading(true);
+    const coordStr = `${start.lng},${start.lat};${end.lng},${end.lat}`;
+    
+    const serverUrls = {
+      car: `https://router.project-osrm.org/route/v1/driving/`,
+      bike: `https://router.project-osrm.org/route/v1/cycling/`,
+      foot: `https://router.project-osrm.org/route/v1/walking/`
+    };
+
+    const speedSettings = {
+        foot: { slow: 3.2, average: 4.5, fast: 6.5 },
+        bike: { slow: 12, average: 18, fast: 28 },
+        car: { slow: 40, average: 60, fast: 90 }
+    };
+
+    try {
+      const res = await fetch(`${serverUrls[travelMode]}${coordStr}?overview=full&geometries=geojson&alternatives=true`);
+      const data = await res.json();
+      
+      if (data.routes && data.routes.length > 0) {
+        const paths = data.routes.map(r => {
+          const distKm = r.distance / 1000;
+          const currentSpeed = speedSettings[travelMode][pace];
+          const duration = Math.round((distKm / currentSpeed) * 60);
+
+          return {
+            distance: distKm.toFixed(2),
+            coordinates: r.geometry.coordinates.map(c => [c[1], c[0]]),
+            duration
+          };
+        });
+        setSuggestedRoutes(paths);
+        setSelectedPreviewIdx(0);
+        if (paths[0].coordinates.length > 0) {
+          setMapCenter(paths[0].coordinates[0]);
+        }
+      }
+    } catch (err) {
+      console.error(err);
+    }
+    setIsLoading(false);
+  };
+
+  useEffect(() => {
+    if (startPoint && endPoint) {
+      fetchRouteOptions(startPoint, endPoint);
+    }
+  }, [startPoint, endPoint, travelMode, pace]);
 
   const handleSaveRoute = () => {
-    if (!activeLayer) return;
-    const coords = activeLayer.getLatLngs().map(ll => [ll.lat, ll.lng]);
-    const dist = calculateDistance(coords);
+    if (suggestedRoutes.length === 0) return;
+    const chosen = suggestedRoutes[selectedPreviewIdx];
     const novPohod = {
       id: Date.now(),
       ime: searchQuery || "Nova pot",
       datum: new Date().toLocaleDateString('sl-SI'),
-      razdalja: dist,
+      razdalja: chosen.distance,
       slika: "https://images.unsplash.com/photo-1464822759023-fed622ff2c3b?auto=format&fit=crop&w=150&q=80",
-      koordinate: coords
+      koordinate: chosen.coordinates,
+      type: 'route',
+      mode: travelMode
     };
     setVsiPohodi([novPohod, ...vsiPohodi]);
-    activeLayer.remove();
-    setActiveLayer(null);
-    setIsDrawing(false);
+    setSuggestedRoutes([]);
     setActiveTab('seznami');
-  };
-
-  const handleSearch = async (e) => {
-    if (e.key === 'Enter' && searchQuery) {
-      const res = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${searchQuery}`);
-      const data = await res.json();
-      if (data?.[0]) setMapCenter([parseFloat(data[0].lat), parseFloat(data[0].lon)]);
-    }
+    setSearchQuery("");
   };
 
   return (
-    <div className="profile-page" onMouseMove={(e) => {
-      if (draggingPinId && mapRef.current) {
-        const rect = mapRef.current.getBoundingClientRect();
-        let x = Math.max(0, Math.min(100, ((e.clientX - rect.left) / rect.width) * 100));
-        let y = Math.max(0, Math.min(100, ((e.clientY - rect.top) / rect.height) * 100));
-        setDosezeniVrhovi(prev => prev.map(v => v.id === draggingPinId ? { ...v, x, y } : v));
-      }
-    }} onMouseUp={() => setDraggingPinId(null)}>
+    <div className="profile-page" 
+      onMouseMove={(e) => {
+        if (draggingPinId && mapRef.current) {
+          isDraggingInternal.current = true;
+          setIsDraggingActive(true);
+          const rect = mapRef.current.getBoundingClientRect();
+          let x = Math.max(0, Math.min(100, ((e.clientX - rect.left) / rect.width) * 100));
+          let y = Math.max(0, Math.min(100, ((e.clientY - rect.top) / rect.height) * 100));
+          setDosezeniVrhovi(prev => prev.map(v => v.id === draggingPinId ? { ...v, x, y } : v));
+        }
+      }} 
+      onMouseUp={() => {
+        setIsDraggingActive(false);
+        setDraggingPinId(null);
+        setTimeout(() => { isDraggingInternal.current = false; }, 100);
+      }}>
+
+      <div className={`peak-search-overlay ${isSearchOpen ? 'open' : ''}`}>
+        <div className="peak-search-box">
+          <h2>Vpiši osvojen vrh</h2>
+          <input autoFocus={isSearchOpen} placeholder="npr. Triglav..." value={peakSearch} onChange={e => setPeakSearch(e.target.value)} onKeyDown={handlePeakSearch} />
+          <button className="close-search-btn" onClick={() => setIsSearchOpen(false)}><LuX size={30}/></button>
+        </div>
+      </div>
+
+      <div className={`delete-confirm-overlay ${deleteConfirm ? 'open' : ''}`}>
+        <div className="peak-search-box">
+          <h2>Izbrišem {deleteConfirm?.ime}?</h2>
+          <div className="confirm-btns">
+            <button className="confirm-yes" onClick={executeDelete}>IZBRIŠI</button>
+            <button className="confirm-no" onClick={() => setDeleteConfirm(null)}>PREKLIČI</button>
+          </div>
+          <button className="close-search-btn" onClick={() => setDeleteConfirm(null)}><LuX size={30}/></button>
+        </div>
+      </div>
+
+      <div className={`delete-confirm-overlay ${routeToDelete ? 'open' : ''}`}>
+        <div className="peak-search-box">
+          <h2>Izbrišem pot: {routeToDelete?.ime}?</h2>
+          <div className="confirm-btns">
+            <button className="confirm-yes" onClick={executeDeleteRoute}>IZBRIŠI</button>
+            <button className="confirm-no" onClick={() => setRouteToDelete(null)}>PREKLIČI</button>
+          </div>
+          <button className="close-search-btn" onClick={() => setRouteToDelete(null)}><LuX size={30}/></button>
+        </div>
+      </div>
       
       {selectedRoute && (
         <div className="route-modal-overlay">
@@ -145,10 +282,11 @@ const Profil = () => {
             <div className="modal-header">
               <h2>{selectedRoute.ime}</h2>
               <div className="modal-stats">
-                <span><LuTrendingUp size={16}/> {selectedRoute.razdalja} km</span>
-                <button className="nav-google-btn" onClick={() => openInGoogleMaps(selectedRoute)}>
-                  <LuNavigation size={18} /> Navigiraj (GPS)
-                </button>
+                <span><LuTrendingUp size={16}/> {selectedRoute.razdalja} km ({selectedRoute.mode === 'car' ? 'Avto' : selectedRoute.mode === 'bike' ? 'Kolo' : 'Peš'})</span>
+                <button className="nav-google-btn" onClick={() => {
+                    const coords = selectedRoute.koordinate;
+                    window.open(`https://www.google.com/maps/dir/?api=1&origin=${coords[0][0]},${coords[0][1]}&destination=${coords[coords.length-1][0]},${coords[coords.length-1][1]}&travelmode=${selectedRoute.mode === 'car' ? 'driving' : 'walking'}`, '_blank');
+                }}>Navigiraj</button>
               </div>
             </div>
             <div className="modal-map-container">
@@ -165,7 +303,7 @@ const Profil = () => {
       <div className="profile-hero">
         <div className="hero-text-container">
           <h1>MOJ PROFIL</h1>
-          <p>Sledi svojim potem in razdaljam.</p>
+          <p>Tvoji planinski vrhovi na enem mestu.</p>
         </div>
       </div>
 
@@ -173,10 +311,7 @@ const Profil = () => {
         <aside className="profile-sidebar">
           <div className="sidebar-content-wrapper">
             <div className="avatar-circle-huge"><LuMountain size={100} color="#ff6b35" /></div>
-            <div className="user-basic-info">
-              <h2>User name</h2>
-              <p className="location-text">Njegovo prebivalisce</p>
-            </div>
+            <div className="user-basic-info"><h2>User name</h2><p className="location-text">Slovenija</p></div>
             <nav className="sidebar-nav">
               <button className={`nav-btn ${activeTab === 'pregled' ? 'active' : ''}`} onClick={() => setActiveTab('pregled')}><LuTrendingUp size={20} /> Statistika</button>
               <button className={`nav-btn ${activeTab === 'seznami' ? 'active' : ''}`} onClick={() => setActiveTab('seznami')}><LuList size={20} /> Seznami</button>
@@ -188,45 +323,57 @@ const Profil = () => {
         <main className="profile-main-content">
           {activeTab === 'pregled' && (
             <div className="dashboard-view">
-              <div className="dashboard-content-grid">
-                <div className="recent-hikes-section">
-                   <div className="section-header"><h3>Nedavni pohodi</h3></div>
-                   <div className="hikes-list">
-                    {vsiPohodi.slice(0, 3).map(p => (
-                      <div key={p.id} className="hike-item" onClick={() => setSelectedRoute(p)}>
-                        <img src={p.slika} alt="" className="hike-thumb" />
-                        <div className="hike-main-info"><h4>{p.ime}</h4><span>{p.datum}</span></div>
-                        <div className="hike-stats"><div className="stat"><LuTrendingUp size={16} /> {p.razdalja} km</div></div>
-                        <div className="status-badge success">Shranjeno</div>
-                      </div>
-                    ))}
-                   </div>
+              <div className="recent-hikes-section">
+                <div className="section-header"><h3>Nedavni pohodi</h3></div>
+                <div className="hikes-list">
+                  {vsiPohodi.slice(0, 3).map(p => (
+                    <div key={p.id} className="hike-item" onClick={() => setSelectedRoute(p)}>
+                      <img src={p.slika} alt="" className="hike-thumb" />
+                      <div className="hike-main-info"><h4>{p.ime}</h4><span>{p.datum}</span></div>
+                      <div className="hike-stats"><div className="stat"><LuTrendingUp size={16} /> {p.razdalja} km</div></div>
+                      <div className="status-badge success">Shranjeno</div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              <div className="map-section">
+                <div className="country-nav" style={{display:'flex', alignItems:'center', justifyContent:'center', gap:'30px', margin:'20px 0', color:'#ff6b35', cursor:'pointer'}}>
+                  <LuChevronLeft size={35} onClick={() => setCurrentCountryIdx((prev) => (prev - 1 + countries.length) % countries.length)} />
+                  <h4 style={{minWidth:'120px', textAlign:'center', fontSize:'1.2rem'}}>{countries[currentCountryIdx].name}</h4>
+                  <LuChevronRight size={35} onClick={() => setCurrentCountryIdx((prev) => (prev + 1) % countries.length)} />
                 </div>
 
-                <div className="map-section">
-                  <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '30px', margin: '20px 0' }}>
-                    <LuChevronLeft size={35} cursor="pointer" color="#ff6b35" onClick={prevCountry} />
-                    <h4>{countries[currentCountryIdx].name}</h4>
-                    <LuChevronRight size={35} cursor="pointer" color="#ff6b35" onClick={nextCountry} />
-                  </div>
-                  <div className="map-viz-container" ref={mapRef}>
-                    <img src={countries[currentCountryIdx].img} alt="" className="slovenia-map-img" onClick={(e) => {
-                       const rect = e.target.getBoundingClientRect();
-                       const x = ((e.clientX - rect.left) / rect.width) * 100;
-                       const y = ((e.clientY - rect.top) / rect.height) * 100;
-                       const ime = window.prompt("Ime vrha:");
-                       if (ime) setDosezeniVrhovi([...dosezeniVrhovi, { id: Date.now(), countryKey: countries[currentCountryIdx].key, x, y, ime }]);
-                    }} style={{ cursor: 'crosshair', filter: 'brightness(0) saturate(100%) invert(73%) sepia(9%) saturate(543%) hue-rotate(85deg) brightness(91%) contrast(85%)' }} />
-                    <div className="map-overlay">
-                      {dosezeniVrhovi.filter(v => v.countryKey === countries[currentCountryIdx].key).map(vrh => (
-                        <div key={vrh.id} className="marker-static" style={{ top: `${vrh.y}%`, left: `${vrh.x}%`, position: 'absolute', transform: 'translate(-50%, -50%)' }} onMouseDown={() => setDraggingPinId(vrh.id)} onContextMenu={(e) => { e.preventDefault(); setDosezeniVrhovi(dosezeniVrhovi.filter(v => v.id !== vrh.id)); }}>
-                          <div className="marker"><div className="marker-pulse"></div></div>
-                          <span className="marker-label">{vrh.ime}</span>
-                        </div>
-                      ))}
-                    </div>
+                <div 
+                  className={`map-viz-container ${isDraggingActive ? 'is-dragging' : ''} ${isSearchOpen || deleteConfirm ? 'is-searching' : ''}`} 
+                  ref={mapRef} 
+                  onClick={() => { if(!isDraggingInternal.current && !deleteConfirm) setIsSearchOpen(true); }}
+                >
+                  <div 
+                    className="masked-map-layer"
+                    style={{
+                      maskImage: `url(${countries[currentCountryIdx].img})`,
+                      WebkitMaskImage: `url(${countries[currentCountryIdx].img})`
+                    }}
+                  >
+                    <MapContainer 
+                      center={countries[currentCountryIdx].center} 
+                      zoom={countries[currentCountryIdx].zoom} 
+                      zoomControl={false} dragging={false} scrollWheelZoom={false} doubleClickZoom={false} 
+                      style={{ height: '550px', width: '800px' }}
+                    >
+                      <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
+                      <ChangeView center={countries[currentCountryIdx].center} zoom={countries[currentCountryIdx].zoom} />
+                      <PeakMarkers 
+                        vrhovi={dosezeniVrhovi.filter(v => v.countryKey === countries[currentCountryIdx].key)} 
+                        onDelete={(vrh) => { if(!isDraggingInternal.current) setDeleteConfirm(vrh); }}
+                      />
+                    </MapContainer>
                   </div>
                 </div>
+                <p className="map-hint">
+                  Klikni na zemljevid za dodajanje vrha · Klikni na pin za brisanje
+                </p>
               </div>
             </div>
           )}
@@ -249,7 +396,7 @@ const Profil = () => {
                     </div>
                     <div className="hike-stats" style={{display:'flex', gap:'10px'}}>
                       <LuPencil onClick={(e) => { e.stopPropagation(); setEditingId(p.id); setTempName(p.ime); }} style={{cursor:'pointer'}} />
-                      <LuTrash2 color="#ff4d4d" onClick={(e) => { e.stopPropagation(); if(window.confirm("Izbrišem?")) setVsiPohodi(vsiPohodi.filter(x => x.id !== p.id)); }} style={{cursor:'pointer'}} />
+                      <LuTrash2 color="#ff4d4d" onClick={(e) => { e.stopPropagation(); setRouteToDelete(p); }} style={{cursor:'pointer'}} />
                     </div>
                   </div>
                 ))}
@@ -260,20 +407,117 @@ const Profil = () => {
           {activeTab === 'dodaj' && (
             <div className="map-editor-container">
               <div className="editor-sidebar">
-                <h3>Išči lokacijo</h3>
-                <input className="editor-input" placeholder="Vnesi kraj..." value={searchQuery} onChange={e=>setSearchQuery(e.target.value)} onKeyDown={handleSearch} />
-                <h3>Nariši pot</h3>
-                <div className="btn-row">
-                  <button className="editor-small-btn" onClick={() => { if(activeLayer) activeLayer.remove(); setActiveLayer(null); setIsDrawing(false); }}>Reset</button>
-                  <button className={`editor-small-btn ${isDrawing ? 'active-draw' : ''}`} onClick={() => setIsDrawing(!isDrawing)}>{isDrawing ? "Končaj" : "Začni risati"}</button>
+                <h3>Načrtuj pot</h3>
+                <input className="editor-input" placeholder="Vnesi ime poti..." value={searchQuery} onChange={e=>setSearchQuery(e.target.value)} />
+                <div style={{display:'flex', flexDirection:'column', gap:'8px', marginBottom:'15px'}}>
+                <input 
+                  className="editor-input" 
+                  placeholder="Začetek poti (npr. Bled)..." 
+                  value={startQuery}
+                  onChange={e => setStartQuery(e.target.value)}
+                  onKeyDown={async (e) => {
+                    if (e.key === 'Enter' && startQuery) {
+                      const res = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${startQuery}`);
+                      const data = await res.json();
+                      if (data?.[0]) setStartPoint({ lat: parseFloat(data[0].lat), lng: parseFloat(data[0].lon) });
+                    }
+                  }}
+                />
+                <input 
+                  className="editor-input" 
+                  placeholder="Konec poti (npr. Triglav)..." 
+                  value={endQuery}
+                  onChange={e => setEndQuery(e.target.value)}
+                  onKeyDown={async (e) => {
+                    if (e.key === 'Enter' && endQuery) {
+                      const res = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${endQuery}`);
+                      const data = await res.json();
+                      if (data?.[0]) {
+                        setEndPoint({ lat: parseFloat(data[0].lat), lng: parseFloat(data[0].lon) });
+                      }
+                    }
+                  }}
+                />
+              </div>
+              <button 
+                className="search-route-btn" 
+                onClick={async () => {
+                  if (!startQuery || !endQuery) return;
+                  const [resS, resE] = await Promise.all([
+                    fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${startQuery}`).then(r => r.json()),
+                    fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${endQuery}`).then(r => r.json())
+                  ]);
+                  if (resS?.[0] && resE?.[0]) {
+                    const start = { lat: parseFloat(resS[0].lat), lng: parseFloat(resS[0].lon) };
+                    const end = { lat: parseFloat(resE[0].lat), lng: parseFloat(resE[0].lon) };
+                    setStartPoint(start);
+                    setEndPoint(end);
+                    fetchRouteOptions(start, end);
+                  }
+                }}
+              >
+                Išči pot
+              </button>
+                
+                <div className="mode-selector">
+                  <button className={`mode-btn ${travelMode === 'foot' ? 'active' : ''}`} onClick={() => setTravelMode('foot')}><LuFootprints size={20} /></button>
+                  <button className={`mode-btn ${travelMode === 'bike' ? 'active' : ''}`} onClick={() => setTravelMode('bike')}><LuBike size={20} /></button>
                 </div>
-                <div className="editor-footer"><button className="save-btn" onClick={handleSaveRoute}>Shrani pot</button></div>
+
+                <div className="pace-selector">
+                    <button className={`pace-btn ${pace === 'slow' ? 'active' : ''}`} onClick={() => setPace('slow')}>Počasno</button>
+                    <button className={`pace-btn ${pace === 'average' ? 'active' : ''}`} onClick={() => setPace('average')}>Srednje</button>
+                    <button className={`pace-btn ${pace === 'fast' ? 'active' : ''}`} onClick={() => setPace('fast')}>Hitro</button>
+                </div>
+
+                <div className="btn-row">
+                  <button className="editor-small-btn" onClick={() => { setSuggestedRoutes([]); setIsDrawing(false); }}>Reset</button>
+                  <button className={`editor-small-btn ${isDrawing ? 'active-draw' : ''}`} onClick={() => { setIsDrawing(!isDrawing); setSuggestedRoutes([]); }}>
+                    {isDrawing ? "Prekliči" : "Izberi točki"}
+                  </button>
+                </div>
+
+                {isDrawing && !isLoading && (
+                  <p className="map-hint-text">Klikni začetek poti, nato konec poti na zemljevidu.</p>
+                )}
+
+                {isLoading && (
+                  <p className="map-hint-text">Iščem pot... ⏳</p>
+                )}
+
+                {suggestedRoutes.length > 0 && (
+                  <div className="route-options-selector">
+                    <p>Izberi želeno traso:</p>
+                    <div className="options-list-wrapper">
+                      {suggestedRoutes.map((route, idx) => (
+                        <div key={idx} className={`route-option-card ${selectedPreviewIdx === idx ? 'selected' : ''}`} onClick={() => setSelectedPreviewIdx(idx)}>
+                          <div className="option-info">
+                            <span className="option-name">Možnost {idx + 1}</span>
+                            <span className="option-dist">{route.distance} km</span>
+                          </div>
+                          <small>{route.duration} min ({travelMode === 'bike' ? 's kolesom' : 'peš'})</small>
+                        </div>
+                      ))}
+                    </div>
+                    <button className="save-btn" onClick={handleSaveRoute} style={{marginTop: '20px', width:'100%'}}>Shrani izbrano</button>
+                  </div>
+                )}
               </div>
               <div className="editor-map-area">
                 <MapContainer center={mapCenter} zoom={13} style={{ height: '100%', width: '100%' }}>
                   <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
                   <ChangeView center={mapCenter} />
-                  <GeomanController isDrawing={isDrawing} onRouteCreated={setActiveLayer} />
+                  <ClickController onPointsSet={fetchRouteOptions} active={isDrawing} />
+                  {suggestedRoutes.map((route, idx) => (
+                    <Polyline 
+                      key={idx}
+                      positions={route.coordinates}
+                      color={selectedPreviewIdx === idx ? "#ff6b35" : "#999"}
+                      weight={selectedPreviewIdx === idx ? 6 : 4}
+                      opacity={selectedPreviewIdx === idx ? 1 : 0.5}
+                      eventHandlers={{ click: () => setSelectedPreviewIdx(idx) }}
+                    />
+                  ))}
                 </MapContainer>
               </div>
             </div>
