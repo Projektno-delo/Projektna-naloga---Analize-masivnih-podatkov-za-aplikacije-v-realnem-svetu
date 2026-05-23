@@ -1,7 +1,8 @@
 import numpy as np
 import os
+import joblib
 from pathlib import Path
-from sklearn.model_selection import train_test_split
+from sklearn.model_selection import train_test_split, GridSearchCV
 from sklearn.svm import SVC
 from sklearn.metrics import accuracy_score
 
@@ -45,16 +46,21 @@ if __name__ == "__main__":
         )
         print(f"[INFO] Podatki razdeljeni: {len(X_train)} za učenje, {len(X_test)} za test.")
         
-        print("[INFO] Pričenjam z učenjem osnovnega SVM modela (RBF kernel)...")
-        model = SVC(kernel='rbf', C=1.0, probability=True)
-        model.fit(X_train, y_train)
-        print("[STATUS] Model je uspešno naučen!")
+        print("[INFO] Optimizacija hiperparametrov z GridSearchCV...")
+        param_grid = {
+            'C': [0.1, 1, 10, 100],
+            'gamma': ['scale', 'auto', 0.001, 0.01],
+            'kernel': ['rbf', 'linear']
+        }
+        grid_search = GridSearchCV(SVC(probability=True), param_grid, cv=3, scoring='accuracy', verbose=1)
+        grid_search.fit(X_train, y_train)
+        model = grid_search.best_estimator_
+        print(f"[STATUS] Najboljši hiperparametri: {grid_search.best_params_}")
+        print(f"[STATUS] Najboljša cross-validation točnost: {grid_search.best_score_ * 100:.2f}%")
         
         y_pred = model.predict(X_test)
         acc = accuracy_score(y_test, y_pred)
         print(f"[EVALVACIJA] Točnost modela na testnih podatkih: {acc * 100:.2f}%")
-
-        import joblib
 
         MODEL_DIR = BASE_DIR / "model"
         MODEL_DIR.mkdir(exist_ok=True)
