@@ -53,3 +53,12 @@ if __name__ == "__main__":
         y_pred = model.predict(X_test)
         acc = accuracy_score(y_test, y_pred)
         print(f"[EVALVACIJA] Točnost modela na testnih podatkih: {acc * 100:.2f}%")
+
+        import joblib
+
+        MODEL_DIR = BASE_DIR / "model"
+        MODEL_DIR.mkdir(exist_ok=True)
+
+        joblib.dump(model, MODEL_DIR / "svm_model.pkl")
+        joblib.dump(label_map, MODEL_DIR / "label_map.pkl")
+        print("[STATUS] Model in label_map uspešno shranjena!")
