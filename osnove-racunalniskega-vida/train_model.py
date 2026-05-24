@@ -5,13 +5,13 @@ from pathlib import Path
 from sklearn.model_selection import train_test_split, GridSearchCV
 from sklearn.svm import SVC
 from sklearn.metrics import accuracy_score, confusion_matrix, classification_report
+from sklearn.preprocessing import StandardScaler
 
 BASE_DIR = Path(__file__).resolve().parent
 DATA_DIR = BASE_DIR / "data"
 USERS_DIR = DATA_DIR / "users"
 
 def load_dataset():
-    """Nalaganje shranjenih slik iz .npz datotek (MAS-72)."""
     X, y = [], []
     label_map = {}
     current_label = 0
@@ -45,6 +45,12 @@ if __name__ == "__main__":
             X, y, test_size=0.2, random_state=42, stratify=y
         )
         print(f"[INFO] Podatki razdeljeni: {len(X_train)} za učenje, {len(X_test)} za test.")
+
+        print("[INFO] Normalizacija podatkov z StandardScaler...")
+        scaler = StandardScaler()
+        X_train = scaler.fit_transform(X_train)
+        X_test = scaler.transform(X_test)
+        print("[STATUS] Normalizacija uspešno izvedena!")
         
         print("[INFO] Optimizacija hiperparametrov z GridSearchCV...")
         param_grid = {
@@ -71,4 +77,5 @@ if __name__ == "__main__":
 
         joblib.dump(model, MODEL_DIR / "svm_model.pkl")
         joblib.dump(label_map, MODEL_DIR / "label_map.pkl")
-        print("[STATUS] Model in label_map uspešno shranjena!")
+        joblib.dump(scaler, MODEL_DIR / "scaler.pkl")
+        print("[STATUS] Model, scaler in label_map uspešno shranjeni!")
