@@ -4,7 +4,7 @@ import joblib
 from pathlib import Path
 from sklearn.model_selection import train_test_split, GridSearchCV
 from sklearn.svm import SVC
-from sklearn.metrics import accuracy_score
+from sklearn.metrics import accuracy_score, confusion_matrix, classification_report
 
 BASE_DIR = Path(__file__).resolve().parent
 DATA_DIR = BASE_DIR / "data"
@@ -61,6 +61,10 @@ if __name__ == "__main__":
         y_pred = model.predict(X_test)
         acc = accuracy_score(y_test, y_pred)
         print(f"[EVALVACIJA] Točnost modela na testnih podatkih: {acc * 100:.2f}%")
+        print("[EVALVACIJA] Confusion matrix:")
+        print(confusion_matrix(y_test, y_pred))
+        print("[EVALVACIJA] Classification report:")
+        print(classification_report(y_test, y_pred, target_names=list(label_map.values())))
 
         MODEL_DIR = BASE_DIR / "model"
         MODEL_DIR.mkdir(exist_ok=True)
