@@ -83,6 +83,20 @@ def save_login_attempt(username, success, score, threshold):
         log_file.write(json.dumps(attempt, ensure_ascii=False) + "\n")
 
 
+def save_preprocess_record(source_path, output_path, detected_box, img_size):
+    manifest_path = data_path("preprocess-manifest.jsonl")
+    manifest_path.parent.mkdir(parents=True, exist_ok=True)
+    record = {
+        "source": str(source_path),
+        "output": str(output_path),
+        "face_box": [int(value) for value in detected_box],
+        "image_size": list(img_size),
+        "timestamp": time.strftime("%Y-%m-%d %H:%M:%S"),
+    }
+    with manifest_path.open("a", encoding="utf-8") as manifest_file:
+        manifest_file.write(json.dumps(record, ensure_ascii=False) + "\n")
+
+
 def preprocess_images(input_dir=None, output_dir=None, img_size=IMG_SIZE):
     input_dir = Path(input_dir) if input_dir else data_path("raw")
     output_dir = Path(output_dir) if output_dir else data_path("processed")
@@ -99,7 +113,7 @@ def preprocess_images(input_dir=None, output_dir=None, img_size=IMG_SIZE):
             print(f"Preskoceno, slike ni mogoce prebrati: {path}")
             continue
 
-        face, _ = prepare_face(img, img_size)
+        face, detected = prepare_face(img, img_size)
         if face is None:
             print(f"Na sliki ni bilo zaznanega obraza: {path}")
             continue
@@ -108,6 +122,7 @@ def preprocess_images(input_dir=None, output_dir=None, img_size=IMG_SIZE):
         filename = Path(path).name
         save_path = output_dir / f"proc_{filename}"
         cv2.imwrite(str(save_path), face_to_save)
+        save_preprocess_record(path, save_path, detected, img_size)
         print(f"Obdelano in shranjeno: {save_path}")
 
 
