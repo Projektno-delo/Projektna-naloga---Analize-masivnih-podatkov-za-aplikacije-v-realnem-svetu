@@ -15,8 +15,8 @@ import { useState, useRef, useCallback } from 'react'
 import AsyncStorage from '@react-native-async-storage/async-storage'
 import BottomSheet, { BottomSheetView } from '@gorhom/bottom-sheet'
 import { GestureHandlerRootView } from 'react-native-gesture-handler'
+import { CONFIG } from './config'
 
-const API_URL = 'http://TVOJ_IP:3000'
 
 export default function Login() {
   const router = useRouter()
@@ -32,7 +32,7 @@ export default function Login() {
     }
     setLoading(true)
     try {
-      const response = await fetch(`${API_URL}/login`, {
+      const response = await fetch(`${CONFIG.API_URL}/login`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email, password }),
@@ -62,7 +62,6 @@ export default function Login() {
       >
         <View style={styles.overlay}>
           <SafeAreaView style={styles.safe}>
-            {/* Zgornji del - samo brand, vidna slika */}
             <View style={styles.topSection}>
               <Text style={styles.logo}>HRIBOVC</Text>
               <Text style={styles.tagline}>
@@ -83,7 +82,6 @@ export default function Login() {
         </View>
       </ImageBackground>
 
-      {/* Bottom Sheet - potegni gor za login */}
       <BottomSheet
         ref={bottomSheetRef}
         index={0}
