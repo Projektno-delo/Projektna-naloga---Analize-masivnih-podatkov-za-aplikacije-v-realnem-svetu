@@ -15,8 +15,8 @@ import { useRouter } from 'expo-router'
 import { useState, useRef } from 'react'
 import BottomSheet, { BottomSheetScrollView } from '@gorhom/bottom-sheet'
 import { GestureHandlerRootView } from 'react-native-gesture-handler'
+import { CONFIG } from './config'
 
-const API_URL = 'http://TVOJ_IP:3000'
 
 export default function Register() {
   const router = useRouter()
@@ -36,7 +36,7 @@ export default function Register() {
     }
     setLoading(true)
     try {
-      const response = await fetch(`${API_URL}/register`, {
+      const response = await fetch(`${CONFIG.API_URL}/register`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
