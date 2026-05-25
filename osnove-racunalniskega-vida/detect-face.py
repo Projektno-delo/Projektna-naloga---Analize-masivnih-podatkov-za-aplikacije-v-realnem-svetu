@@ -83,23 +83,64 @@ def save_login_attempt(username, success, score, threshold):
         log_file.write(json.dumps(attempt, ensure_ascii=False) + "\n")
 
 
+def save_preprocess_record(source_path, output_path, detected_box, img_size, compressed_size):
+    manifest_path = data_path("preprocess-manifest.jsonl")
+    manifest_path.parent.mkdir(parents=True, exist_ok=True)
+    record = {
+        "source": str(source_path),
+        "output": str(output_path),
+        "face_box": [int(value) for value in detected_box],
+        "image_size": list(img_size),
+        "compressed_size_bytes": int(compressed_size),
+        "steps": ["decompress", "denoise", "grayscale", "face_crop", "resize", "histogram_equalization", "normalize"],
+        "timestamp": time.strftime("%Y-%m-%d %H:%M:%S"),
+    }
+    with manifest_path.open("a", encoding="utf-8") as manifest_file:
+        manifest_file.write(json.dumps(record, ensure_ascii=False) + "\n")
+
+
+def load_decompressed_image(image_path):
+    compressed_bytes = np.fromfile(str(image_path), dtype=np.uint8)
+    if compressed_bytes.size == 0:
+        return None, 0
+
+    image = cv2.imdecode(compressed_bytes, cv2.IMREAD_COLOR)
+    return image, compressed_bytes.size
+
+
+def preprocess_source_image(image):
+    return cv2.fastNlMeansDenoisingColored(
+        image,
+        None,
+        h=5,
+        hColor=5,
+        templateWindowSize=7,
+        searchWindowSize=21,
+    )
+
+
 def preprocess_images(input_dir=None, output_dir=None, img_size=IMG_SIZE):
     input_dir = Path(input_dir) if input_dir else data_path("raw")
     output_dir = Path(output_dir) if output_dir else data_path("processed")
     output_dir.mkdir(parents=True, exist_ok=True)
-    image_paths = glob.glob(str(input_dir / "*.jpg")) + glob.glob(str(input_dir / "*.png"))
+    image_paths = (
+        glob.glob(str(input_dir / "*.jpg"))
+        + glob.glob(str(input_dir / "*.jpeg"))
+        + glob.glob(str(input_dir / "*.png"))
+    )
 
     if not image_paths:
         print(f"Ni slik za obdelavo v mapi: {input_dir}")
         return
 
     for path in image_paths:
-        img = cv2.imread(path)
+        img, compressed_size = load_decompressed_image(path)
         if img is None:
             print(f"Preskoceno, slike ni mogoce prebrati: {path}")
             continue
 
-        face, _ = prepare_face(img, img_size)
+        img = preprocess_source_image(img)
+        face, detected = prepare_face(img, img_size)
         if face is None:
             print(f"Na sliki ni bilo zaznanega obraza: {path}")
             continue
@@ -108,6 +149,7 @@ def preprocess_images(input_dir=None, output_dir=None, img_size=IMG_SIZE):
         filename = Path(path).name
         save_path = output_dir / f"proc_{filename}"
         cv2.imwrite(str(save_path), face_to_save)
+        save_preprocess_record(path, save_path, detected, img_size, compressed_size)
         print(f"Obdelano in shranjeno: {save_path}")
 
 

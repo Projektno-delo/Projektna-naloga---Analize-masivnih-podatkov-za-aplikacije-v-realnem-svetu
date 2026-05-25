@@ -9,7 +9,7 @@ Uporabljali bomo web scraping za vreme po višinah
 ## 1. Načrtovanje: idejni koncept
 
 Spletna stran glede na uporabnikovo starost in BMI uvrsti v stopnje sposobnosti in mu priporoči primerne poti, pri odločitvi odsvetuje pot če vreme ni primerno
-(https://github.com/zejn/arsoapi)
+(<https://github.com/zejn/arsoapi>)
 
 ---
 
@@ -17,7 +17,7 @@ Spletna stran glede na uporabnikovo starost in BMI uvrsti v stopnje sposobnosti 
 
 ### Web scraping
 
-**ARSO (https://github.com/zejn/arsoapi)**
+**ARSO (<https://github.com/zejn/arsoapi>)**
 
 - podatki: temperatura, hitrost vetra, verjetnost neviht po višinah  
 - uporaba: napoved tveganja glede na lokacijo uporabnika  
@@ -55,7 +55,7 @@ Ocena, ali je uporabnik sposoben varno doseči pot (tudi glede višinske razlike
 **Vremenska opozorila**  
 Samodejna obvestila ob poslabšanju vremena glede na GPS lokacijo z uporabo .alert().
 
-**Vizualizacija**
+## Vizualizacija
 
 - prikaz poti na OpenStreetMaps  
 - barvne oznake težavnosti in nevarnosti  
@@ -66,10 +66,10 @@ Samodejna obvestila ob poslabšanju vremena glede na GPS lokacijo z uporabo .ale
 ## 5. Razdelitev dela
 
 | Član | Vloga | Ključne odgovornosti |
-|------|------|----------------------|
-|  Žiga Pešti | Web scraping | razvoj scraperjev ARSO, ekstrakcija podatkov |
-| Anže Žunec  | Backend | API, baza podatkov, integracija |
-| Anja Grudnik| Frontend| UI, zemljevidi, grafi |
+
+| Žiga Pešti | Web scraping | razvoj scraperjev ARSO, ekstrakcija podatkov |
+| Anže Žunec | Backend | API, baza podatkov, integracija |
+| Anja Grudnik | Frontend | UI, zemljevidi, grafi |
 
 ---
 
@@ -100,11 +100,13 @@ npm run dev
 To register your face:
 
 python .\detect-face.py register ziga
+
 A camera window opens. Look at the camera and press SPACE several times until it captures enough samples. Press q to quit.
 
 Then test login:
 
 python .\detect-face.py login ziga
+
 Again, look at the camera and press SPACE to verify. It will print LOGIN DOVOLJEN or LOGIN ZAVRNJEN.
 
 To process existing raw images:
