@@ -5,6 +5,7 @@ import { Accelerometer } from 'expo-sensors';
 import * as Location from 'expo-location';
 import mqtt from 'mqtt';
 import { CONFIG } from './config';
+import { saveReading } from './service/sensorStorage';
 
 export default function Dashboard() {
   const router = useRouter();
@@ -56,13 +57,15 @@ export default function Dashboard() {
       Accelerometer.setUpdateInterval(500);
       const sub = Accelerometer.addListener((data) => {
         setAccel(data);
+        const reading = {
+          accelerometer: data,
+          location,
+          timestamp: new Date().toISOString(),
+        };
         if (clientRef.current?.connected) {
-          clientRef.current.publish(CONFIG.MQTT_TOPIC_SENSORS, JSON.stringify({
-            accelerometer: data,
-            location,
-            timestamp: new Date().toISOString(),
-          }));
+          clientRef.current.publish(CONFIG.MQTT_TOPIC_SENSORS, JSON.stringify(reading));
         }
+        saveReading(reading);
       });
       setSubscription(sub);
       setIsActive(true);
