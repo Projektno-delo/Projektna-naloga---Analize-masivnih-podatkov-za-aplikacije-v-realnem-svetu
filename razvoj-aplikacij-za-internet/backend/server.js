@@ -1,5 +1,7 @@
 const http = require('http');
 const bcrypt = require('bcryptjs');
+const path = require('path');
+const { spawn } = require('child_process');
 
 const {
   scrapeAndStoreWeather,
@@ -27,6 +29,106 @@ function calculateBmi(visina, teza) {
 
   const heightM = heightCm / 100;
   return Number((weightKg / (heightM * heightM)).toFixed(1));
+}
+
+function runFaceLogin({ username, threshold = 0.95, camera = 0 }) {
+  return new Promise((resolve, reject) => {
+    const bridgePath = path.resolve(
+      __dirname,
+      '..',
+      '..',
+      'osnove-racunalniskega-vida',
+      'face_login_bridge.py'
+    );
+    const pythonBin = process.env.PYTHON_BIN || 'python';
+    const child = spawn(
+      pythonBin,
+      [
+        bridgePath,
+        username,
+        '--threshold',
+        String(threshold),
+        '--camera',
+        String(camera),
+      ],
+      {
+        cwd: path.dirname(bridgePath),
+        windowsHide: false,
+      }
+    );
+
+    let stdout = '';
+    let stderr = '';
+    const timeout = setTimeout(() => {
+      child.kill();
+      reject(new Error('Face login timed out'));
+    }, 60000);
+
+    child.stdout.on('data', chunk => {
+      stdout += chunk.toString();
+    });
+
+    child.stderr.on('data', chunk => {
+      stderr += chunk.toString();
+    });
+
+    child.on('error', error => {
+      clearTimeout(timeout);
+      reject(error);
+    });
+
+    child.on('close', () => {
+      clearTimeout(timeout);
+
+      const lines = stdout.trim().split(/\r?\n/).filter(Boolean);
+      const lastLine = lines[lines.length - 1];
+
+      if (!lastLine) {
+        reject(new Error(stderr || 'Face login did not return a result'));
+        return;
+      }
+
+      try {
+        resolve(JSON.parse(lastLine));
+      } catch (error) {
+        reject(new Error(stderr || error.message));
+      }
+    });
+  });
+}
+
+function safeFaceUsername(value) {
+  return String(value || '')
+    .trim()
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^a-z0-9_-]/g, '');
+}
+
+function faceProfilePath(username) {
+  return path.resolve(
+    __dirname,
+    '..',
+    '..',
+    'osnove-racunalniskega-vida',
+    'data',
+    'users',
+    `${username}.npz`
+  );
+}
+
+function findExistingFaceUsername(candidates) {
+  const fs = require('fs');
+
+  for (const candidate of candidates) {
+    const username = safeFaceUsername(candidate);
+    if (username && fs.existsSync(faceProfilePath(username))) {
+      return username;
+    }
+  }
+
+  return null;
 }
 
 const server = http.createServer(async (req, res) => {
@@ -200,6 +302,56 @@ const server = http.createServer(async (req, res) => {
           message: 'Login successful',
           user: userResponse
         }));
+      } catch (error) {
+        res.writeHead(500, {
+          'Content-Type': 'application/json',
+          ...corsHeaders,
+        });
+        res.end(JSON.stringify({ error: error.message || String(error) }));
+      }
+    });
+
+    return;
+  }
+
+  if (req.method === 'POST' && req.url === '/face-login') {
+    let body = '';
+
+    req.on('data', chunk => {
+      body += chunk.toString();
+    });
+
+    req.on('end', async () => {
+      try {
+        const data = JSON.parse(body);
+        const usernameCandidates = Array.isArray(data.usernames)
+          ? data.usernames
+          : [data.username];
+        const username = findExistingFaceUsername(usernameCandidates);
+
+        if (!username) {
+          res.writeHead(400, {
+            'Content-Type': 'application/json',
+            ...corsHeaders,
+          });
+          res.end(JSON.stringify({
+            error: 'ORV profil ni najden. Preveri data/users ali ime uporabnika za face login.',
+            tried: usernameCandidates.map(safeFaceUsername).filter(Boolean),
+          }));
+          return;
+        }
+
+        const result = await runFaceLogin({
+          username,
+          threshold: Number(data.threshold || 0.95),
+          camera: Number(data.camera || 0),
+        });
+
+        res.writeHead(result.success ? 200 : 401, {
+          'Content-Type': 'application/json',
+          ...corsHeaders,
+        });
+        res.end(JSON.stringify(result));
       } catch (error) {
         res.writeHead(500, {
           'Content-Type': 'application/json',

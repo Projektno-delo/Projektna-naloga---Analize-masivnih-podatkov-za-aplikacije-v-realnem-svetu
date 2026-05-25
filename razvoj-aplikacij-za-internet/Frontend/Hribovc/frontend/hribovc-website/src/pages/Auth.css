@@ -193,6 +193,13 @@
   transform: translateY(-1px);
 }
 
+.auth-face-status {
+  margin: -0.2rem 0 0;
+  color: #8FA998;
+  font-size: 0.9rem;
+  line-height: 1.4;
+}
+
 .auth-switch {
   width: 100%;
   text-align: left;
