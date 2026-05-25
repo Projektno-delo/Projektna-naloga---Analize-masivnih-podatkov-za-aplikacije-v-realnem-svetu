@@ -53,10 +53,11 @@ export default function Index() {
 
               <TouchableOpacity
                 style={styles.secondaryBtn}
+                onPress={() => router.push('/dashboard' as any)}
                 activeOpacity={0.85}
               >
                 <Text style={styles.secondaryText}>
-                  RAZIŠČI POTI
+                  DASHBOARD
                 </Text>
               </TouchableOpacity>
             </View>
@@ -105,13 +106,6 @@ const styles = StyleSheet.create({
     fontSize: 44,
     fontWeight: '900',
     lineHeight: 48,
-
-    textShadowColor: 'rgba(0,0,0,0.6)',
-    textShadowOffset: {
-      width: 0,
-      height: 3,
-    },
-    textShadowRadius: 10,
   },
 
   orange: {
@@ -125,13 +119,6 @@ const styles = StyleSheet.create({
     lineHeight: 30,
     marginTop: 24,
     marginBottom: 38,
-
-    textShadowColor: 'rgba(0,0,0,0.6)',
-    textShadowOffset: {
-      width: 0,
-      height: 2,
-    },
-    textShadowRadius: 8,
   },
 
   btn: {
@@ -140,14 +127,6 @@ const styles = StyleSheet.create({
     borderRadius: 18,
     alignItems: 'center',
     marginBottom: 14,
-
-    shadowColor: '#ff6b35',
-    shadowOffset: {
-      width: 0,
-      height: 6,
-    },
-    shadowOpacity: 0.28,
-    shadowRadius: 14,
     elevation: 8,
     overflow: 'hidden',
 },
