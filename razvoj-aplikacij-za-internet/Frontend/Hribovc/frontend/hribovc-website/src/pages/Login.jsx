@@ -6,10 +6,20 @@ import heroImg from '../assets/hero.jpg'
 function Login() {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
+  const [faceStatus, setFaceStatus] = useState('')
+  const [pendingUser, setPendingUser] = useState(null)
   const navigate = useNavigate()
+
+  const completeLogin = (user, message) => {
+    localStorage.setItem('user', JSON.stringify(user))
+    alert(message || `Dobrodosli nazaj, ${user.ime}!`)
+    navigate('/')
+  }
 
   const handleSubmit = async (e) => {
     e.preventDefault()
+    setFaceStatus('')
+    setPendingUser(null)
     
     try {
       const response = await fetch('http://localhost:3000/login', {
@@ -27,6 +37,29 @@ function Login() {
 
       if (response.ok) {
         // Store user data in localStorage for session management
+        const emailUsername = data.user.email.split('@')[0].toLowerCase()
+        setFaceStatus('ORV face login: poglejte v kamero in pritisnite SPACE.')
+
+        const faceResponse = await fetch('http://localhost:3000/face-login', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            usernames: [data.user.ime, emailUsername, 'ziga'],
+            threshold: 0.95,
+          }),
+        })
+
+        const faceData = await faceResponse.json()
+
+        if (!faceResponse.ok || !faceData.success) {
+          setPendingUser(data.user)
+          setFaceStatus(faceData.error || 'ORV face login ni uspel.')
+          alert(faceData.error || 'Prijava z obrazom ni uspela')
+          return
+        }
+
         localStorage.setItem('user', JSON.stringify(data.user))
         alert(`Dobrodošli nazaj, ${data.user.ime}!`)
         navigate('/')
@@ -70,7 +103,17 @@ function Login() {
               <label>Geslo</label>
               <input type="password" placeholder="••••••••" value={password} onChange={e => setPassword(e.target.value)} required />
             </div>
+            {faceStatus && <p className="auth-face-status">{faceStatus}</p>}
             <button type="submit" className="auth-btn">Prijava</button>
+            {pendingUser && (
+              <button
+                type="button"
+                className="auth-btn auth-btn-secondary"
+                onClick={() => completeLogin(pendingUser, '2FA preskocen za testiranje.')}
+              >
+                Preskoci 2FA za test
+              </button>
+            )}
           </form>
           <p className="auth-switch">Nimate računa? <Link to="/register">Registracija</Link></p>
         </div>
