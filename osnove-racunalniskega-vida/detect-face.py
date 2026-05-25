@@ -178,6 +178,47 @@ def register_user(username, sample_count=8, camera_index=0):
     return True
 
 
+def register_user_from_images(username, image_dir):
+    image_dir = Path(image_dir)
+    image_paths = []
+    for pattern in ("*.jpg", "*.jpeg", "*.png"):
+        image_paths.extend(image_dir.glob(pattern))
+
+    if not image_paths:
+        print(f"Ni slik za registracijo v mapi: {image_dir}")
+        return False
+
+    samples = []
+    for image_path in sorted(image_paths):
+        image = cv2.imread(str(image_path))
+        if image is None:
+            print(f"Preskoceno, slike ni mogoce prebrati: {image_path}")
+            continue
+
+        face, _ = prepare_face(image)
+        if face is None:
+            print(f"Preskoceno, obraz ni zaznan: {image_path}")
+            continue
+
+        samples.append(face)
+        print(f"Dodan vzorec iz slike: {image_path}")
+
+    if len(samples) < 3:
+        print("Registracija ni uspela. Potrebne so vsaj 3 slike z zaznanim obrazom.")
+        return False
+
+    profile_path = user_file(username)
+    profile_path.parent.mkdir(parents=True, exist_ok=True)
+    np.savez_compressed(
+        profile_path,
+        samples=np.array(samples, dtype=np.float32),
+        username=username,
+        created_at=time.strftime("%Y-%m-%d %H:%M:%S"),
+    )
+    print(f"Uporabnik '{username}' je registriran iz slik: {profile_path}")
+    return True
+
+
 def load_user_faces(username):
     profile_path = user_file(username)
     if not profile_path.exists():
@@ -270,6 +311,13 @@ def build_parser():
     register_parser.add_argument("--samples", type=int, default=8)
     register_parser.add_argument("--camera", type=int, default=0)
 
+    register_images_parser = subparsers.add_parser(
+        "register-images",
+        help="Registriraj uporabnika iz mape slik.",
+    )
+    register_images_parser.add_argument("username")
+    register_images_parser.add_argument("image_dir")
+
     login_parser = subparsers.add_parser("login", help="Preveri prijavo s kamero.")
     login_parser.add_argument("username")
     login_parser.add_argument("--threshold", type=float, default=DEFAULT_THRESHOLD)
@@ -291,6 +339,8 @@ def main():
         preprocess_images()
     elif args.command == "register":
         register_user(args.username, args.samples, args.camera)
+    elif args.command == "register-images":
+        register_user_from_images(args.username, args.image_dir)
     elif args.command == "login":
         login_user(args.username, args.threshold, args.camera)
     elif args.command == "verify-image":
