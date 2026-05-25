@@ -7,11 +7,19 @@ function Login() {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [faceStatus, setFaceStatus] = useState('')
+  const [pendingUser, setPendingUser] = useState(null)
   const navigate = useNavigate()
+
+  const completeLogin = (user, message) => {
+    localStorage.setItem('user', JSON.stringify(user))
+    alert(message || `Dobrodosli nazaj, ${user.ime}!`)
+    navigate('/')
+  }
 
   const handleSubmit = async (e) => {
     e.preventDefault()
     setFaceStatus('')
+    setPendingUser(null)
     
     try {
       const response = await fetch('http://localhost:3000/login', {
@@ -46,6 +54,7 @@ function Login() {
         const faceData = await faceResponse.json()
 
         if (!faceResponse.ok || !faceData.success) {
+          setPendingUser(data.user)
           setFaceStatus(faceData.error || 'ORV face login ni uspel.')
           alert(faceData.error || 'Prijava z obrazom ni uspela')
           return
@@ -96,6 +105,15 @@ function Login() {
             </div>
             {faceStatus && <p className="auth-face-status">{faceStatus}</p>}
             <button type="submit" className="auth-btn">Prijava</button>
+            {pendingUser && (
+              <button
+                type="button"
+                className="auth-btn auth-btn-secondary"
+                onClick={() => completeLogin(pendingUser, '2FA preskocen za testiranje.')}
+              >
+                Preskoci 2FA za test
+              </button>
+            )}
           </form>
           <p className="auth-switch">Nimate računa? <Link to="/register">Registracija</Link></p>
         </div>

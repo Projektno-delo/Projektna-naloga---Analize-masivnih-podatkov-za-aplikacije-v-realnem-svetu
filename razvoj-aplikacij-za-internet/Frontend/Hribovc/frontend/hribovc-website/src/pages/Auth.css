@@ -193,6 +193,17 @@
   transform: translateY(-1px);
 }
 
+.auth-btn-secondary {
+  background: transparent;
+  border: 1px solid #2A2A2A;
+  color: #ddd;
+  margin-top: 0;
+}
+
+.auth-btn-secondary:hover {
+  background: #181818;
+}
+
 .auth-face-status {
   margin: -0.2rem 0 0;
   color: #8FA998;
