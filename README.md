@@ -18,6 +18,8 @@ cd "C:\Users\Ziga\Desktop\Projektna-naloga---Analize-masivnih-podatkov-za-aplika
 python .\face_name_preview.py train
 python .\face_name_preview.py preview
 
+python .\augment_images.py
+
 --------------------------------------------
 
 Hribovc je projekt za varnejse nacrtovanje pohodov in vzponov. Zdruzuje spletno aplikacijo, backend z vremenskimi in pohodno-potnimi podatki, modul za prepoznavo obraza ter mobilno aplikacijo za zajem senzorskih podatkov.
