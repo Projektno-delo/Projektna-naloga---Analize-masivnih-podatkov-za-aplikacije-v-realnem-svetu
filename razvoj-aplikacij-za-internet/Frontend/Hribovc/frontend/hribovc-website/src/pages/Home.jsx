@@ -11,6 +11,14 @@ function Home() {
   const navigate = useNavigate()
   const [activeStep, setActiveStep] = useState(null)
 
+  const getPlanningPath = () => {
+    try {
+      return localStorage.getItem('user') ? '/profile' : '/login'
+    } catch {
+      return '/login'
+    }
+  }
+
   useEffect(() => {
     if (activeStep !== null) {
       window.scrollTo({ top: 0, behavior: 'smooth' })
@@ -66,7 +74,7 @@ function Home() {
             <div className="hero-content">
               <h1>Hribovc</h1>
               <p>Inteligentni načrtovalec varnih in zdravih vzponov</p>
-              <button className="hero-btn" onClick={() => navigate('/login')}>
+              <button className="hero-btn" onClick={() => navigate(getPlanningPath())}>
                 Začni načrtovati
               </button>
             </div>
@@ -80,7 +88,12 @@ function Home() {
               <div className="tutorial-text-side">
                 <h2>{instructions[activeStep].title}</h2>
                 <p>{instructions[activeStep].desc}</p>
-                <button className="hero-btn small" onClick={() => navigate(instructions[activeStep].path)}>Preizkusi zdaj</button>
+                <button
+                  className="hero-btn small"
+                  onClick={() => navigate(instructions[activeStep].path === '/profile' ? getPlanningPath() : instructions[activeStep].path)}
+                >
+                  Preizkusi zdaj
+                </button>
               </div>
             </div>
           </div>
