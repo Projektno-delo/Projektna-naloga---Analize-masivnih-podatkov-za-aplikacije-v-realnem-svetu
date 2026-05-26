@@ -1,0 +1,243 @@
+{
+  "input_dir": "C:\\Users\\Ziga\\Desktop\\Projektna-naloga---Analize-masivnih-podatkov-za-aplikacije-v-realnem-svetu\\osnove-racunalniskega-vida\\data\\test_images",
+  "output_dir": "C:\\Users\\Ziga\\Desktop\\Projektna-naloga---Analize-masivnih-podatkov-za-aplikacije-v-realnem-svetu\\osnove-racunalniskega-vida\\data\\augmented",
+  "low_light_threshold": 85,
+  "source_images": 10,
+  "augmented_images": 112,
+  "low_light_images": 8,
+  "skipped": [],
+  "images": [
+    {
+      "source": "Ziga\\1.JPG",
+      "low_light": true,
+      "brightness": {
+        "mean": 78.9,
+        "median": 54.0,
+        "p10": 17.0
+      },
+      "generated_count": 12,
+      "generated": [
+        "Ziga\\1__rot_m8.jpg",
+        "Ziga\\1__rot_p8.jpg",
+        "Ziga\\1__bright_down.jpg",
+        "Ziga\\1__bright_up.jpg",
+        "Ziga\\1__flip.jpg",
+        "Ziga\\1__blur.jpg",
+        "Ziga\\1__noise.jpg",
+        "Ziga\\1__zoom.jpg",
+        "Ziga\\1__lowlight_gamma.jpg",
+        "Ziga\\1__lowlight_clahe.jpg",
+        "Ziga\\1__lowlight_inverse.jpg",
+        "Ziga\\1__lowlight_gamma_clahe.jpg"
+      ]
+    },
+    {
+      "source": "Ziga\\10.jpg",
+      "low_light": true,
+      "brightness": {
+        "mean": 118.5,
+        "median": 137.0,
+        "p10": 16.0
+      },
+      "generated_count": 12,
+      "generated": [
+        "Ziga\\10__rot_m8.jpg",
+        "Ziga\\10__rot_p8.jpg",
+        "Ziga\\10__bright_down.jpg",
+        "Ziga\\10__bright_up.jpg",
+        "Ziga\\10__flip.jpg",
+        "Ziga\\10__blur.jpg",
+        "Ziga\\10__noise.jpg",
+        "Ziga\\10__zoom.jpg",
+        "Ziga\\10__lowlight_gamma.jpg",
+        "Ziga\\10__lowlight_clahe.jpg",
+        "Ziga\\10__lowlight_inverse.jpg",
+        "Ziga\\10__lowlight_gamma_clahe.jpg"
+      ]
+    },
+    {
+      "source": "Ziga\\2.JPG",
+      "low_light": true,
+      "brightness": {
+        "mean": 103.14,
+        "median": 87.0,
+        "p10": 36.0
+      },
+      "generated_count": 12,
+      "generated": [
+        "Ziga\\2__rot_m8.jpg",
+        "Ziga\\2__rot_p8.jpg",
+        "Ziga\\2__bright_down.jpg",
+        "Ziga\\2__bright_up.jpg",
+        "Ziga\\2__flip.jpg",
+        "Ziga\\2__blur.jpg",
+        "Ziga\\2__noise.jpg",
+        "Ziga\\2__zoom.jpg",
+        "Ziga\\2__lowlight_gamma.jpg",
+        "Ziga\\2__lowlight_clahe.jpg",
+        "Ziga\\2__lowlight_inverse.jpg",
+        "Ziga\\2__lowlight_gamma_clahe.jpg"
+      ]
+    },
+    {
+      "source": "Ziga\\3.jpg",
+      "low_light": true,
+      "brightness": {
+        "mean": 116.01,
+        "median": 127.0,
+        "p10": 25.0
+      },
+      "generated_count": 12,
+      "generated": [
+        "Ziga\\3__rot_m8.jpg",
+        "Ziga\\3__rot_p8.jpg",
+        "Ziga\\3__bright_down.jpg",
+        "Ziga\\3__bright_up.jpg",
+        "Ziga\\3__flip.jpg",
+        "Ziga\\3__blur.jpg",
+        "Ziga\\3__noise.jpg",
+        "Ziga\\3__zoom.jpg",
+        "Ziga\\3__lowlight_gamma.jpg",
+        "Ziga\\3__lowlight_clahe.jpg",
+        "Ziga\\3__lowlight_inverse.jpg",
+        "Ziga\\3__lowlight_gamma_clahe.jpg"
+      ]
+    },
+    {
+      "source": "Ziga\\4.JPG",
+      "low_light": true,
+      "brightness": {
+        "mean": 86.74,
+        "median": 82.0,
+        "p10": 18.0
+      },
+      "generated_count": 12,
+      "generated": [
+        "Ziga\\4__rot_m8.jpg",
+        "Ziga\\4__rot_p8.jpg",
+        "Ziga\\4__bright_down.jpg",
+        "Ziga\\4__bright_up.jpg",
+        "Ziga\\4__flip.jpg",
+        "Ziga\\4__blur.jpg",
+        "Ziga\\4__noise.jpg",
+        "Ziga\\4__zoom.jpg",
+        "Ziga\\4__lowlight_gamma.jpg",
+        "Ziga\\4__lowlight_clahe.jpg",
+        "Ziga\\4__lowlight_inverse.jpg",
+        "Ziga\\4__lowlight_gamma_clahe.jpg"
+      ]
+    },
+    {
+      "source": "Ziga\\5.jpg",
+      "low_light": false,
+      "brightness": {
+        "mean": 132.52,
+        "median": 114.0,
+        "p10": 49.0
+      },
+      "generated_count": 8,
+      "generated": [
+        "Ziga\\5__rot_m8.jpg",
+        "Ziga\\5__rot_p8.jpg",
+        "Ziga\\5__bright_down.jpg",
+        "Ziga\\5__bright_up.jpg",
+        "Ziga\\5__flip.jpg",
+        "Ziga\\5__blur.jpg",
+        "Ziga\\5__noise.jpg",
+        "Ziga\\5__zoom.jpg"
+      ]
+    },
+    {
+      "source": "Ziga\\6.jpg",
+      "low_light": true,
+      "brightness": {
+        "mean": 49.4,
+        "median": 29.0,
+        "p10": 2.0
+      },
+      "generated_count": 12,
+      "generated": [
+        "Ziga\\6__rot_m8.jpg",
+        "Ziga\\6__rot_p8.jpg",
+        "Ziga\\6__bright_down.jpg",
+        "Ziga\\6__bright_up.jpg",
+        "Ziga\\6__flip.jpg",
+        "Ziga\\6__blur.jpg",
+        "Ziga\\6__noise.jpg",
+        "Ziga\\6__zoom.jpg",
+        "Ziga\\6__lowlight_gamma.jpg",
+        "Ziga\\6__lowlight_clahe.jpg",
+        "Ziga\\6__lowlight_inverse.jpg",
+        "Ziga\\6__lowlight_gamma_clahe.jpg"
+      ]
+    },
+    {
+      "source": "Ziga\\7.jpg",
+      "low_light": true,
+      "brightness": {
+        "mean": 57.12,
+        "median": 35.0,
+        "p10": 3.0
+      },
+      "generated_count": 12,
+      "generated": [
+        "Ziga\\7__rot_m8.jpg",
+        "Ziga\\7__rot_p8.jpg",
+        "Ziga\\7__bright_down.jpg",
+        "Ziga\\7__bright_up.jpg",
+        "Ziga\\7__flip.jpg",
+        "Ziga\\7__blur.jpg",
+        "Ziga\\7__noise.jpg",
+        "Ziga\\7__zoom.jpg",
+        "Ziga\\7__lowlight_gamma.jpg",
+        "Ziga\\7__lowlight_clahe.jpg",
+        "Ziga\\7__lowlight_inverse.jpg",
+        "Ziga\\7__lowlight_gamma_clahe.jpg"
+      ]
+    },
+    {
+      "source": "Ziga\\8.jpg",
+      "low_light": true,
+      "brightness": {
+        "mean": 94.48,
+        "median": 89.0,
+        "p10": 20.0
+      },
+      "generated_count": 12,
+      "generated": [
+        "Ziga\\8__rot_m8.jpg",
+        "Ziga\\8__rot_p8.jpg",
+        "Ziga\\8__bright_down.jpg",
+        "Ziga\\8__bright_up.jpg",
+        "Ziga\\8__flip.jpg",
+        "Ziga\\8__blur.jpg",
+        "Ziga\\8__noise.jpg",
+        "Ziga\\8__zoom.jpg",
+        "Ziga\\8__lowlight_gamma.jpg",
+        "Ziga\\8__lowlight_clahe.jpg",
+        "Ziga\\8__lowlight_inverse.jpg",
+        "Ziga\\8__lowlight_gamma_clahe.jpg"
+      ]
+    },
+    {
+      "source": "Ziga\\9.jpg",
+      "low_light": false,
+      "brightness": {
+        "mean": 143.51,
+        "median": 142.0,
+        "p10": 60.0
+      },
+      "generated_count": 8,
+      "generated": [
+        "Ziga\\9__rot_m8.jpg",
+        "Ziga\\9__rot_p8.jpg",
+        "Ziga\\9__bright_down.jpg",
+        "Ziga\\9__bright_up.jpg",
+        "Ziga\\9__flip.jpg",
+        "Ziga\\9__blur.jpg",
+        "Ziga\\9__noise.jpg",
+        "Ziga\\9__zoom.jpg"
+      ]
+    }
+  ]
+}
