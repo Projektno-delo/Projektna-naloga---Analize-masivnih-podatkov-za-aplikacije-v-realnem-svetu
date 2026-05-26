@@ -1,89 +1,8 @@
-# Ideja: **Hribovc** inteligentni načrtovalec varnih in zdravih vzponov
-
-Spletna stran Hribovc se osredotoča na nekaj, kar je nam Slovencem res blizu in sicer hribi. Cilj je združiti pohodništvo z realnimi podatki in pametno analizo, ki uporabniku pomaga pri varnem in zdravem odločanju v gorah.
-
-Uporabljali bomo web scraping za vreme po višinah
-
----
-
-## 1. Načrtovanje: idejni koncept
-
-Spletna stran glede na uporabnikovo starost in BMI uvrsti v stopnje sposobnosti in mu priporoči primerne poti, pri odločitvi odsvetuje pot če vreme ni primerno
-(<https://github.com/zejn/arsoapi>)
-
----
-
-## 2. Podatki in viri
-
-### Web scraping
-
-**ARSO (<https://github.com/zejn/arsoapi>)**
-
-- podatki: temperatura, hitrost vetra, verjetnost neviht po višinah  
-- uporaba: napoved tveganja glede na lokacijo uporabnika  
-
----
-
-## 3. Kako bomo implementirali scraping
-
-Scraping bo implementiran kot ločen backend modul v Node.js.
-
-**Tehnologije:**
-
-- axios za pridobivanje HTML strani  
-- cheerio za parsanje HTML (DOM manipulacija kot jQuery)
-
-**Postopek:**
-
-1. Periodično pošiljanje HTTP zahtevkov na izbrane strani.
-2. Parsanje HTML strukture in ekstrakcija relevantnih podatkov.
-3. Čiščenje in normalizacija podatkov
-4. Shranjevanje v podatkovno bazo MongoDB
-5. Izpostavitev podatkov preko REST API-ja frontend aplikaciji.
-
-**Primer:**
-
-- ARSO: iz strukturiranih tabel ali JSON endpointov pridobimo vremenske napovedi
-
----
-
-## 4. Rezultati obdelave
-
-**Indeks pripravljenosti**  
-Ocena, ali je uporabnik sposoben varno doseči pot (tudi glede višinske razlike poti).
-
-**Vremenska opozorila**  
-Samodejna obvestila ob poslabšanju vremena glede na GPS lokacijo z uporabo .alert().
-
-## Vizualizacija
-
-- prikaz poti na OpenStreetMaps  
-- barvne oznake težavnosti in nevarnosti  
-- grafi utrujenosti  
-
----
-
-## 5. Razdelitev dela
-
-| Član | Vloga | Ključne odgovornosti |
-
-| Žiga Pešti | Web scraping | razvoj scraperjev ARSO, ekstrakcija podatkov |
-| Anže Žunec | Backend | API, baza podatkov, integracija |
-| Anja Grudnik | Frontend | UI, zemljevidi, grafi |
-
----
-
-## 6. Uporaba in zagon scraperja
-
----BACKEND---
+# Hribovc
 
 cd C:\Users\Ziga\Desktop\Projektna-naloga---Analize-masivnih-podatkov-za-aplikacije-v-realnem-svetu\razvoj-aplikacij-za-internet\backend
 
 node server.js
-
-----;
-
----FRONTEND---
 
 cd "C:\Users\Ziga\Desktop\Projektna-naloga---Analize-masivnih-podatkov-za-aplikacije-v-realnem-svetu\razvoj-aplikacij-za-internet\Frontend\Hribovc\frontend\hribovc-website"
 
@@ -93,22 +12,252 @@ npm install leaflet react-leaflet
 
 npm run dev
 
-----;
+ORV
 
-## 7. ORV 2FA face login
+cd "C:\Users\Ziga\Desktop\Projektna-naloga---Analize-masivnih-podatkov-za-aplikacije-v-realnem-svetu\osnove-racunalniskega-vida"
+python .\face_name_preview.py train
+python .\face_name_preview.py preview
 
-To register your face:
+--------------------------------------------
 
+Hribovc je projekt za varnejse nacrtovanje pohodov in vzponov. Zdruzuje spletno aplikacijo, backend z vremenskimi in pohodno-potnimi podatki, modul za prepoznavo obraza ter mobilno aplikacijo za zajem senzorskih podatkov.
+
+Projekt pokriva tri projektne predmete:
+
+- **Razvoj aplikacij za internet**: spletna aplikacija, backend API, MongoDB, scraping vremena in poti.
+- **Osnove racunalniskega vida**: prijava oziroma dodatno preverjanje uporabnika s prepoznavo obraza.
+- **Namenska programska oprema**: mobilna aplikacija za zajem pospeskomera, GPS lokacije in posiljanje podatkov prek MQTT.
+
+## Kaj potrebujete pred zacetkom
+
+Navodila so napisana za uporabnika brez predznanja. Najlazje je, da vse ukaze zaganjate v programu **PowerShell** na Windows racunalniku.
+
+1. Namestite **Node.js LTS** iz strani <https://nodejs.org>.
+2. Namestite **MongoDB Community Server** iz strani <https://www.mongodb.com/try/download/community>.
+   - Med namestitvijo pustite oznaceno moznost, da se MongoDB zazene kot Windows Service.
+   - Ce je vklopljeno kot storitev, baze ni treba rocno zaganjati.
+3. Namestite **Python 3** iz strani <https://www.python.org/downloads/>.
+   - Pri namestitvi obvezno oznacite **Add Python to PATH**.
+4. Za mobilno aplikacijo namestite aplikacijo **Expo Go** na telefon.
+   - Android: Google Play
+   - iPhone: App Store
+
+Preverjanje namestitve:
+
+V powershell:
+node -v
+npm -v
+python --version
+
+Ce se pri vsakem ukazu izpise stevilka verzije, je osnovna namestitev pripravljena.
+
+## Mapa projekta
+
+V nadaljevanju predpostavljamo, da je projekt v tej mapi:
+
+V powershell:
+C:\Users\"Ziga"\Desktop\Projektna-naloga---Analize-masivnih-podatkov-za-aplikacije-v-realnem-svetu
+
+Ce imate projekt drugje, v ukazih zamenjajte pot do mape.
+
+## 1. Razvoj aplikacij za internet
+
+Ta del vsebuje backend in frontend aplikacijo Hribovc. Backend skrbi za uporabnike, prijavo, vremenske podatke, poti, analizo tveganja in povezavo z MongoDB. Frontend prikazuje spletno stran v brskalniku.
+
+### Namestitev backenda
+
+1. Odprite PowerShell.
+2. Premaknite se v backend mapo:
+
+V powershell:
+cd "C:\Users\Ziga\Desktop\Projektna-naloga---Analize-masivnih-podatkov-za-aplikacije-v-realnem-svetu\razvoj-aplikacij-za-internet\backend"
+
+Namestite knjiznice:
+
+V powershell:
+npm install
+
+Preverite, da MongoDB tece. Ce ste ga namestili kot Windows Service, ta korak navadno ni potreben.
+Zazenite backend:
+
+V powershell:
+node server.js
+
+Ce je vse pravilno, se izpise:
+
+Server listening on <http://localhost:3000>
+
+Backend uporablja privzeto bazo:
+
+mongodb://127.0.0.1:27017
+
+in ime baze: hribovc
+
+### Namestitev frontenda
+
+Backend naj ostane odprt v svojem PowerShell oknu. Nato odprite novo PowerShell okno.
+
+Premaknite se v frontend mapo:
+
+V powershell:
+cd "C:\Users\Ziga\Desktop\Projektna-naloga---Analize-masivnih-podatkov-za-aplikacije-v-realnem-svetu\razvoj-aplikacij-za-internet\Frontend\Hribovc\frontend\hribovc-website"
+
+Namestite knjiznice:
+
+V powershell:
+npm install
+
+Zazenite spletno aplikacijo:
+
+V powershell:
+npm run dev
+
+V brskalniku odprite naslov, ki ga izpise Vite. Obicajno je:
+
+<http://localhost:5173>
+
+### Primer uporabe 1: registracija in prijava uporabnika
+
+1. V brskalniku odprite `http://localhost:5173`.
+2. Pojdite na stran za registracijo.
+3. Vnesite ime, email, geslo, starost, visino in tezo.
+4. Aplikacija uporabnika shrani v MongoDB in izracuna BMI.
+5. Nato se prijavite z istim emailom in geslom.
+
+Ta primer preveri, da delujejo frontend, backend, MongoDB in osnovna avtentikacija.
+
+### Primer uporabe 2: pregled vremena in izbira poti
+
+1. Najprej mora teci backend na `http://localhost:3000`.
+2. V spletni aplikaciji odprite stran **Vremenska napoved**.
+3. Aplikacija pridobi zadnje vremenske podatke. Ce so podatki prestari ali jih se ni, backend sprozi nov zajem.
+4. Odprite stran **Izberi pot**.
+5. Uporabite iskalnik ali filtre po tezavnosti in regiji.
+6. Primerjajte poti glede na cas hoje, visinsko razliko, dolzino in oceno primernosti.
+
+Ta primer pokaze osnovni namen Hribovca: uporabnik lahko pregleda razmere in se odloci za varnejso pot.
+
+### Uporabni backend naslovi za testiranje
+
+Te naslove lahko odprete v brskalniku, ko backend tece:
+
+<http://localhost:3000/weather>
+<http://localhost:3000/scrape>
+<http://localhost:3000/stats>
+
+## 2. Osnove racunalniskega vida
+
+Ta del projekta omogoca registracijo obraza in preverjanje prijave s kamero. Uporablja Python, OpenCV in NumPy. Backend ga lahko uporabi tudi prek datoteke `face_login_bridge.py`.
+
+### Namestitev ORV modula
+
+Odprite novo PowerShell okno.
+Premaknite se v mapo ORV:
+
+V powershell:
+cd "C:\Users\Ziga\Desktop\Projektna-naloga---Analize-masivnih-podatkov-za-aplikacije-v-realnem-svetu\osnove-racunalniskega-vida"
+
+Namestite Python knjiznice:
+
+V powershell:
+
+pip install opencv-python numpy scikit-learn joblib
+
+Preverite, da ima racunalnik delujoco kamero.
+
+### Primer uporabe 1: registracija obraza
+
+V mapi `osnove-racunalniskega-vida` zazenite:
+
+V powershell:
 python .\detect-face.py register ziga
 
-A camera window opens. Look at the camera and press SPACE several times until it captures enough samples. Press q to quit.
+1. Odpre se okno kamere.
+2. Poglejte v kamero in veckrat pritisnite **SPACE**, da program zajame vec vzorcev obraza.
+3. Za izhod lahko pritisnete **q**.
+4. Program ustvari uporabniski profil v mapi:
 
-Then test login:
+osnove-racunalniskega-vida\data\users
 
+### Primer uporabe 2: prijava z obrazom
+
+1. Po registraciji zazenite:
+
+V powershell:
 python .\detect-face.py login ziga
 
-Again, look at the camera and press SPACE to verify. It will print LOGIN DOVOLJEN or LOGIN ZAVRNJEN.
+1. Poglejte v kamero.
+2. Pritisnite **SPACE** za preverjanje.
+3. Program izpise enega od rezultatov:
 
-To process existing raw images:
+LOGIN DOVOLJEN
+LOGIN ZAVRNJEN
+
+Vsak poskus prijave se shrani v dnevnik:
+
+osnove-racunalniskega-vida\data\login-attempts.json
+
+### Dodaten primer: obdelava slik
+
+Ce imate slike v mapi `data\raw`, jih lahko obdelate z ukazom:
 
 python .\detect-face.py preprocess
+
+Program zazna obraz, sliko pretvori v sivinsko obliko, jo obreze, normalizira in shrani rezultat v `data\processed`.
+
+## 3. Namenska programska oprema
+
+Ta del vsebuje mobilno aplikacijo. Aplikacija prikazuje Hribovc vmesnik, omogoca prijavo prek backenda, zajema podatke pospeskomera in GPS lokacije ter meritve shrani v lokalno zgodovino. Ce je nastavljen MQTT posrednik, podatke posilja tudi na MQTT kanal.
+
+### Namestitev mobilne aplikacije
+
+## Pogoste tezave
+
+### Backend se ne zazene
+
+- Preverite, da je MongoDB namescen in zagnan.
+- Preverite, da ste v pravi mapi `razvoj-aplikacij-za-internet\backend`.
+- Ponovno namestite knjiznice z `npm install`.
+
+### Frontend ne prikaze podatkov
+
+- Preverite, da backend tece na `http://localhost:3000`.
+- Odprite `http://localhost:3000/stats` in preverite, ali backend odgovori.
+- Ce je stran prazna, osvezite brskalnik.
+
+### Mobilna aplikacija ne najde streznika
+
+- Telefon in racunalnik morata biti na istem Wi-Fi omrezju.
+- V `config.ts` mora biti pravi IP naslov racunalnika.
+- Backend mora biti zagnan.
+- Windows Firewall lahko vprasa za dovoljenje; izberite **Allow access**.
+
+### Kamera pri ORV ne deluje
+
+- Zaprite druge programe, ki uporabljajo kamero.
+- Preverite dovoljenja kamere v Windows nastavitvah.
+- Ce imate vec kamer, poskusite z drugim indeksom:
+
+V powershell:
+python .\detect-face.py login ziga --camera 1
+
+## Kratek povzetek zagonov
+
+Backend:
+
+cd "C:\Users\Ziga\Desktop\Projektna-naloga---Analize-masivnih-podatkov-za-aplikacije-v-realnem-svetu\razvoj-aplikacij-za-internet\backend"
+npm install
+node server.js
+
+Frontend:
+
+cd "C:\Users\Ziga\Desktop\Projektna-naloga---Analize-masivnih-podatkov-za-aplikacije-v-realnem-svetu\razvoj-aplikacij-za-internet\Frontend\Hribovc\frontend\hribovc-website"
+npm install
+npm run dev
+
+ORV:
+
+cd "C:\Users\Ziga\Desktop\Projektna-naloga---Analize-masivnih-podatkov-za-aplikacije-v-realnem-svetu\osnove-racunalniskega-vida"
+pip install opencv-python numpy scikit-learn joblib
+python .\detect-face.py register ziga
+python .\detect-face.py login ziga

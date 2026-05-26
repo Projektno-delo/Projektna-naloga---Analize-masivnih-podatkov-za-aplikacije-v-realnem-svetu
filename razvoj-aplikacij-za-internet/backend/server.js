@@ -38,13 +38,14 @@ function runFaceLogin({ username, threshold = 0.95, camera = 0 }) {
       '..',
       '..',
       'osnove-racunalniskega-vida',
-      'face_login_bridge.py'
+      'face_name_preview.py'
     );
     const pythonBin = process.env.PYTHON_BIN || 'python';
     const child = spawn(
       pythonBin,
       [
         bridgePath,
+        'login-users',
         username,
         '--threshold',
         String(threshold),
