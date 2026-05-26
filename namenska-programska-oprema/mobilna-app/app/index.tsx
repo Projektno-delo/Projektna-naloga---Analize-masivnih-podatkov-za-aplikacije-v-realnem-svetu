@@ -60,6 +60,17 @@ export default function Index() {
                   DASHBOARD
                 </Text>
               </TouchableOpacity>
+
+              <TouchableOpacity
+                style={[styles.secondaryBtn, { marginTop: 14 }]}
+                onPress={() => router.push('/history' as any)}
+                activeOpacity={0.85}
+              >
+                <Text style={styles.secondaryText}>
+                  ZGODOVINA
+                </Text>
+              </TouchableOpacity>
+
             </View>
           </SafeAreaView>
         </View>
