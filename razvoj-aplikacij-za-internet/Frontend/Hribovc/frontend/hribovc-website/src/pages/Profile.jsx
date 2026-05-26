@@ -9,11 +9,80 @@ import { MapContainer, TileLayer, useMap, Polyline } from 'react-leaflet';
 import 'leaflet/dist/leaflet.css';
 import L from 'leaflet';
 
+const readStoredList = (key) => {
+  try {
+    const value = JSON.parse(localStorage.getItem(key));
+    return Array.isArray(value) ? value : [];
+  } catch {
+    localStorage.removeItem(key);
+    return [];
+  }
+};
+
+const isValidCoordinate = (lat, lon) => (
+  Number.isFinite(lat)
+  && Number.isFinite(lon)
+  && lat >= -90
+  && lat <= 90
+  && lon >= -180
+  && lon <= 180
+);
+
+const cleanPeak = (vrh) => {
+  const lat = Number(vrh?.lat);
+  const lon = Number(vrh?.lon);
+
+  if (!isValidCoordinate(lat, lon)) {
+    return null;
+  }
+
+  return {
+    ...vrh,
+    id: vrh.id || Date.now(),
+    ime: vrh.ime || 'Vrh',
+    countryKey: vrh.countryKey || 'si',
+    lat,
+    lon,
+  };
+};
+
+const cleanRoute = (route) => {
+  const coordinates = Array.isArray(route?.koordinate)
+    ? route.koordinate
+        .map(point => [Number(point?.[0]), Number(point?.[1])])
+        .filter(point => isValidCoordinate(point[0], point[1]))
+    : [];
+
+  if (coordinates.length === 0) {
+    return null;
+  }
+
+  return {
+    ...route,
+    id: route.id || Date.now(),
+    ime: route.ime || 'Shranjena pot',
+    datum: route.datum || '',
+    razdalja: route.razdalja || '0',
+    slika: route.slika || '',
+    koordinate: coordinates,
+    mode: route.mode || 'foot',
+  };
+};
+
+const readStoredUser = () => {
+  try {
+    return JSON.parse(localStorage.getItem('user'));
+  } catch {
+    localStorage.removeItem('user');
+    return null;
+  }
+};
+
 const PeakMarkers = ({ vrhovi, onDelete }) => {
   const map = useMap();
   useEffect(() => {
     const markers = [];
-    vrhovi.forEach(vrh => {
+    vrhovi.map(cleanPeak).filter(Boolean).forEach(vrh => {
       const icon = L.divIcon({
         className: '',
         html: `<div style="width:14px;height:14px;background:#ff6b35;border-radius:50%;box-shadow:0 0 10px rgba(255,255,255,0.3);position:relative;cursor:grab;">
@@ -102,6 +171,7 @@ const Profil = () => {
   const [endQuery, setEndQuery] = useState('');
   const [startPoint, setStartPoint] = useState(null);
   const [endPoint, setEndPoint] = useState(null);
+  const [user] = useState(readStoredUser);
     
   const isDraggingInternal = useRef(false);
   const mapRef = useRef(null);
@@ -114,8 +184,8 @@ const Profil = () => {
   ];
   const [currentCountryIdx, setCurrentCountryIdx] = useState(0);
 
-  const [dosezeniVrhovi, setDosezeniVrhovi] = useState(() => JSON.parse(localStorage.getItem('pini_silhuete')) || []);
-  const [vsiPohodi, setVsiPohodi] = useState(() => JSON.parse(localStorage.getItem('moje_poti')) || []);
+  const [dosezeniVrhovi, setDosezeniVrhovi] = useState(() => readStoredList('pini_silhuete').map(cleanPeak).filter(Boolean));
+  const [vsiPohodi, setVsiPohodi] = useState(() => readStoredList('moje_poti').map(cleanRoute).filter(Boolean));
 
   useEffect(() => {
     localStorage.setItem('moje_poti', JSON.stringify(vsiPohodi));
@@ -275,7 +345,7 @@ const Profil = () => {
         </div>
       </div>
       
-      {selectedRoute && (
+      {selectedRoute && selectedRoute.koordinate?.length > 0 && (
         <div className="route-modal-overlay">
           <div className="route-modal">
             <button className="close-modal" onClick={() => setSelectedRoute(null)}><LuX size={24} /></button>
@@ -311,7 +381,7 @@ const Profil = () => {
         <aside className="profile-sidebar">
           <div className="sidebar-content-wrapper">
             <div className="avatar-circle-huge"><LuMountain size={100} color="#ff6b35" /></div>
-            <div className="user-basic-info"><h2>User name</h2><p className="location-text">Slovenija</p></div>
+            <div className="user-basic-info"><h2>{user?.ime || 'Uporabnik'}</h2><p className="location-text">Slovenija</p></div>
             <nav className="sidebar-nav">
               <button className={`nav-btn ${activeTab === 'pregled' ? 'active' : ''}`} onClick={() => setActiveTab('pregled')}><LuTrendingUp size={20} /> Statistika</button>
               <button className={`nav-btn ${activeTab === 'seznami' ? 'active' : ''}`} onClick={() => setActiveTab('seznami')}><LuList size={20} /> Seznami</button>
