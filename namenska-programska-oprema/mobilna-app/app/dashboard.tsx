@@ -20,6 +20,7 @@ export default function Dashboard() {
   const clientRef = useRef<any>(null);
   const heartbeatRef = useRef<any>(null);
   const pulseAnim = useRef(new Animated.Value(1)).current;
+  
 
   useEffect(() => {
     if (isActive) {

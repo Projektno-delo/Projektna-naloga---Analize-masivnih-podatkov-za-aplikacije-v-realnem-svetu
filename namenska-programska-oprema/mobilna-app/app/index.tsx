@@ -6,73 +6,71 @@ import {
   StyleSheet,
   StatusBar,
 } from 'react-native'
-
-import { SafeAreaView } from 'react-native-safe-area-context'
 import { useRouter } from 'expo-router'
+import AsyncStorage from '@react-native-async-storage/async-storage'
+import { useState, useEffect } from 'react'
 
 export default function Index() {
   const router = useRouter()
+  const [userName, setUserName] = useState('')
+
+  useEffect(() => {
+    AsyncStorage.getItem('user').then((data) => {
+      if (data) {
+        const user = JSON.parse(data)
+        setUserName(user.ime || '')
+      }
+    })
+  }, [])
 
   return (
     <>
       <StatusBar barStyle="light-content" />
-
       <ImageBackground
         source={require('../assets/images/hero_mobile_crop.png')}
         style={styles.bg}
         resizeMode="cover"
         blurRadius={1.5}
       >
-        <View style={styles.overlay}>
-          <SafeAreaView style={styles.safe}>
-            <View style={styles.logoContainer}>
-              <Text style={styles.logo}>HRIBOVC</Text>
-            </View>
+        <View style={styles.content}>
 
-            <View style={styles.content}>
+          {userName ? (
+            <>
+              <Text style={styles.title}>
+                Pozdravljeni,{'\n'}
+                <Text style={styles.orange}>{userName}!</Text>
+              </Text>
+              <Text style={styles.sub}>
+                Dobrodošli nazaj. Vaši podatki so pripravljeni za zajem.
+              </Text>
+              <TouchableOpacity style={styles.btn} onPress={() => router.push('/dashboard' as any)} activeOpacity={0.85}>
+                <Text style={styles.btnText}>ODPRI DASHBOARD</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.secondaryBtn} onPress={() => router.push('/history' as any)} activeOpacity={0.85}>
+                <Text style={styles.secondaryText}>ZGODOVINA</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.secondaryBtn} onPress={async () => { await AsyncStorage.removeItem('user'); setUserName(''); }} activeOpacity={0.85}>
+                <Text style={styles.secondaryText}>ODJAVA</Text>
+              </TouchableOpacity>
+            </>
+          ) : (
+            // Neprijavljen uporabnik
+            <>
               <Text style={styles.title}>
                 Tvoj partner{'\n'}
                 za <Text style={styles.orange}>vsak vrh.</Text>
               </Text>
-
               <Text style={styles.sub}>
                 Pametno načrtuj poti, spremljaj vreme
                 v realnem času in izboljšaj svojo
                 pripravljenost.
               </Text>
-
-              <TouchableOpacity
-                style={styles.btn}
-                onPress={() => router.push('/login' as any)}
-                activeOpacity={0.85}
-              >
-                <Text style={styles.btnText}>
-                  ZAČNI NAČRTOVATI
-                </Text>
+              <TouchableOpacity style={styles.btn} onPress={() => router.push('/login' as any)} activeOpacity={0.85}>
+                <Text style={styles.btnText}>ZAČNI NAČRTOVATI</Text>
               </TouchableOpacity>
+            </>
+          )}
 
-              <TouchableOpacity
-                style={styles.secondaryBtn}
-                onPress={() => router.push('/dashboard' as any)}
-                activeOpacity={0.85}
-              >
-                <Text style={styles.secondaryText}>
-                  DASHBOARD
-                </Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                style={[styles.secondaryBtn, { marginTop: 14 }]}
-                onPress={() => router.push('/history' as any)}
-                activeOpacity={0.85}
-              >
-                <Text style={styles.secondaryText}>
-                  ZGODOVINA
-                </Text>
-              </TouchableOpacity>
-
-            </View>
-          </SafeAreaView>
         </View>
       </ImageBackground>
     </>
@@ -83,46 +81,21 @@ const styles = StyleSheet.create({
   bg: {
     flex: 1,
   },
-
-  overlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.68)',
-  },
-
-  safe: {
-    flex: 1,
-  },
-
-  logoContainer: {
-    paddingHorizontal: 28,
-    paddingTop: 16,
-  },
-
-  logo: {
-    color: '#fff',
-    fontSize: 18,
-    fontWeight: '900',
-    letterSpacing: 2,
-  },
-
   content: {
     flex: 1,
     justifyContent: 'flex-end',
     paddingHorizontal: 28,
     paddingBottom: 90,
   },
-
   title: {
     color: '#fff',
     fontSize: 44,
     fontWeight: '900',
     lineHeight: 48,
   },
-
   orange: {
     color: '#ff6b35',
   },
-
   sub: {
     width: '88%',
     color: 'rgba(255,255,255,0.82)',
@@ -131,7 +104,6 @@ const styles = StyleSheet.create({
     marginTop: 24,
     marginBottom: 38,
   },
-
   btn: {
     backgroundColor: '#ff6b35',
     paddingVertical: 16,
@@ -140,8 +112,7 @@ const styles = StyleSheet.create({
     marginBottom: 14,
     elevation: 8,
     overflow: 'hidden',
-},
-
+  },
   secondaryBtn: {
     borderWidth: 1,
     borderColor: 'rgba(255,255,255,0.22)',
@@ -150,20 +121,18 @@ const styles = StyleSheet.create({
     borderRadius: 18,
     overflow: 'hidden',
     alignItems: 'center',
-},
-
-btnText: {
-  color: '#fff',
-  fontSize: 15,
-  fontWeight: '800',
-  letterSpacing: 1,
-},
-
-secondaryText: {
-  color: '#fff',
-  fontSize: 15,
-  fontWeight: '700',
-  letterSpacing: 1,
-},
-
+    marginBottom: 14,
+  },
+  btnText: {
+    color: '#fff',
+    fontSize: 15,
+    fontWeight: '800',
+    letterSpacing: 1,
+  },
+  secondaryText: {
+    color: '#fff',
+    fontSize: 15,
+    fontWeight: '700',
+    letterSpacing: 1,
+  },
 })
