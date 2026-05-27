@@ -65,6 +65,14 @@ async function initDb() {
     { createdAt: -1 }
   );
 
+  await db.collection('riskAnalyses').createIndex(
+    { userId: 1, type: 1 }
+  );
+
+  await db.collection('riskAnalyses').createIndex(
+    { userId: 1, trailId: 1, type: 1 }
+  );
+
   console.log('MongoDB data model initialized');
 }
 

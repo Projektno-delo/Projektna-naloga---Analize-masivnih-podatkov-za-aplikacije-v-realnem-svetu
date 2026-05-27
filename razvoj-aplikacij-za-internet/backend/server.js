@@ -88,6 +88,155 @@ function publicUser(user) {
   };
 }
 
+function parseMeasure(value) {
+  if (value === null || value === undefined) {
+    return null;
+  }
+
+  const number = parseFloat(String(value).replace(',', '.'));
+  return Number.isFinite(number) ? number : null;
+}
+
+function parseDurationHours(value) {
+  const text = String(value || '').toLowerCase().replace(',', '.');
+  const hours = text.match(/(\d+(?:\.\d+)?)\s*h/);
+  const minutes = text.match(/(\d+)\s*min/);
+
+  if (hours) {
+    return Number(hours[1]) + (minutes ? Number(minutes[1]) / 60 : 0);
+  }
+
+  return parseMeasure(text);
+}
+
+function getHighestWeatherRisk(weather) {
+  const stations = weather?.stations || [];
+
+  if (stations.some(station => station.risk === 'extreme')) {
+    return { risk: 'extreme', riskLabel: 'Ekstremno', penalty: 35 };
+  }
+
+  if (stations.some(station => station.risk === 'high')) {
+    return { risk: 'high', riskLabel: 'Nevarno', penalty: 25 };
+  }
+
+  if (stations.some(station => station.risk === 'medium')) {
+    return { risk: 'medium', riskLabel: 'Previdno', penalty: 12 };
+  }
+
+  if (stations.some(station => station.risk === 'low')) {
+    return { risk: 'low', riskLabel: 'Varno', penalty: 0 };
+  }
+
+  return { risk: 'unknown', riskLabel: 'Ni podatkov', penalty: 0 };
+}
+
+function calculateTrailRiskFactor({ healthProfile, trail, weatherRisk }) {
+  const bmi = numberOrNull(healthProfile.bmi);
+  const age = numberOrNull(healthProfile.age);
+  const distanceKm = parseMeasure(trail.distanceKm ?? trail.distance);
+  const elevationM = parseMeasure(trail.elevationM ?? trail.elevation);
+  const durationHours = parseDurationHours(trail.duration);
+  const difficulty = String(trail.difficulty || '').toLowerCase();
+  const factors = [];
+
+  let riskFactor = weatherRisk?.penalty || 0;
+
+  if (weatherRisk?.risk === 'extreme' || weatherRisk?.risk === 'high') {
+    factors.push(`Vremensko tveganje: ${weatherRisk.riskLabel}.`);
+  }
+
+  if (difficulty.includes('zelo')) {
+    riskFactor += 30;
+    factors.push('Zelo zahtevna pot.');
+  } else if (difficulty.includes('zahtevna')) {
+    riskFactor += 22;
+    factors.push('Zahtevna pot.');
+  } else if (difficulty.includes('sred')) {
+    riskFactor += 10;
+  }
+
+  if (distanceKm >= 14) {
+    riskFactor += 14;
+    factors.push('Dolga razdalja.');
+  } else if (distanceKm >= 9) {
+    riskFactor += 8;
+  }
+
+  if (elevationM >= 1400) {
+    riskFactor += 14;
+    factors.push('Velika visinska razlika.');
+  } else if (elevationM >= 900) {
+    riskFactor += 8;
+  }
+
+  if (durationHours >= 7) {
+    riskFactor += 12;
+  } else if (durationHours >= 5) {
+    riskFactor += 7;
+  }
+
+  if (bmi !== null) {
+    if (bmi >= 35) {
+      riskFactor += 24;
+      factors.push('Visok BMI.');
+    } else if (bmi >= 30) {
+      riskFactor += 16;
+      factors.push('Visji BMI.');
+    } else if (bmi >= 25 || bmi < 18.5) {
+      riskFactor += 7;
+    }
+  }
+
+  if (age !== null) {
+    if (age >= 70) {
+      riskFactor += 18;
+      factors.push('Visja starost.');
+    } else if (age >= 60) {
+      riskFactor += 10;
+    }
+  }
+
+  if (healthProfile.smoker === 'yes') {
+    riskFactor += 12;
+    factors.push('Kajenje.');
+  }
+
+  if (healthProfile.condition === 'heart') {
+    riskFactor += 28;
+    factors.push('Srcno-zilno opozorilo.');
+  } else if (healthProfile.condition === 'lungs') {
+    riskFactor += 22;
+    factors.push('Dihalno opozorilo.');
+  } else if (healthProfile.condition === 'joints') {
+    riskFactor += 16;
+    factors.push('Opozorilo za sklepe.');
+  }
+
+  if (healthProfile.activity === 'low') {
+    riskFactor += 18;
+    factors.push('Nizka aktivnost.');
+  } else if (healthProfile.activity === 'high') {
+    riskFactor -= 8;
+  }
+
+  riskFactor = Math.max(0, Math.min(100, Math.round(riskFactor)));
+
+  const recommendation = riskFactor >= 70
+    ? 'ODSVETOVANO'
+    : riskFactor >= 35
+      ? 'PREVIDNO'
+      : 'PRIPOROCENO';
+
+  return {
+    riskFactor,
+    suitabilityScore: 100 - riskFactor,
+    recommendation,
+    factors,
+    reason: factors.slice(0, 3).join(' ') || 'Nizko tveganje glede na vnesene podatke.'
+  };
+}
+
 function runFaceLogin({ username, threshold = 0.95, camera = 0 }) {
   return new Promise((resolve, reject) => {
     const bridgePath = path.resolve(
@@ -495,9 +644,11 @@ const server = http.createServer(async (req, res) => {
       const healthProfile = normalizeHealthProfile(data.healthProfile || data);
       const now = new Date();
       const usersCollection = await getCollection('users');
+      const riskAnalysesCollection = await getCollection('riskAnalyses');
+      const userObjectId = new ObjectId(userId);
 
       const result = await usersCollection.findOneAndUpdate(
-        { _id: new ObjectId(userId) },
+        { _id: userObjectId },
         {
           $set: {
             healthProfile,
@@ -511,7 +662,7 @@ const server = http.createServer(async (req, res) => {
         { returnDocument: 'after' }
       );
 
-      const updatedUser = result.value || await usersCollection.findOne({ _id: new ObjectId(userId) });
+      const updatedUser = result.value || await usersCollection.findOne({ _id: userObjectId });
 
       if (!updatedUser) {
         res.writeHead(404, {
@@ -522,6 +673,114 @@ const server = http.createServer(async (req, res) => {
         return;
       }
 
+      await riskAnalysesCollection.updateOne(
+        {
+          userId: userObjectId,
+          type: 'healthProfile'
+        },
+        {
+          $set: {
+            type: 'healthProfile',
+            userId: userObjectId,
+            healthProfile,
+            userSnapshot: {
+              starost: healthProfile.age,
+              visina: healthProfile.height,
+              teza: healthProfile.weight,
+              bmi: healthProfile.bmi,
+              smoker: healthProfile.smoker,
+              activity: healthProfile.activity,
+              condition: healthProfile.condition
+            },
+            source: 'trails-health-form',
+            updatedAt: now
+          },
+          $setOnInsert: {
+            createdAt: now
+          }
+        },
+        { upsert: true }
+      );
+
+      const trailsCollection = await getCollection('trails');
+      const weatherCollection = await getCollection('weather');
+      const trails = await trailsCollection.find({}).toArray();
+      const latestWeather = await weatherCollection
+        .find({})
+        .sort({ scrapedAt: -1 })
+        .limit(1)
+        .toArray();
+      const weather = latestWeather[0] || null;
+      const weatherRisk = getHighestWeatherRisk(weather);
+
+      const trailRiskOperations = trails.map(trail => {
+        const risk = calculateTrailRiskFactor({
+          healthProfile,
+          trail,
+          weatherRisk
+        });
+
+        return {
+          updateOne: {
+            filter: {
+              userId: userObjectId,
+              trailId: trail._id,
+              type: 'trailRisk'
+            },
+            update: {
+              $set: {
+                type: 'trailRisk',
+                userId: userObjectId,
+                trailId: trail._id,
+                weatherId: weather?._id || null,
+                riskFactor: risk.riskFactor,
+                suitabilityScore: risk.suitabilityScore,
+                recommendation: risk.recommendation,
+                reason: risk.reason,
+                factors: risk.factors,
+                healthProfile,
+                userSnapshot: {
+                  starost: healthProfile.age,
+                  visina: healthProfile.height,
+                  teza: healthProfile.weight,
+                  bmi: healthProfile.bmi,
+                  smoker: healthProfile.smoker,
+                  activity: healthProfile.activity,
+                  condition: healthProfile.condition
+                },
+                trailSnapshot: {
+                  name: trail.name,
+                  region: trail.region,
+                  mountain: trail.mountain,
+                  difficulty: trail.difficulty,
+                  duration: trail.duration,
+                  elevation: trail.elevation,
+                  elevationM: trail.elevationM,
+                  distance: trail.distance,
+                  distanceKm: trail.distanceKm
+                },
+                weatherSnapshot: {
+                  risk: weatherRisk.risk,
+                  riskLabel: weatherRisk.riskLabel
+                },
+                source: 'trails-health-form',
+                updatedAt: now
+              },
+              $setOnInsert: {
+                createdAt: now
+              }
+            },
+            upsert: true
+          }
+        };
+      });
+
+      if (trailRiskOperations.length > 0) {
+        await riskAnalysesCollection.bulkWrite(trailRiskOperations, {
+          ordered: false
+        });
+      }
+
       res.writeHead(200, {
         'Content-Type': 'application/json',
         ...corsHeaders,
@@ -529,7 +788,8 @@ const server = http.createServer(async (req, res) => {
       res.end(JSON.stringify({
         message: 'Health profile saved successfully',
         healthProfile: updatedUser.healthProfile,
-        user: publicUser(updatedUser)
+        user: publicUser(updatedUser),
+        trailRiskCount: trailRiskOperations.length
       }));
     } catch (error) {
       res.writeHead(400, {
