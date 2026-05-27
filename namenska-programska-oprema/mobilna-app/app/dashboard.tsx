@@ -60,8 +60,10 @@ export default function Dashboard() {
   useEffect(() => {
     (async () => {
       const { status } = await Location.requestForegroundPermissionsAsync();
+      console.log('GPS status:', status);
       if (status !== 'granted') return;
       const loc = await Location.getCurrentPositionAsync({});
+      console.log('GPS loc:', loc);
       setLocation({ latitude: loc.coords.latitude, longitude: loc.coords.longitude });
     })();
   }, []);
@@ -140,19 +142,21 @@ export default function Dashboard() {
         </View>
 
         <View style={styles.footer}>
-          <TouchableOpacity
-            style={[styles.mainBtn, isActive && styles.btnActive]}
-            onPress={toggleAccelerometer}
-          >
-            <Text style={styles.btnText}>
-              {isActive ? 'USTAVI SENZORJE' : 'AKTIVIRAJ ZAJEM'}
-            </Text>
-          </TouchableOpacity>
+        <TouchableOpacity
+          style={[styles.mainBtn, isActive && styles.btnActive]}
+          onPress={toggleAccelerometer}
+        >
+          <Text style={styles.btnText}>
+            {isActive ? 'USTAVI SENZORJE' : 'AKTIVIRAJ ZAJEM'}
+          </Text>
+        </TouchableOpacity>
+        
+        <View style={styles.bottomRow}>
           <TouchableOpacity onPress={() => router.push('/history')}>
-            <Text style={styles.logoutText}>ZGODOVINA MERITEV</Text>
+            <Text style={styles.logoutText}>ZGODOVINA</Text>
           </TouchableOpacity>
         </View>
-
+      </View>
       </View>
     </SafeAreaView>
   );
@@ -166,11 +170,11 @@ const styles = StyleSheet.create({
   scrollContent: {
     paddingHorizontal: 30,
     paddingTop: 20,
-    paddingBottom: 120,
+    paddingBottom: 20,
   },
 
   header: {
-    marginBottom: 10,
+    marginBottom: 30,
     marginTop: 20,
   },
 
@@ -211,7 +215,7 @@ const styles = StyleSheet.create({
   },
 
   statItem: {
-    paddingVertical: 20,
+    paddingVertical: 10,
   },
 
   statLabel: {
@@ -237,7 +241,7 @@ const styles = StyleSheet.create({
   footer: {
     marginTop: 20,
     gap: 20,
-    paddingBottom: 60,
+    paddingBottom: 20,
   },
 
   mainBtn: {
@@ -265,5 +269,11 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     letterSpacing: 1,
     textTransform: 'uppercase',
+  },
+
+  bottomRow: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    gap: 16,
   },
 });
