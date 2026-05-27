@@ -11,12 +11,11 @@ import {
 } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { useRouter } from 'expo-router'
-import { useState, useRef, useCallback } from 'react'
+import { useState, useRef } from 'react'
 import AsyncStorage from '@react-native-async-storage/async-storage'
 import BottomSheet, { BottomSheetView } from '@gorhom/bottom-sheet'
 import { GestureHandlerRootView } from 'react-native-gesture-handler'
 import { CONFIG } from './config'
-
 
 export default function Login() {
   const router = useRouter()
@@ -30,6 +29,14 @@ export default function Login() {
       Alert.alert('Napaka', 'Prosim vnesite email in geslo.')
       return
     }
+
+    // Mock login za testiranje
+    if (email === 'test@test.com' && password === '1234') {
+      await AsyncStorage.setItem('user', JSON.stringify({ ime: 'Anja', email }))
+      router.replace('/' as any)
+      return
+    }
+
     setLoading(true)
     try {
       const response = await fetch(`${CONFIG.API_URL}/login`, {
@@ -40,7 +47,7 @@ export default function Login() {
       const data = await response.json()
       if (response.ok) {
         await AsyncStorage.setItem('user', JSON.stringify(data.user))
-        router.replace('/dashboard' as any)
+        router.replace('/' as any)
       } else {
         Alert.alert('Napaka', data.error || 'Napačen email ali geslo.')
       }
@@ -76,7 +83,7 @@ export default function Login() {
                 <Text style={styles.feature}>△  Pametno načrtovanje poti</Text>
                 <Text style={styles.feature}>◎  Natančno vreme po višinah</Text>
                 <Text style={styles.feature}>♡  Prilagojeno tvoji pripravljenosti</Text>
-                </View>
+              </View>
             </View>
           </SafeAreaView>
         </View>
@@ -137,6 +144,7 @@ export default function Login() {
               <Text style={styles.orange}>Registracija</Text>
             </Text>
           </TouchableOpacity>
+
         </BottomSheetView>
       </BottomSheet>
     </GestureHandlerRootView>
@@ -145,14 +153,11 @@ export default function Login() {
 
 const styles = StyleSheet.create({
   bg: { flex: 1 },
-
   overlay: {
     flex: 1,
     backgroundColor: 'rgba(0,0,0,0.55)',
   },
-
   safe: { flex: 1 },
-
   topSection: {
     flex: 1,
     paddingHorizontal: 28,
@@ -160,7 +165,6 @@ const styles = StyleSheet.create({
     justifyContent: 'flex-end',
     paddingBottom: 180,
   },
-
   logo: {
     color: '#fff',
     fontSize: 18,
@@ -168,7 +172,6 @@ const styles = StyleSheet.create({
     letterSpacing: 2,
     marginBottom: 16,
   },
-
   tagline: {
     color: '#fff',
     fontSize: 44,
@@ -176,46 +179,37 @@ const styles = StyleSheet.create({
     lineHeight: 48,
     marginBottom: 16,
   },
-
   orange: { color: '#ff6b35' },
-
   sub: {
     color: 'rgba(255,255,255,0.82)',
     fontSize: 16,
     lineHeight: 26,
   },
-
   sheetBg: {
     backgroundColor: '#0a0a0a',
     borderTopLeftRadius: 28,
     borderTopRightRadius: 28,
   },
-
   indicator: {
     backgroundColor: 'rgba(255,255,255,0.3)',
     width: 40,
   },
-
   sheetContent: {
     paddingHorizontal: 28,
     paddingTop: 8,
   },
-
   formTitle: {
     color: '#fff',
     fontSize: 26,
     fontWeight: '900',
     marginBottom: 4,
   },
-
   formSub: {
     color: 'rgba(255,255,255,0.5)',
     fontSize: 14,
     marginBottom: 24,
   },
-
   field: { marginBottom: 16 },
-
   label: {
     color: 'rgba(255,255,255,0.6)',
     fontSize: 12,
@@ -223,7 +217,6 @@ const styles = StyleSheet.create({
     letterSpacing: 0.5,
     marginBottom: 6,
   },
-
   input: {
     backgroundColor: 'rgba(255,255,255,0.08)',
     borderWidth: 1,
@@ -234,7 +227,6 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontSize: 15,
   },
-
   btn: {
     backgroundColor: '#ff6b35',
     paddingVertical: 16,
@@ -244,32 +236,26 @@ const styles = StyleSheet.create({
     marginBottom: 20,
     elevation: 8,
   },
-
   btnDisabled: { opacity: 0.6 },
-
   btnText: {
     color: '#fff',
     fontSize: 16,
     fontWeight: '800',
     letterSpacing: 0.5,
   },
-
   switchText: {
     color: 'rgba(255,255,255,0.5)',
     fontSize: 14,
     textAlign: 'center',
   },
-
   features: {
-  marginTop: 16,
-  gap: 10,
-},
-
-feature: {
-  color: 'rgba(255,255,255,0.75)',
-  fontSize: 13,
-  fontWeight: '600',
-  letterSpacing: 0.3,
-},
-
+    marginTop: 16,
+    gap: 10,
+  },
+  feature: {
+    color: 'rgba(255,255,255,0.75)',
+    fontSize: 13,
+    fontWeight: '600',
+    letterSpacing: 0.3,
+  },
 })
