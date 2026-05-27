@@ -1,6 +1,6 @@
 import './Trails.css'
 import { useState, useEffect } from 'react'
-import { LuSearch, LuMapPin, LuClock, LuMountain, LuRoute, LuStar, LuFilter } from 'react-icons/lu'
+import { LuSearch, LuMapPin, LuClock, LuMountain, LuRoute, LuStar, LuFilter, LuHeartPulse } from 'react-icons/lu'
 
 import triglavImg from '../assets/triglav.jpg'
 import kredaricaImg from '../assets/kredarica.png'
@@ -35,6 +35,163 @@ const getImageForTrail = (trail) => {
 
 const scoreColor = (s) => s >= 70 ? '#4caf50' : s >= 40 ? '#ff9800' : '#f44336'
 
+const parseNumber = (value) => {
+  const number = parseFloat(String(value || '').replace(',', '.'))
+  return Number.isFinite(number) ? number : null
+}
+
+const parseHours = (value) => {
+  const text = String(value || '').toLowerCase().replace(',', '.')
+  const hours = text.match(/(\d+(?:\.\d+)?)\s*h/)
+  const minutes = text.match(/(\d+)\s*min/)
+
+  if (hours) {
+    return Number(hours[1]) + (minutes ? Number(minutes[1]) / 60 : 0)
+  }
+
+  return parseNumber(text)
+}
+
+const readStoredUser = () => {
+  try {
+    return JSON.parse(localStorage.getItem('user')) || {}
+  } catch {
+    return {}
+  }
+}
+
+const readStoredHealthProfile = () => {
+  const user = readStoredUser()
+
+  try {
+    const stored = JSON.parse(localStorage.getItem('healthProfile')) || {}
+    return {
+      bmi: stored.bmi ?? user.bmi ?? '',
+      age: stored.age ?? user.starost ?? '',
+      smoker: stored.smoker ?? 'no',
+      activity: stored.activity ?? 'medium',
+      condition: stored.condition ?? 'none',
+    }
+  } catch {
+    return {
+      bmi: user.bmi ?? '',
+      age: user.starost ?? '',
+      smoker: 'no',
+      activity: 'medium',
+      condition: 'none',
+    }
+  }
+}
+
+const buildRecommendationText = (reasons, statusClass) => {
+  if (reasons.length > 0) {
+    return reasons.slice(0, 2).join(' ')
+  }
+
+  if (statusClass === 'good') {
+    return 'Pot ustreza vnesenim zdravstvenim podatkom.'
+  }
+
+  return 'Prilagodi tempo in preveri razmere pred odhodom.'
+}
+
+const getHealthRecommendation = (trail, healthProfile) => {
+  const bmi = parseNumber(healthProfile.bmi)
+  const age = parseNumber(healthProfile.age)
+  const distanceKm = parseNumber(trail.distance)
+  const elevationM = parseNumber(trail.elevation)
+  const hours = parseHours(trail.time || trail.duration)
+  const difficulty = String(trail.difficulty || '').toLowerCase()
+
+  let penalty = 0
+  const reasons = []
+
+  if (difficulty.includes('zelo')) {
+    penalty += 30
+    reasons.push('Zelo zahtevna pot zahteva dobro pripravljenost.')
+  } else if (difficulty.includes('zahtevna')) {
+    penalty += 22
+    reasons.push('Zahtevna pot poveca obremenitev.')
+  } else if (difficulty.includes('sred')) {
+    penalty += 10
+  }
+
+  if (distanceKm >= 14) {
+    penalty += 14
+    reasons.push('Dolga razdalja zahteva vec energije.')
+  } else if (distanceKm >= 9) {
+    penalty += 8
+  }
+
+  if (elevationM >= 1400) {
+    penalty += 14
+    reasons.push('Velika visinska razlika dodatno obremeni telo.')
+  } else if (elevationM >= 900) {
+    penalty += 8
+  }
+
+  if (hours >= 7) {
+    penalty += 12
+  } else if (hours >= 5) {
+    penalty += 7
+  }
+
+  if (bmi !== null) {
+    if (bmi >= 35) {
+      penalty += 24
+      reasons.push('Visok BMI pomeni vecjo obremenitev sklepov in srca.')
+    } else if (bmi >= 30) {
+      penalty += 16
+      reasons.push('Visji BMI klice po zmernejsem tempu.')
+    } else if (bmi >= 25 || bmi < 18.5) {
+      penalty += 7
+    }
+  }
+
+  if (age !== null) {
+    if (age >= 70) {
+      penalty += 18
+      reasons.push('Pri visji starosti je priporocen krajsi vzpon.')
+    } else if (age >= 60) {
+      penalty += 10
+    }
+  }
+
+  if (healthProfile.smoker === 'yes') {
+    penalty += 12
+    reasons.push('Kajenje lahko zmanjsa vzdrzljivost pri vzponu.')
+  }
+
+  if (healthProfile.condition === 'heart') {
+    penalty += 28
+    reasons.push('Pri srcno-zilnih tezavah izberi lazjo pot.')
+  } else if (healthProfile.condition === 'lungs') {
+    penalty += 22
+    reasons.push('Dihalne tezave lahko otezijo vzpon.')
+  } else if (healthProfile.condition === 'joints') {
+    penalty += 16
+    reasons.push('Tezave s sklepi so pomembne pri spustu.')
+  }
+
+  if (healthProfile.activity === 'low') {
+    penalty += 18
+    reasons.push('Nizka aktivnost pomeni vec postopnosti.')
+  } else if (healthProfile.activity === 'high') {
+    penalty -= 8
+  }
+
+  const score = Math.max(15, Math.min(95, Math.round(100 - penalty)))
+  const statusClass = score >= 72 ? 'good' : score >= 45 ? 'warn' : 'bad'
+  const status = statusClass === 'good' ? 'PRIPOROCENO' : statusClass === 'warn' ? 'PREVIDNO' : 'ODSVETOVANO'
+
+  return {
+    score,
+    status,
+    statusClass,
+    statusDesc: buildRecommendationText(reasons, statusClass),
+  }
+}
+
 function Trails() {
   const [search, setSearch] = useState('')
   const [difficulty, setDifficulty] = useState('Vse težavnosti')
@@ -42,6 +199,18 @@ function Trails() {
   const [trails, setTrails] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
+  const [healthProfile, setHealthProfile] = useState(readStoredHealthProfile)
+
+  useEffect(() => {
+    localStorage.setItem('healthProfile', JSON.stringify(healthProfile))
+  }, [healthProfile])
+
+  const updateHealthProfile = (field, value) => {
+    setHealthProfile(prev => ({
+      ...prev,
+      [field]: value,
+    }))
+  }
 
   // Fetch trails from API
   useEffect(() => {
@@ -69,10 +238,6 @@ function Trails() {
             time: trail.duration || 'N/A',
             elevation: trail.elevation ? (trail.elevation.includes('m') ? trail.elevation : `${trail.elevation} m`) : 'N/A',
             distance: trail.distance ? (trail.distance.includes('km') ? trail.distance : `${trail.distance} km`) : 'N/A',
-            score: 70 + Math.floor(Math.random() * 20), // Placeholder score
-            status: 'DOSTOPNO',
-            statusDesc: 'Pot je dostopna',
-            statusClass: 'good',
             img: getImageForTrail(trail),
             region: trail.region || 'Slovenija'
           };
@@ -149,9 +314,16 @@ function Trails() {
     return matchSearch && matchDiff && matchRegion
   })
 
-  const filteredTrails = filterTrails(trails)
-  const recommendedTrails = filteredTrails.slice(0, Math.max(3, Math.floor(filteredTrails.length / 2)))
-  const allTrails = filteredTrails.slice(recommendedTrails.length)
+  const analyzedTrails = trails.map(trail => ({
+    ...trail,
+    ...getHealthRecommendation(trail, healthProfile),
+  }))
+  const filteredTrails = filterTrails(analyzedTrails)
+  const recommendedTrails = [...filteredTrails]
+    .sort((a, b) => b.score - a.score)
+    .slice(0, Math.min(3, filteredTrails.length))
+  const recommendedIds = new Set(recommendedTrails.map(trail => trail.id))
+  const allTrails = filteredTrails.filter(trail => !recommendedIds.has(trail.id))
 
   return (
     <div className="trails">
@@ -183,6 +355,70 @@ function Trails() {
       </div>
 
       <div className="trails-content">
+        <section className="health-panel">
+          <div className="health-panel-title">
+            <LuHeartPulse size="1.2em" />
+            <div>
+              <h2>Zdravstveni podatki</h2>
+              <p>Priporocila se izracunajo sproti za vsako pot.</p>
+            </div>
+          </div>
+
+          <div className="health-fields">
+            <label className="health-field">
+              <span>BMI</span>
+              <input
+                type="number"
+                step="0.1"
+                min="10"
+                max="60"
+                placeholder="24.5"
+                value={healthProfile.bmi}
+                onChange={e => updateHealthProfile('bmi', e.target.value)}
+              />
+            </label>
+
+            <label className="health-field">
+              <span>Starost</span>
+              <input
+                type="number"
+                min="1"
+                max="120"
+                placeholder="32"
+                value={healthProfile.age}
+                onChange={e => updateHealthProfile('age', e.target.value)}
+              />
+            </label>
+
+            <label className="health-field">
+              <span>Kajenje</span>
+              <select value={healthProfile.smoker} onChange={e => updateHealthProfile('smoker', e.target.value)}>
+                <option value="no">Ne</option>
+                <option value="yes">Da</option>
+              </select>
+            </label>
+
+            <label className="health-field">
+              <span>Aktivnost</span>
+              <select value={healthProfile.activity} onChange={e => updateHealthProfile('activity', e.target.value)}>
+                <option value="medium">Srednja</option>
+                <option value="low">Nizka</option>
+                <option value="high">Visoka</option>
+              </select>
+            </label>
+
+            <label className="health-field health-field-wide">
+              <span>Zdravstveno opozorilo</span>
+              <select value={healthProfile.condition} onChange={e => updateHealthProfile('condition', e.target.value)}>
+                <option value="none">Brez posebnosti</option>
+                <option value="heart">Srce in pritisk</option>
+                <option value="lungs">Dihanje</option>
+                <option value="joints">Sklepi</option>
+              </select>
+            </label>
+          </div>
+        </section>
+
         {loading && <p style={{ textAlign: 'center', color: '#666', padding: '2rem' }}>Nalagam poti...</p>}
         {error && <p style={{ textAlign: 'center', color: '#f44336', padding: '2rem' }}>Napaka: {error}</p>}
 
@@ -231,12 +467,11 @@ function Trails() {
             </div>
 
             <div className="smart-tip">
-              <div className="tip-icon">🧠</div>
+              <div className="tip-icon"><LuHeartPulse size="1em" /></div>
               <div className="tip-text">
                 <strong>Pametno priporočilo</strong>
-                <p>Na podlagi vaših podatkov smo izbrali poti, ki so za vas trenutno najbolj varne.</p>
+                <p>Na podlagi BMI, kajenja, aktivnosti in zdravstvenih opozoril so najprimernejše poti prikazane na vrhu.</p>
               </div>
-              <button className="tip-btn">Posodobi podatke &gt;</button>
             </div>
 
             <div className="section-title" style={{ marginTop: '2rem' }}><span style={{color:'#4caf50'}}>☑</span><h2>Vse poti ({allTrails.length})</h2></div>
@@ -254,6 +489,10 @@ function Trails() {
                     <div className="all-trail-stats">
                       <span><LuClock size="0.8em" /> {trail.time}</span>
                       <span><LuMountain size="0.8em" /> {trail.elevation}</span>
+                    </div>
+                    <div className={['all-trail-reco', 'status-' + trail.statusClass].join(' ')}>
+                      <span>{trail.status}</span>
+                      <strong style={{ color: scoreColor(trail.score) }}>{trail.score}</strong>
                     </div>
                   </div>
                 </div>
