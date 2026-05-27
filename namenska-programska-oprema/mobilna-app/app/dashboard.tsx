@@ -1,4 +1,4 @@
-import { View, Text, StyleSheet, TouchableOpacity, SafeAreaView, ScrollView } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, SafeAreaView, ScrollView, Animated } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useState, useEffect, useRef } from 'react';
 import { Accelerometer } from 'expo-sensors';
@@ -6,6 +6,9 @@ import * as Location from 'expo-location';
 import mqtt from 'mqtt';
 import { CONFIG } from './config';
 import { saveReading } from './service/sensorStorage';
+//import { requestPermissions, sendNotification } from './service/notifications';
+import * as Haptics from 'expo-haptics';
+
 
 export default function Dashboard() {
   const router = useRouter();
@@ -16,7 +19,22 @@ export default function Dashboard() {
   const [subscription, setSubscription] = useState<any>(null);
   const clientRef = useRef<any>(null);
   const heartbeatRef = useRef<any>(null);
+  const pulseAnim = useRef(new Animated.Value(1)).current;
 
+  useEffect(() => {
+    if (isActive) {
+      Animated.loop(
+        Animated.sequence([
+          Animated.timing(pulseAnim, { toValue: 1.8, duration: 600, useNativeDriver: true }),
+          Animated.timing(pulseAnim, { toValue: 1, duration: 600, useNativeDriver: true }),
+        ])
+      ).start();
+    } else {
+      pulseAnim.setValue(1);
+    }
+  }, [isActive]);
+
+  
   useEffect(() => {
     const client = mqtt.connect(CONFIG.MQTT_BROKER);
     clientRef.current = client;
@@ -48,12 +66,13 @@ export default function Dashboard() {
     })();
   }, []);
 
-  const toggleAccelerometer = () => {
+  const toggleAccelerometer = async () => {
     if (subscription) {
-      subscription.remove();
-      setSubscription(null);
-      setIsActive(false);
-    } else {
+        subscription.remove();
+        setSubscription(null);
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
+        setIsActive(false);
+      } else {
       Accelerometer.setUpdateInterval(500);
       const sub = Accelerometer.addListener((data) => {
         setAccel(data);
@@ -68,6 +87,7 @@ export default function Dashboard() {
         saveReading(reading);
       });
       setSubscription(sub);
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       setIsActive(true);
     }
   };
@@ -78,12 +98,12 @@ export default function Dashboard() {
 
   return (
     <SafeAreaView style={styles.container}>
-      <ScrollView contentContainerStyle={styles.scrollContent}>
+      <View style={styles.scrollContent}>
 
         <View style={styles.header}>
           <Text style={styles.logo}>HRIBOVC <Text style={styles.orange}>DASH</Text></Text>
           <View style={styles.statusRow}>
-            <View style={[styles.statusDot, { backgroundColor: isActive ? '#44ff44' : '#ff4444' }]} />
+            <Animated.View style={[styles.statusDot, { backgroundColor: isActive ? '#44ff44' : '#ff4444', transform: [{ scale: pulseAnim }]}]} />
             <Text style={styles.statusText}>{isActive ? 'Senzorji tečejo' : 'Senzorji ustavljeni'}</Text>
             <View style={[styles.statusDot, { backgroundColor: mqttConnected ? '#44ff44' : '#ff4444', marginLeft: 12 }]} />
             <Text style={styles.statusText}>{mqttConnected ? 'MQTT povezan' : 'MQTT odklopljen'}</Text>
@@ -128,12 +148,12 @@ export default function Dashboard() {
               {isActive ? 'USTAVI SENZORJE' : 'AKTIVIRAJ ZAJEM'}
             </Text>
           </TouchableOpacity>
-          <TouchableOpacity onPress={() => router.replace('/login')}>
-            <Text style={styles.logoutText}>ODJAVA IZ SISTEMA</Text>
+          <TouchableOpacity onPress={() => router.push('/history')}>
+            <Text style={styles.logoutText}>ZGODOVINA MERITEV</Text>
           </TouchableOpacity>
         </View>
 
-      </ScrollView>
+      </View>
     </SafeAreaView>
   );
 }
@@ -142,33 +162,42 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#050505',
   },
+
   scrollContent: {
     paddingHorizontal: 30,
-    paddingTop: 40,
+    paddingTop: 20,
+    paddingBottom: 120,
   },
+
   header: {
-    marginBottom: 50,
+    marginBottom: 10,
+    marginTop: 20,
   },
+
   logo: {
     color: '#fff',
     fontSize: 24,
     fontWeight: '900',
     letterSpacing: 2,
   },
+
   orange: {
     color: '#ff6b35',
   },
+
   statusRow: {
     flexDirection: 'row',
     alignItems: 'center',
     marginTop: 8,
     gap: 6,
   },
+
   statusDot: {
     width: 6,
     height: 6,
     borderRadius: 3,
   },
+
   statusText: {
     color: '#555',
     fontSize: 12,
@@ -176,12 +205,15 @@ const styles = StyleSheet.create({
     letterSpacing: 1,
     textTransform: 'uppercase',
   },
+
   statsSection: {
-    marginBottom: 40,
+    marginBottom: 10,
   },
+
   statItem: {
     paddingVertical: 20,
   },
+
   statLabel: {
     color: '#444',
     fontSize: 11,
@@ -189,35 +221,43 @@ const styles = StyleSheet.create({
     letterSpacing: 1.5,
     marginBottom: 8,
   },
+
   statValue: {
     color: '#fff',
     fontSize: 36,
     fontWeight: '300',
     fontFamily: 'monospace',
   },
+
   divider: {
     height: 1,
     backgroundColor: 'rgba(255,255,255,0.05)',
   },
+
   footer: {
     marginTop: 20,
     gap: 20,
+    paddingBottom: 60,
   },
+
   mainBtn: {
     borderWidth: 1,
     paddingVertical: 18,
     borderRadius: 30,
     alignItems: 'center',
   },
+
   btnActive: {
     backgroundColor: '#ff6b35',
   },
+
   btnText: {
     color: '#fff',
     fontSize: 14,
     fontWeight: '800',
     letterSpacing: 2,
   },
+
   logoutText: {
     color: '#333',
     textAlign: 'center',
