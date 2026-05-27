@@ -237,7 +237,14 @@ function calculateTrailRiskFactor({ healthProfile, trail, weatherRisk }) {
   };
 }
 
-function runFaceLogin({ username, threshold = 0.95, camera = 0 }) {
+function runFaceLogin({
+  username,
+  threshold = 0.95,
+  camera = 0,
+  frames = 9,
+  minAgreement = 0.7,
+  margin = 0.08
+}) {
   return new Promise((resolve, reject) => {
     const bridgePath = path.resolve(
       __dirname,
@@ -257,6 +264,12 @@ function runFaceLogin({ username, threshold = 0.95, camera = 0 }) {
         String(threshold),
         '--camera',
         String(camera),
+        '--frames',
+        String(frames),
+        '--min-agreement',
+        String(minAgreement),
+        '--margin',
+        String(margin),
       ],
       {
         cwd: path.dirname(bridgePath),
@@ -554,6 +567,9 @@ const server = http.createServer(async (req, res) => {
           username,
           threshold: Number(data.threshold || 0.95),
           camera: Number(data.camera || 0),
+          frames: Number(data.frames || 9),
+          minAgreement: Number(data.minAgreement || 0.7),
+          margin: Number(data.margin || 0.08),
         });
 
         res.writeHead(result.success ? 200 : 401, {

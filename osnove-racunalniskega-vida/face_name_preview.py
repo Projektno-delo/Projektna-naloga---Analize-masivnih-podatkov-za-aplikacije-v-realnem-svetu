@@ -1,4 +1,5 @@
 import argparse
+from collections import Counter
 import json
 from pathlib import Path
 
@@ -19,6 +20,7 @@ IMAGE_EXTENSIONS = {".jpg", ".jpeg", ".png", ".bmp", ".webp"}
 PREVIEW_WINDOW = "Face name preview"
 USERS_PREVIEW_WINDOW = "Face login profiles preview"
 LOGIN_WINDOW = "Hribovc ORV face login"
+MIN_EFFECTIVE_THRESHOLD = 0.58
 
 face_cascade = cv2.CascadeClassifier(
     cv2.data.haarcascades + "haarcascade_frontalface_default.xml"
@@ -244,19 +246,111 @@ def load_user_profiles(users_dir=DATA_DIR / "users"):
     return profiles
 
 
+def zscore(values):
+    values = values.astype(np.float32).reshape(-1)
+    std = float(np.std(values))
+
+    if std < 1e-6:
+        return values - float(np.mean(values))
+
+    return (values - float(np.mean(values))) / std
+
+
+def lbp_histogram(face, grid_size=8, bins=32):
+    image = (np.clip(face, 0, 1) * 255).astype(np.uint8)
+    center = image[1:-1, 1:-1]
+    codes = np.zeros_like(center, dtype=np.uint8)
+
+    neighbors = [
+        image[:-2, :-2],
+        image[:-2, 1:-1],
+        image[:-2, 2:],
+        image[1:-1, 2:],
+        image[2:, 2:],
+        image[2:, 1:-1],
+        image[2:, :-2],
+        image[1:-1, :-2],
+    ]
+
+    for bit, neighbor in enumerate(neighbors):
+        codes |= ((neighbor >= center).astype(np.uint8) << bit)
+
+    h, w = codes.shape
+    cell_h = h // grid_size
+    cell_w = w // grid_size
+    features = []
+
+    for row in range(grid_size):
+        for col in range(grid_size):
+            y1 = row * cell_h
+            x1 = col * cell_w
+            y2 = h if row == grid_size - 1 else y1 + cell_h
+            x2 = w if col == grid_size - 1 else x1 + cell_w
+            hist, _ = np.histogram(codes[y1:y2, x1:x2], bins=bins, range=(0, 256))
+            hist = hist.astype(np.float32)
+            total = float(np.sum(hist))
+            if total > 0:
+                hist /= total
+            features.extend(hist)
+
+    return np.array(features, dtype=np.float32)
+
+
+def face_descriptor(face):
+    low_res = cv2.resize(face.astype(np.float32), (32, 32), interpolation=cv2.INTER_AREA)
+    pixel_features = zscore(low_res)
+    texture_features = lbp_histogram(face)
+    descriptor = np.concatenate([pixel_features * 0.35, texture_features * 0.65])
+    norm = np.linalg.norm(descriptor)
+
+    if norm > 0:
+        descriptor = descriptor / norm
+
+    return descriptor.astype(np.float32)
+
+
+def profile_score(face_desc, samples):
+    scores = [
+        cosine_similarity(face_desc, face_descriptor(sample))
+        for sample in samples
+    ]
+
+    if not scores:
+        return 0.0
+
+    top_scores = sorted(scores, reverse=True)[: min(3, len(scores))]
+    return float(np.mean(top_scores))
+
+
 def predict_from_user_profiles(face, profiles):
-    face_flat = face.flatten()
+    face_desc = face_descriptor(face)
     best_name = None
     best_score = 0.0
+    user_scores = {}
 
     for username, samples in profiles.items():
-        for sample in samples:
-            score = cosine_similarity(face_flat, sample.flatten())
-            if score > best_score:
-                best_name = username
-                best_score = score
+        score = profile_score(face_desc, samples)
+        user_scores[username] = score
 
-    return best_name or "neznan", best_score
+        if score > best_score:
+            best_name = username
+            best_score = score
+
+    sorted_scores = sorted(user_scores.values(), reverse=True)
+    second_score = sorted_scores[1] if len(sorted_scores) > 1 else 0.0
+    margin = best_score - second_score
+
+    return best_name or "neznan", best_score, margin, user_scores
+
+
+def is_accepted_prediction(name, score, margin, expected_username, threshold, min_margin):
+    effective_threshold = max(float(threshold), MIN_EFFECTIVE_THRESHOLD)
+
+    return (
+        name == expected_username
+        and score >= effective_threshold
+        and margin >= min_margin
+    )
 
 
 def preview_users(users_dir=DATA_DIR / "users", camera_index=0, threshold=0.95):
@@ -282,12 +376,12 @@ def preview_users(users_dir=DATA_DIR / "users", camera_index=0, threshold=0.95):
         face, box = prepare_face(frame)
 
         if face is not None and box is not None:
-            name, confidence = predict_from_user_profiles(face, profiles)
+            name, confidence, margin, _ = predict_from_user_profiles(face, profiles)
             draw_label(frame, box, name, confidence, threshold)
 
-            printed = (name, round(confidence, 2))
+            printed = (name, round(confidence, 2), round(margin, 2))
             if printed != last_printed:
-                print(f"[PREDICT] {name} ({confidence:.2f})")
+                print(f"[PREDICT] {name} ({confidence:.2f}, margin {margin:.2f})")
                 last_printed = printed
         else:
             cv2.putText(
@@ -313,7 +407,82 @@ def preview_users(users_dir=DATA_DIR / "users", camera_index=0, threshold=0.95):
     cv2.destroyAllWindows()
 
 
-def login_users(username, users_dir=DATA_DIR / "users", camera_index=0, threshold=0.95):
+def verify_live_frames(
+    cap,
+    profiles,
+    expected_username,
+    threshold,
+    frame_count=9,
+    min_agreement=0.7,
+    min_margin=0.08,
+):
+    predictions = []
+    attempts = 0
+    max_attempts = max(frame_count * 3, frame_count)
+
+    while len(predictions) < frame_count and attempts < max_attempts:
+        attempts += 1
+        ret, frame = cap.read()
+        if not ret:
+            break
+
+        face, _ = prepare_face(frame)
+        if face is None:
+            continue
+
+        name, score, margin, _ = predict_from_user_profiles(face, profiles)
+        accepted = is_accepted_prediction(
+            name,
+            score,
+            margin,
+            expected_username,
+            threshold,
+            min_margin,
+        )
+        predictions.append({
+            "name": name,
+            "score": float(score),
+            "margin": float(margin),
+            "accepted": accepted,
+        })
+
+    if not predictions:
+        return False, None, 0.0, 0.0, 0.0, []
+
+    names = [prediction["name"] for prediction in predictions]
+    recognized = Counter(names).most_common(1)[0][0]
+    accepted_count = sum(1 for prediction in predictions if prediction["accepted"])
+    agreement = accepted_count / len(predictions)
+    expected_scores = [
+        prediction["score"]
+        for prediction in predictions
+        if prediction["name"] == expected_username
+    ]
+    expected_margins = [
+        prediction["margin"]
+        for prediction in predictions
+        if prediction["name"] == expected_username
+    ]
+    median_score = float(np.median(expected_scores)) if expected_scores else 0.0
+    median_margin = float(np.median(expected_margins)) if expected_margins else 0.0
+    success = (
+        agreement >= min_agreement
+        and median_score >= max(float(threshold), MIN_EFFECTIVE_THRESHOLD)
+        and median_margin >= min_margin
+    )
+
+    return success, recognized, median_score, median_margin, agreement, predictions
+
+
+def login_users(
+    username,
+    users_dir=DATA_DIR / "users",
+    camera_index=0,
+    threshold=0.95,
+    frame_count=9,
+    min_agreement=0.7,
+    min_margin=0.08,
+):
     expected_username = safe_username(username)
     profiles = load_user_profiles(users_dir)
 
@@ -342,6 +511,9 @@ def login_users(username, users_dir=DATA_DIR / "users", camera_index=0, threshol
 
     best_name = None
     best_score = 0.0
+    best_margin = 0.0
+    agreement = 0.0
+    predictions = []
     success = False
     focused = False
 
@@ -358,7 +530,7 @@ def login_users(username, users_dir=DATA_DIR / "users", camera_index=0, threshol
         face, box = prepare_face(frame)
 
         if face is not None and box is not None:
-            best_name, best_score = predict_from_user_profiles(face, profiles)
+            best_name, best_score, best_margin, _ = predict_from_user_profiles(face, profiles)
             draw_label(frame, box, best_name, best_score, threshold)
 
             x, y, _, h = box
@@ -392,9 +564,14 @@ def login_users(username, users_dir=DATA_DIR / "users", camera_index=0, threshol
         key = cv2.waitKey(1) & 0xFF
 
         if key == ord(" "):
-            success = (
-                best_name == expected_username
-                and best_score >= threshold
+            success, best_name, best_score, best_margin, agreement, predictions = verify_live_frames(
+                cap,
+                profiles,
+                expected_username,
+                threshold,
+                frame_count=frame_count,
+                min_agreement=min_agreement,
+                min_margin=min_margin,
             )
             break
 
@@ -409,7 +586,12 @@ def login_users(username, users_dir=DATA_DIR / "users", camera_index=0, threshol
         "username": expected_username,
         "recognized": best_name,
         "score": round(float(best_score), 4),
+        "margin": round(float(best_margin), 4),
+        "agreement": round(float(agreement), 4),
+        "frames_checked": len(predictions),
         "threshold": threshold,
+        "effective_threshold": max(float(threshold), MIN_EFFECTIVE_THRESHOLD),
+        "min_margin": min_margin,
         "method": "orv-face-name-preview",
         "error": None if success else "Face login ni uspel.",
     }
@@ -632,6 +814,9 @@ def build_parser():
     login_users_parser.add_argument("--users-dir", default=str(DATA_DIR / "users"))
     login_users_parser.add_argument("--camera", type=int, default=0)
     login_users_parser.add_argument("--threshold", type=float, default=0.95)
+    login_users_parser.add_argument("--frames", type=int, default=9)
+    login_users_parser.add_argument("--min-agreement", type=float, default=0.7)
+    login_users_parser.add_argument("--margin", type=float, default=0.08)
 
     return parser
 
@@ -664,6 +849,9 @@ def main():
             users_dir=Path(args.users_dir),
             camera_index=args.camera,
             threshold=args.threshold,
+            frame_count=args.frames,
+            min_agreement=args.min_agreement,
+            min_margin=args.margin,
         )
     elif args.command == "login-users":
         result = login_users(

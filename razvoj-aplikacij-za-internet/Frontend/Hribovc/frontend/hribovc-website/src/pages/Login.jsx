@@ -47,7 +47,10 @@ function Login() {
           },
           body: JSON.stringify({
             usernames: [data.user.ime, emailUsername, 'ziga'],
-            threshold: 0.45,
+            threshold: 0.62,
+            frames: 9,
+            minAgreement: 0.7,
+            margin: 0.08,
           }),
         })
 
