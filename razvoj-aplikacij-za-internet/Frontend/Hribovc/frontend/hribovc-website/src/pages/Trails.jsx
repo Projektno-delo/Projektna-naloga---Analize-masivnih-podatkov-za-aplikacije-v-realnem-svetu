@@ -1,5 +1,5 @@
 import './Trails.css'
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { LuSearch, LuMapPin, LuClock, LuMountain, LuRoute, LuStar, LuFilter, LuHeartPulse } from 'react-icons/lu'
 
 import triglavImg from '../assets/triglav.jpg'
@@ -60,27 +60,39 @@ const readStoredUser = () => {
   }
 }
 
+const fieldValue = (value) => value ?? ''
+
+const normalizeHealthProfile = (profile = {}, user = {}) => ({
+  bmi: fieldValue(profile.bmi ?? user.bmi),
+  age: fieldValue(profile.age ?? user.starost),
+  height: fieldValue(profile.height ?? user.visina),
+  weight: fieldValue(profile.weight ?? user.teza),
+  smoker: profile.smoker ?? 'no',
+  activity: profile.activity ?? 'medium',
+  condition: profile.condition ?? 'none',
+})
+
 const readStoredHealthProfile = () => {
   const user = readStoredUser()
 
   try {
     const stored = JSON.parse(localStorage.getItem('healthProfile')) || {}
-    return {
-      bmi: stored.bmi ?? user.bmi ?? '',
-      age: stored.age ?? user.starost ?? '',
-      smoker: stored.smoker ?? 'no',
-      activity: stored.activity ?? 'medium',
-      condition: stored.condition ?? 'none',
-    }
+    return normalizeHealthProfile({ ...(user.healthProfile || {}), ...stored }, user)
   } catch {
-    return {
-      bmi: user.bmi ?? '',
-      age: user.starost ?? '',
-      smoker: 'no',
-      activity: 'medium',
-      condition: 'none',
-    }
+    return normalizeHealthProfile(user.healthProfile, user)
   }
+}
+
+const calculateBmiValue = (height, weight) => {
+  const heightCm = parseNumber(height)
+  const weightKg = parseNumber(weight)
+
+  if (!heightCm || !weightKg) {
+    return null
+  }
+
+  const heightM = heightCm / 100
+  return Number((weightKg / (heightM * heightM)).toFixed(1))
 }
 
 const buildRecommendationText = (reasons, statusClass) => {
@@ -199,17 +211,119 @@ function Trails() {
   const [trails, setTrails] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
+  const [currentUser, setCurrentUser] = useState(readStoredUser)
   const [healthProfile, setHealthProfile] = useState(readStoredHealthProfile)
+  const [saveStatus, setSaveStatus] = useState('')
+  const syncReady = useRef(false)
 
   useEffect(() => {
     localStorage.setItem('healthProfile', JSON.stringify(healthProfile))
-  }, [healthProfile])
+
+    if (!syncReady.current || !currentUser?._id) {
+      return
+    }
+
+    setSaveStatus('Shranjujem...')
+
+    const timer = setTimeout(async () => {
+      try {
+        const response = await fetch('http://localhost:3000/health-profile', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            userId: currentUser._id,
+            healthProfile,
+          }),
+        })
+
+        const data = await response.json()
+
+        if (!response.ok) {
+          throw new Error(data.error || 'Napaka pri shranjevanju')
+        }
+
+        localStorage.setItem('healthProfile', JSON.stringify(data.healthProfile))
+
+        if (data.user) {
+          localStorage.setItem('user', JSON.stringify(data.user))
+          setCurrentUser(data.user)
+        }
+
+        setSaveStatus('Shranjeno')
+      } catch (error) {
+        console.error('Health profile save error:', error)
+        setSaveStatus('Shranjeno lokalno')
+      }
+    }, 600)
+
+    return () => clearTimeout(timer)
+  }, [healthProfile, currentUser?._id])
+
+  useEffect(() => {
+    if (!currentUser?._id) {
+      syncReady.current = true
+      return
+    }
+
+    let isActive = true
+
+    const fetchHealthProfile = async () => {
+      try {
+        const response = await fetch(`http://localhost:3000/health-profile?userId=${currentUser._id}`)
+        const data = await response.json()
+
+        if (!response.ok) {
+          throw new Error(data.error || 'Napaka pri branju zdravstvenih podatkov')
+        }
+
+        if (!isActive) return
+
+        const nextHealthProfile = normalizeHealthProfile(data.healthProfile, data.user)
+        localStorage.setItem('healthProfile', JSON.stringify(nextHealthProfile))
+        setHealthProfile(nextHealthProfile)
+
+        if (data.user) {
+          localStorage.setItem('user', JSON.stringify(data.user))
+          setCurrentUser(data.user)
+        }
+      } catch (error) {
+        console.error('Health profile load error:', error)
+      } finally {
+        syncReady.current = true
+      }
+    }
+
+    fetchHealthProfile()
+
+    return () => {
+      isActive = false
+    }
+  }, [currentUser?._id])
 
   const updateHealthProfile = (field, value) => {
-    setHealthProfile(prev => ({
-      ...prev,
-      [field]: value,
-    }))
+    setHealthProfile(prev => {
+      const next = {
+        ...prev,
+        [field]: value,
+      }
+      const calculatedBmi = calculateBmiValue(next.height, next.weight)
+
+      if ((field === 'height' || field === 'weight') && calculatedBmi) {
+        next.bmi = String(calculatedBmi)
+      }
+
+      return next
+    })
+  }
+
+  const calculateBmi = () => {
+    const calculatedBmi = calculateBmiValue(healthProfile.height, healthProfile.weight)
+
+    if (calculatedBmi) {
+      updateHealthProfile('bmi', String(calculatedBmi))
+    }
   }
 
   // Fetch trails from API
@@ -360,11 +474,35 @@ function Trails() {
             <LuHeartPulse size="1.2em" />
             <div>
               <h2>Zdravstveni podatki</h2>
-              <p>Priporocila se izracunajo sproti za vsako pot.</p>
+              <p>{currentUser?._id ? (saveStatus || 'Shranjeno v profilu') : 'Shranjeno v brskalniku'}</p>
             </div>
           </div>
 
           <div className="health-fields">
+            <label className="health-field">
+              <span>Visina (cm)</span>
+              <input
+                type="number"
+                min="80"
+                max="230"
+                placeholder="175"
+                value={healthProfile.height}
+                onChange={e => updateHealthProfile('height', e.target.value)}
+              />
+            </label>
+
+            <label className="health-field">
+              <span>Teza (kg)</span>
+              <input
+                type="number"
+                min="25"
+                max="250"
+                placeholder="72"
+                value={healthProfile.weight}
+                onChange={e => updateHealthProfile('weight', e.target.value)}
+              />
+            </label>
+
             <label className="health-field">
               <span>BMI</span>
               <input
@@ -377,6 +515,10 @@ function Trails() {
                 onChange={e => updateHealthProfile('bmi', e.target.value)}
               />
             </label>
+
+            <button type="button" className="bmi-calc-btn" onClick={calculateBmi}>
+              Izracunaj BMI
+            </button>
 
             <label className="health-field">
               <span>Starost</span>

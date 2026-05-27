@@ -24,7 +24,11 @@ function getHighestWeatherRisk(weather) {
 }
 
 function createRecommendation({ user, trail, weatherRisk }) {
-  const bmi = Number(user.bmi);
+  const healthProfile = user.healthProfile || {};
+  const bmi = Number(healthProfile.bmi ?? user.bmi);
+  const smoker = healthProfile.smoker === 'yes';
+  const activity = healthProfile.activity || 'medium';
+  const condition = healthProfile.condition || 'none';
   const difficulty = String(trail.difficulty || '').toLowerCase();
   const risk = weatherRisk.risk;
 
@@ -53,6 +57,13 @@ function createRecommendation({ user, trail, weatherRisk }) {
     if (recommendation === 'PRIPOROČENO') {
       recommendation = 'PREVIDNO';
       reason = 'Zaradi višjega BMI je priporočena dodatna previdnost pri izbiri poti.';
+    }
+  }
+
+  if (smoker || activity === 'low' || condition !== 'none') {
+    if (recommendation !== 'ODSVETOVANO' && recommendation !== 'PREVIDNO') {
+      recommendation = 'PREVIDNO';
+      reason = 'Zaradi vnesenih zdravstvenih podatkov je priporocena dodatna previdnost.';
     }
   }
 
@@ -94,6 +105,7 @@ async function analyzeTrail({ userId, trailId }) {
 
   const weatherRisk = getHighestWeatherRisk(weather);
   const result = createRecommendation({ user, trail, weatherRisk });
+  const healthProfile = user.healthProfile || {};
 
   const analysis = {
     userId: user._id,
@@ -102,7 +114,12 @@ async function analyzeTrail({ userId, trailId }) {
 
     userSnapshot: {
       starost: user.starost,
-      bmi: user.bmi
+      bmi: healthProfile.bmi ?? user.bmi,
+      height: healthProfile.height ?? user.visina,
+      weight: healthProfile.weight ?? user.teza,
+      smoker: healthProfile.smoker ?? null,
+      activity: healthProfile.activity ?? null,
+      condition: healthProfile.condition ?? null
     },
 
     trailSnapshot: {

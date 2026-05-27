@@ -2,6 +2,7 @@ const http = require('http');
 const bcrypt = require('bcryptjs');
 const path = require('path');
 const { spawn } = require('child_process');
+const { ObjectId } = require('mongodb');
 
 const {
   scrapeAndStoreWeather,
@@ -29,6 +30,62 @@ function calculateBmi(visina, teza) {
 
   const heightM = heightCm / 100;
   return Number((weightKg / (heightM * heightM)).toFixed(1));
+}
+
+function numberOrNull(value) {
+  const number = Number(value);
+  return Number.isFinite(number) ? number : null;
+}
+
+function normalizeHealthProfile(data = {}) {
+  const height = numberOrNull(data.height ?? data.visina);
+  const weight = numberOrNull(data.weight ?? data.teza);
+  const calculatedBmi = calculateBmi(height, weight);
+  const bmi = numberOrNull(data.bmi) ?? calculatedBmi;
+
+  return {
+    bmi,
+    age: numberOrNull(data.age ?? data.starost),
+    height,
+    weight,
+    smoker: data.smoker === 'yes' ? 'yes' : 'no',
+    activity: ['low', 'medium', 'high'].includes(data.activity) ? data.activity : 'medium',
+    condition: ['none', 'heart', 'lungs', 'joints'].includes(data.condition) ? data.condition : 'none',
+    updatedAt: new Date()
+  };
+}
+
+function readJsonBody(req) {
+  return new Promise((resolve, reject) => {
+    let body = '';
+
+    req.on('data', chunk => {
+      body += chunk.toString();
+    });
+
+    req.on('end', () => {
+      try {
+        resolve(body ? JSON.parse(body) : {});
+      } catch (error) {
+        reject(error);
+      }
+    });
+  });
+}
+
+function publicUser(user) {
+  return {
+    _id: user._id,
+    ime: user.ime,
+    email: user.email,
+    starost: user.starost,
+    visina: user.visina,
+    teza: user.teza,
+    bmi: user.bmi,
+    healthProfile: user.healthProfile || null,
+    createdAt: user.createdAt,
+    updatedAt: user.updatedAt
+  };
 }
 
 function runFaceLogin({ username, threshold = 0.95, camera = 0 }) {
@@ -145,6 +202,8 @@ const server = http.createServer(async (req, res) => {
     return;
   }
 
+  const requestUrl = new URL(req.url, `http://${req.headers.host || 'localhost'}`);
+
   if (req.method === 'GET' && req.url === '/scrape') {
     try {
       const weather = await scrapeAndStoreWeather();
@@ -214,15 +273,25 @@ const server = http.createServer(async (req, res) => {
 
         const passwordHash = await bcrypt.hash(userData.password, 10);
         const now = new Date();
+        const healthProfile = normalizeHealthProfile({
+          age: userData.starost,
+          height: userData.visina,
+          weight: userData.teza,
+          bmi: userData.bmi,
+          smoker: userData.smoker,
+          activity: userData.activity,
+          condition: userData.condition
+        });
 
         const newUser = {
           ime: userData.ime,
           email: userData.email,
           passwordHash,
-          starost: Number(userData.starost),
-          visina: Number(userData.visina),
-          teza: Number(userData.teza),
-          bmi: calculateBmi(userData.visina, userData.teza),
+          starost: healthProfile.age,
+          visina: healthProfile.height,
+          teza: healthProfile.weight,
+          bmi: healthProfile.bmi,
+          healthProfile,
           createdAt: now,
           updatedAt: now
         };
@@ -283,17 +352,7 @@ const server = http.createServer(async (req, res) => {
           return;
         }
 
-        const userResponse = {
-          _id: user._id,
-          ime: user.ime,
-          email: user.email,
-          starost: user.starost,
-          visina: user.visina,
-          teza: user.teza,
-          bmi: user.bmi,
-          createdAt: user.createdAt,
-          updatedAt: user.updatedAt
-        };
+        const userResponse = publicUser(user);
 
         res.writeHead(200, {
           'Content-Type': 'application/json',
@@ -361,6 +420,124 @@ const server = http.createServer(async (req, res) => {
         res.end(JSON.stringify({ error: error.message || String(error) }));
       }
     });
+
+    return;
+  }
+
+  if (req.method === 'GET' && requestUrl.pathname === '/health-profile') {
+    try {
+      const userId = requestUrl.searchParams.get('userId');
+
+      if (!ObjectId.isValid(userId)) {
+        res.writeHead(400, {
+          'Content-Type': 'application/json',
+          ...corsHeaders,
+        });
+        res.end(JSON.stringify({ error: 'Invalid userId' }));
+        return;
+      }
+
+      const usersCollection = await getCollection('users');
+      const user = await usersCollection.findOne({ _id: new ObjectId(userId) });
+
+      if (!user) {
+        res.writeHead(404, {
+          'Content-Type': 'application/json',
+          ...corsHeaders,
+        });
+        res.end(JSON.stringify({ error: 'User not found' }));
+        return;
+      }
+
+      const healthProfile = user.healthProfile || normalizeHealthProfile({
+        bmi: user.bmi,
+        age: user.starost,
+        height: user.visina,
+        weight: user.teza
+      });
+
+      res.writeHead(200, {
+        'Content-Type': 'application/json',
+        ...corsHeaders,
+      });
+      res.end(JSON.stringify({
+        healthProfile,
+        user: publicUser({
+          ...user,
+          healthProfile
+        })
+      }));
+    } catch (error) {
+      res.writeHead(500, {
+        'Content-Type': 'application/json',
+        ...corsHeaders,
+      });
+      res.end(JSON.stringify({ error: error.message || String(error) }));
+    }
+
+    return;
+  }
+
+  if (req.method === 'POST' && req.url === '/health-profile') {
+    try {
+      const data = await readJsonBody(req);
+      const userId = data.userId;
+
+      if (!ObjectId.isValid(userId)) {
+        res.writeHead(400, {
+          'Content-Type': 'application/json',
+          ...corsHeaders,
+        });
+        res.end(JSON.stringify({ error: 'Invalid userId' }));
+        return;
+      }
+
+      const healthProfile = normalizeHealthProfile(data.healthProfile || data);
+      const now = new Date();
+      const usersCollection = await getCollection('users');
+
+      const result = await usersCollection.findOneAndUpdate(
+        { _id: new ObjectId(userId) },
+        {
+          $set: {
+            healthProfile,
+            starost: healthProfile.age,
+            visina: healthProfile.height,
+            teza: healthProfile.weight,
+            bmi: healthProfile.bmi,
+            updatedAt: now
+          }
+        },
+        { returnDocument: 'after' }
+      );
+
+      const updatedUser = result.value || await usersCollection.findOne({ _id: new ObjectId(userId) });
+
+      if (!updatedUser) {
+        res.writeHead(404, {
+          'Content-Type': 'application/json',
+          ...corsHeaders,
+        });
+        res.end(JSON.stringify({ error: 'User not found' }));
+        return;
+      }
+
+      res.writeHead(200, {
+        'Content-Type': 'application/json',
+        ...corsHeaders,
+      });
+      res.end(JSON.stringify({
+        message: 'Health profile saved successfully',
+        healthProfile: updatedUser.healthProfile,
+        user: publicUser(updatedUser)
+      }));
+    } catch (error) {
+      res.writeHead(400, {
+        'Content-Type': 'application/json',
+        ...corsHeaders,
+      });
+      res.end(JSON.stringify({ error: error.message || String(error) }));
+    }
 
     return;
   }
