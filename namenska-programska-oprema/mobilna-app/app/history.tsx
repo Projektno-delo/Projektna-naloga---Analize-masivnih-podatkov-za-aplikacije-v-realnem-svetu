@@ -22,14 +22,12 @@ export default function History() {
     setReadings([]);
   };
 
- return (
+  return (
     <SafeAreaView style={styles.container}>
       <ScrollView contentContainerStyle={styles.scrollContent}>
         <View style={styles.header}>
-          <TouchableOpacity onPress={() => router.back()}>
-            {/* <Text style={styles.back}>← NAZAJ</Text> */}
-          </TouchableOpacity>
           <Text style={styles.title}>HRIBOVC <Text style={styles.orange}>HISTORY</Text></Text>
+          <Text style={styles.count}>Shranjenih meritev: {readings.length}</Text>
         </View>
 
         {readings.length === 0 ? (
@@ -38,18 +36,30 @@ export default function History() {
           readings.map((r, i) => (
             <View key={i} style={styles.card}>
               <Text style={styles.time}>{new Date(r.timestamp).toLocaleTimeString()}</Text>
-              <Text style={styles.data}>X: {r.accelerometer.x.toFixed(3)}  Y: {r.accelerometer.y.toFixed(3)}  Z: {r.accelerometer.z.toFixed(3)}</Text>
-              {r.location && (
-                <Text style={styles.gps}>GPS: {r.location.latitude.toFixed(4)}, {r.location.longitude.toFixed(4)}</Text>
-              )}
+              <Text style={styles.data}>X: {r.accelerometer.x.toFixed(3)}</Text>
+              <Text style={styles.data}>Y: {r.accelerometer.y.toFixed(3)}</Text>
+              <Text style={styles.data}>Z: {r.accelerometer.z.toFixed(3)}</Text>
+              <Text style={styles.gps}>
+                {r.location 
+                  ? `GPS: ${r.location.latitude.toFixed(4)}, ${r.location.longitude.toFixed(4)}` 
+                  : 'Lokacija ni na voljo'}
+              </Text>
             </View>
           ))
         )}
+        
+        <View style={{ height: 200 }} />
+      </ScrollView>
 
+      <View style={styles.footer}>
         <TouchableOpacity style={styles.clearBtn} onPress={handleClear}>
           <Text style={styles.clearText}>ZBRIŠI ZGODOVINO</Text>
         </TouchableOpacity>
-      </ScrollView>
+        <TouchableOpacity style={styles.homeBtn} onPress={() => router.replace('/')}>
+          <Text style={styles.homeText}>DOMOV</Text>
+        </TouchableOpacity>
+      </View>
+
     </SafeAreaView>
   );
 
@@ -124,6 +134,41 @@ export default function History() {
   },
   clearText: { 
     color: '#ff4444', 
+    fontSize: 13, 
+    fontWeight: '700', 
+    letterSpacing: 1 
+  },
+
+  count: { 
+    color: '#444', 
+    fontSize: 12, 
+    fontWeight: '700', 
+    letterSpacing: 1,
+    marginTop: 8,
+  },
+
+  footer: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    paddingHorizontal: 30,
+    paddingBottom: 70,
+    paddingTop: 16,
+    backgroundColor: '#050505',
+    gap: 14,
+},
+
+  homeBtn: {
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.15)',
+    paddingVertical: 14,
+    borderRadius: 30,
+    alignItems: 'center',
+},
+
+  homeText: { 
+    color: '#fff', 
     fontSize: 13, 
     fontWeight: '700', 
     letterSpacing: 1 
