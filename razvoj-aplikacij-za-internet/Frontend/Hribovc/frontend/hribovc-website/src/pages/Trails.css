@@ -97,6 +97,100 @@
   padding: 2rem 8%;
 }
 
+.health-panel {
+  display: grid;
+  grid-template-columns: minmax(220px, 0.8fr) 2fr;
+  gap: 1.5rem;
+  align-items: center;
+  background: #111;
+  border: 1px solid #222;
+  border-radius: 8px;
+  padding: 1.25rem;
+  margin-bottom: 2rem;
+}
+
+.health-panel-title {
+  display: flex;
+  align-items: center;
+  gap: 0.9rem;
+  color: #8FA998;
+}
+
+.health-panel-title h2 {
+  color: #fff;
+  font-size: 1.1rem;
+  margin: 0;
+}
+
+.health-panel-title p {
+  color: #888;
+  font-size: 0.82rem;
+  margin: 0.25rem 0 0 0;
+}
+
+.health-fields {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(125px, 1fr));
+  gap: 0.8rem;
+}
+
+.health-field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.health-field span {
+  color: #aaa;
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.health-field input,
+.health-field select {
+  width: 100%;
+  min-height: 42px;
+  box-sizing: border-box;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid #333;
+  border-radius: 8px;
+  color: #fff;
+  font-size: 0.9rem;
+  padding: 0.55rem 0.7rem;
+  outline: none;
+}
+
+.health-field select option,
+.filter-select option {
+  background: #111;
+  color: #fff;
+}
+
+.health-field input:focus,
+.health-field select:focus {
+  border-color: #8FA998;
+}
+
+.bmi-calc-btn {
+  align-self: end;
+  min-height: 42px;
+  background: rgba(143, 169, 152, 0.14);
+  border: 1px solid rgba(143, 169, 152, 0.5);
+  border-radius: 8px;
+  color: #dce8df;
+  cursor: pointer;
+  font-size: 0.85rem;
+  font-weight: 700;
+  padding: 0.55rem 0.8rem;
+  white-space: nowrap;
+}
+
+.bmi-calc-btn:hover {
+  background: rgba(143, 169, 152, 0.22);
+  color: #fff;
+}
+
 .section-title {
   display: flex;
   align-items: center;
@@ -385,4 +479,103 @@
   display: flex;
   align-items: center;
   gap: 3px;
+}
+
+.all-trail-reco {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  border-top: 1px solid #222;
+  margin-top: 0.4rem;
+  padding-top: 0.65rem;
+  font-size: 0.75rem;
+  font-weight: 800;
+}
+
+.all-trail-reco span {
+  letter-spacing: 0.3px;
+}
+
+.all-trail-reco strong {
+  font-size: 0.95rem;
+}
+
+.all-trail-reco.status-good span { color: #4caf50; }
+.all-trail-reco.status-warn span { color: #ff9800; }
+.all-trail-reco.status-bad span { color: #f44336; }
+
+@media (max-width: 1100px) {
+  .health-panel {
+    grid-template-columns: 1fr;
+  }
+
+  .health-fields {
+    grid-template-columns: repeat(3, minmax(140px, 1fr));
+  }
+
+  .trail-card {
+    grid-template-columns: 150px 1fr;
+  }
+
+  .trail-score-col {
+    grid-column: 1 / -1;
+    align-items: center;
+    flex-direction: row;
+    min-width: 0;
+    text-align: left;
+  }
+
+  .trail-status {
+    text-align: left;
+  }
+
+  .status-desc {
+    max-width: none;
+  }
+
+  .all-trails-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 700px) {
+  .trails-hero,
+  .trails-content {
+    padding-left: 1rem;
+    padding-right: 1rem;
+  }
+
+  .trails-hero h1 {
+    font-size: 2.25rem;
+  }
+
+  .health-fields,
+  .all-trails-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .trail-card {
+    grid-template-columns: 1fr;
+  }
+
+  .trail-img {
+    width: 100%;
+    height: 180px;
+  }
+
+  .trail-stats {
+    flex-direction: column;
+    gap: 0.6rem;
+    margin-top: 1rem;
+  }
+
+  .diff-badge {
+    position: static;
+  }
+
+  .smart-tip {
+    align-items: flex-start;
+    flex-direction: column;
+  }
 }
