@@ -21,7 +21,9 @@ PREVIEW_WINDOW = "Face name preview"
 USERS_PREVIEW_WINDOW = "Face login profiles preview"
 LOGIN_WINDOW = "Hribovc ORV face login"
 MIN_EFFECTIVE_THRESHOLD = 0.58
+LOW_LIGHT_MEAN_THRESHOLD = 75.0
 _last_orv_filter_mean = 0.0
+_last_darkmode_used = False
 
 face_cascade = cv2.CascadeClassifier(
     cv2.data.haarcascades + "haarcascade_frontalface_default.xml"
@@ -48,18 +50,70 @@ def focus_window(window_name):
         pass
 
 
+def binarna_segmentacija(slika: np.ndarray, invert_dark=True) -> np.ndarray:
+    if slika.ndim == 3:
+        slika = cv2.cvtColor(slika, cv2.COLOR_BGR2GRAY)
+    else:
+        slika = slika.copy()
+
+    if slika.dtype != np.uint8:
+        slika = np.clip(slika, 0, 1)
+        slika = (slika * 255).astype(np.uint8)
+
+    threshold = max(35, int(np.mean(slika) * 0.85))
+    if invert_dark:
+        maska = (slika < threshold).astype(np.uint8) * 255
+    else:
+        maska = (slika > threshold).astype(np.uint8) * 255
+
+    kernel = np.ones((3, 3), np.uint8)
+    return cv2.morphologyEx(maska, cv2.MORPH_OPEN, kernel)
+
+
+def build_face_detection_images(gray):
+    candidates = [gray, cv2.equalizeHist(gray)]
+
+    if float(np.mean(gray)) < LOW_LIGHT_MEAN_THRESHOLD:
+        inverted = cv2.bitwise_not(gray)
+        dark_mask = binarna_segmentacija(gray, invert_dark=True)
+        blended = cv2.addWeighted(inverted, 0.65, dark_mask, 0.35, 0)
+        clahe = cv2.createCLAHE(clipLimit=2.0, tileGridSize=(8, 8))
+        candidates.extend([
+            inverted,
+            dark_mask,
+            blended,
+            clahe.apply(blended),
+        ])
+
+    return candidates
+
+
 def detect_largest_face(gray):
-    faces = face_cascade.detectMultiScale(
-        gray,
-        scaleFactor=1.1,
-        minNeighbors=5,
-        minSize=(70, 70),
-    )
+    for candidate in build_face_detection_images(gray):
+        faces = face_cascade.detectMultiScale(
+            candidate,
+            scaleFactor=1.1,
+            minNeighbors=5,
+            minSize=(70, 70),
+        )
 
-    if len(faces) == 0:
-        return None
+        if len(faces) == 0:
+            continue
 
-    return max(faces, key=lambda face: face[2] * face[3])
+        return max(faces, key=lambda face: face[2] * face[3])
+
+    return None
+
+
+def enhance_dark_face(face_crop):
+    if float(np.mean(face_crop)) >= LOW_LIGHT_MEAN_THRESHOLD:
+        return face_crop
+
+    inverted = cv2.bitwise_not(face_crop)
+    maska = binarna_segmentacija(face_crop, invert_dark=True)
+    enhanced = cv2.addWeighted(inverted, 0.45, face_crop, 0.55, 0)
+    enhanced = cv2.addWeighted(enhanced, 0.8, maska, 0.2, 0)
+    return cv2.normalize(enhanced, None, 0, 255, cv2.NORM_MINMAX).astype(np.uint8)
 
 
 def konvolucija(slika: np.ndarray, jedro: np.ndarray) -> np.ndarray:
@@ -132,6 +186,8 @@ def izvedi_orv_konvolucijo(face_image):
 
 
 def prepare_face(frame):
+    global _last_darkmode_used, _last_orv_filter_mean
+
     gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
     detected = detect_largest_face(gray)
 
@@ -140,8 +196,9 @@ def prepare_face(frame):
 
     x, y, w, h = detected
     face_crop = gray[y : y + h, x : x + w]
+    _last_darkmode_used = float(np.mean(face_crop)) < LOW_LIGHT_MEAN_THRESHOLD
+    face_crop = enhance_dark_face(face_crop)
     face_resized = cv2.resize(face_crop, IMG_SIZE)
-    global _last_orv_filter_mean
     _last_orv_filter_mean = izvedi_orv_konvolucijo(face_resized)
     face_equalized = cv2.equalizeHist(face_resized)
     face_normalized = face_equalized.astype(np.float32) / 255.0
@@ -263,7 +320,7 @@ def export_test_images_to_users(
 
     users_dir.mkdir(parents=True, exist_ok=True)
 
-    print("[INFO] Izvoz v format, ki ga uporablja detect-face.py login ...")
+    print("[INFO] Izvoz v format, ki ga uporablja face_name_preview.py login-users ...")
 
     for label_id, person_name in label_map.items():
         samples = X[y == label_id].reshape((-1, IMG_SIZE[1], IMG_SIZE[0]))
@@ -428,7 +485,7 @@ def is_accepted_prediction(name, score, margin, expected_username, threshold, mi
 def preview_users(users_dir=DATA_DIR / "users", camera_index=0, threshold=0.95):
     profiles = load_user_profiles(users_dir)
     print("[INFO] Nalozeni ORV profili:", ", ".join(profiles.keys()))
-    print("[INFO] To uporablja isti tip profila kot: python .\\detect-face.py login ziga")
+    print("[INFO] To uporablja isti tip profila kot: python .\\face_name_preview.py login-users ziga")
     print("[INFO] Pritisni q za izhod.")
 
     cap = cv2.VideoCapture(camera_index)
@@ -864,7 +921,7 @@ def build_parser():
 
     export_parser = subparsers.add_parser(
         "export-users",
-        help="Iz test_images/ImeOsebe ustvari data/users/ime.npz za obstojeci detect-face.py login.",
+        help="Iz test_images/ImeOsebe ustvari data/users/ime.npz za login-users.",
     )
     export_parser.add_argument("--images-dir", default=str(TEST_IMAGES_DIR))
     export_parser.add_argument("--users-dir", default=str(DATA_DIR / "users"))
@@ -921,9 +978,6 @@ def main():
             users_dir=Path(args.users_dir),
             camera_index=args.camera,
             threshold=args.threshold,
-            frame_count=args.frames,
-            min_agreement=args.min_agreement,
-            min_margin=args.margin,
         )
     elif args.command == "login-users":
         result = login_users(
