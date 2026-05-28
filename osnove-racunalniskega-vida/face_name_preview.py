@@ -21,6 +21,7 @@ PREVIEW_WINDOW = "Face name preview"
 USERS_PREVIEW_WINDOW = "Face login profiles preview"
 LOGIN_WINDOW = "Hribovc ORV face login"
 MIN_EFFECTIVE_THRESHOLD = 0.58
+_last_orv_filter_mean = 0.0
 
 face_cascade = cv2.CascadeClassifier(
     cv2.data.haarcascades + "haarcascade_frontalface_default.xml"
@@ -61,6 +62,75 @@ def detect_largest_face(gray):
     return max(faces, key=lambda face: face[2] * face[3])
 
 
+def konvolucija(slika: np.ndarray, jedro: np.ndarray) -> np.ndarray:
+    vhodni_podatki = slika.astype(np.float32)
+    zrcaljeno_jedro = np.flip(jedro).astype(np.float32)
+
+    if jedro.ndim != 2:
+        raise ValueError("Jedro mora biti 2D matrika.")
+
+    visina_jedra, sirina_jedra = zrcaljeno_jedro.shape
+    if visina_jedra % 2 == 0 or sirina_jedra % 2 == 0:
+        raise ValueError("Jedro mora imeti lihe dimenzije.")
+
+    offset_y = visina_jedra // 2
+    offset_x = sirina_jedra // 2
+
+    if vhodni_podatki.ndim == 2:
+        visina_slike, sirina_slike = vhodni_podatki.shape
+        robni_pasovi = ((offset_y, offset_y), (offset_x, offset_x))
+        razsirjena_slika = np.pad(vhodni_podatki, robni_pasovi, mode="edge")
+        rezultanta = np.zeros((visina_slike, sirina_slike), dtype=np.float32)
+
+        for y_koordinata in range(visina_slike):
+            for x_koordinata in range(sirina_slike):
+                akumulirana_vrednost = 0.0
+                for m_indeks in range(visina_jedra):
+                    for n_indeks in range(sirina_jedra):
+                        piksel = razsirjena_slika[
+                            y_koordinata + m_indeks,
+                            x_koordinata + n_indeks,
+                        ]
+                        teza = zrcaljeno_jedro[m_indeks, n_indeks]
+                        akumulirana_vrednost += piksel * teza
+                rezultanta[y_koordinata, x_koordinata] = akumulirana_vrednost
+        return rezultanta
+
+    if vhodni_podatki.ndim == 3:
+        visina_slike, sirina_slike, st_kanalov = vhodni_podatki.shape
+        robni_pasovi = ((offset_y, offset_y), (offset_x, offset_x), (0, 0))
+        razsirjena_slika = np.pad(vhodni_podatki, robni_pasovi, mode="edge")
+        rezultanta = np.zeros(
+            (visina_slike, sirina_slike, st_kanalov),
+            dtype=np.float32,
+        )
+
+        for kanal in range(st_kanalov):
+            for y_koordinata in range(visina_slike):
+                for x_koordinata in range(sirina_slike):
+                    akumulirana_vrednost = 0.0
+                    for m_indeks in range(visina_jedra):
+                        for n_indeks in range(sirina_jedra):
+                            piksel = razsirjena_slika[
+                                y_koordinata + m_indeks,
+                                x_koordinata + n_indeks,
+                                kanal,
+                            ]
+                            teza = zrcaljeno_jedro[m_indeks, n_indeks]
+                            akumulirana_vrednost += piksel * teza
+                    rezultanta[y_koordinata, x_koordinata, kanal] = akumulirana_vrednost
+        return rezultanta
+
+    raise ValueError("Slika mora biti 2D ali 3D matrika.")
+
+
+def izvedi_orv_konvolucijo(face_image):
+    majhna_slika = cv2.resize(face_image, (32, 32), interpolation=cv2.INTER_AREA)
+    mehcanje = np.ones((3, 3), dtype=np.float32) / 9.0
+    filtrirana = konvolucija(majhna_slika, mehcanje)
+    return float(np.mean(filtrirana))
+
+
 def prepare_face(frame):
     gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
     detected = detect_largest_face(gray)
@@ -71,6 +141,8 @@ def prepare_face(frame):
     x, y, w, h = detected
     face_crop = gray[y : y + h, x : x + w]
     face_resized = cv2.resize(face_crop, IMG_SIZE)
+    global _last_orv_filter_mean
+    _last_orv_filter_mean = izvedi_orv_konvolucijo(face_resized)
     face_equalized = cv2.equalizeHist(face_resized)
     face_normalized = face_equalized.astype(np.float32) / 255.0
 
