@@ -243,7 +243,8 @@ function runFaceLogin({
   camera = 0,
   frames = 9,
   minAgreement = 0.7,
-  margin = 0.08
+  margin = 0.08,
+  nightMode = false
 }) {
   return new Promise((resolve, reject) => {
     const bridgePath = path.resolve(
@@ -254,23 +255,29 @@ function runFaceLogin({
       'face_name_preview.py'
     );
     const pythonBin = process.env.PYTHON_BIN || 'python';
+    const faceArgs = [
+      bridgePath,
+      'login-users',
+      username,
+      '--threshold',
+      String(threshold),
+      '--camera',
+      String(camera),
+      '--frames',
+      String(frames),
+      '--min-agreement',
+      String(minAgreement),
+      '--margin',
+      String(margin),
+    ];
+
+    if (nightMode) {
+      faceArgs.push('--night-mode');
+    }
+
     const child = spawn(
       pythonBin,
-      [
-        bridgePath,
-        'login-users',
-        username,
-        '--threshold',
-        String(threshold),
-        '--camera',
-        String(camera),
-        '--frames',
-        String(frames),
-        '--min-agreement',
-        String(minAgreement),
-        '--margin',
-        String(margin),
-      ],
+      faceArgs,
       {
         cwd: path.dirname(bridgePath),
         windowsHide: false,
@@ -570,6 +577,7 @@ const server = http.createServer(async (req, res) => {
           frames: Number(data.frames || 9),
           minAgreement: Number(data.minAgreement || 0.7),
           margin: Number(data.margin || 0.08),
+          nightMode: Boolean(data.nightMode),
         });
 
         res.writeHead(result.success ? 200 : 401, {

@@ -21,10 +21,56 @@ PREVIEW_WINDOW = "Face name preview"
 USERS_PREVIEW_WINDOW = "Face login profiles preview"
 LOGIN_WINDOW = "Hribovc ORV face login"
 MIN_EFFECTIVE_THRESHOLD = 0.58
+LOW_LIGHT_MEAN_THRESHOLD = 75.0
 
 face_cascade = cv2.CascadeClassifier(
     cv2.data.haarcascades + "haarcascade_frontalface_default.xml"
 )
+
+
+def draw_night_mode_button(frame, enabled):
+    height, width = frame.shape[:2]
+    button_width = 158
+    button_height = 38
+    margin = 12
+    x1 = max(margin, width - button_width - margin)
+    y1 = margin
+    x2 = min(width - margin, x1 + button_width)
+    y2 = y1 + button_height
+
+    fill = (45, 110, 60) if enabled else (35, 35, 35)
+    border = (125, 210, 145) if enabled else (120, 120, 120)
+    text = "Night mode ON" if enabled else "Night mode OFF"
+
+    cv2.rectangle(frame, (x1, y1), (x2, y2), fill, -1)
+    cv2.rectangle(frame, (x1, y1), (x2, y2), border, 2)
+    cv2.putText(
+        frame,
+        text,
+        (x1 + 10, y1 + 25),
+        cv2.FONT_HERSHEY_SIMPLEX,
+        0.55,
+        (255, 255, 255),
+        2,
+    )
+    return (x1, y1, x2, y2)
+
+
+def make_night_mode_mouse_handler(state):
+    def handle_mouse(event, x, y, flags, param):
+        if event != cv2.EVENT_LBUTTONDOWN:
+            return
+
+        rect = state.get("rect")
+        if rect is None:
+            return
+
+        x1, y1, x2, y2 = rect
+        if x1 <= x <= x2 and y1 <= y <= y2:
+            state["enabled"] = not state["enabled"]
+            print(f"Night mode {'ON' if state['enabled'] else 'OFF'}")
+
+    return handle_mouse
 
 
 def focus_window(window_name):
@@ -47,29 +93,87 @@ def focus_window(window_name):
         pass
 
 
-def detect_largest_face(gray):
-    faces = face_cascade.detectMultiScale(
-        gray,
-        scaleFactor=1.1,
-        minNeighbors=5,
-        minSize=(70, 70),
-    )
+def binarna_segmentacija(slika: np.ndarray, invert_dark=True) -> np.ndarray:
+    if slika.ndim == 3:
+        slika = cv2.cvtColor(slika, cv2.COLOR_BGR2GRAY)
+    else:
+        slika = slika.copy()
 
-    if len(faces) == 0:
-        return None
+    if slika.dtype != np.uint8:
+        slika = np.clip(slika, 0, 1)
+        slika = (slika * 255).astype(np.uint8)
 
-    return max(faces, key=lambda face: face[2] * face[3])
+    threshold = max(35, int(np.mean(slika) * 0.85))
+    if invert_dark:
+        maska = (slika < threshold).astype(np.uint8) * 255
+    else:
+        maska = (slika > threshold).astype(np.uint8) * 255
+
+    kernel = np.ones((3, 3), np.uint8)
+    return cv2.morphologyEx(maska, cv2.MORPH_OPEN, kernel)
 
 
-def prepare_face(frame):
+def night_mode_variants(gray):
+    inverted = cv2.bitwise_not(gray)
+    dark_mask = binarna_segmentacija(gray, invert_dark=True)
+    blended = cv2.addWeighted(inverted, 0.65, dark_mask, 0.35, 0)
+    clahe = cv2.createCLAHE(clipLimit=2.0, tileGridSize=(8, 8))
+    return [clahe.apply(blended), blended, inverted, dark_mask]
+
+
+def night_mode_frame(frame):
     gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-    detected = detect_largest_face(gray)
+    night_gray = night_mode_variants(gray)[0]
+    return cv2.cvtColor(night_gray, cv2.COLOR_GRAY2BGR)
+
+
+def build_face_detection_images(gray, force_night_mode=False):
+    normal_candidates = [gray, cv2.equalizeHist(gray)]
+
+    if force_night_mode:
+        return night_mode_variants(gray) + normal_candidates
+
+    candidates = normal_candidates
+    if float(np.mean(gray)) < LOW_LIGHT_MEAN_THRESHOLD:
+        candidates.extend(night_mode_variants(gray))
+
+    return candidates
+
+
+def detect_largest_face(gray, force_night_mode=False):
+    for candidate in build_face_detection_images(gray, force_night_mode=force_night_mode):
+        faces = face_cascade.detectMultiScale(
+            candidate,
+            scaleFactor=1.1,
+            minNeighbors=5,
+            minSize=(70, 70),
+        )
+
+        if len(faces) == 0:
+            continue
+
+        return max(faces, key=lambda face: face[2] * face[3])
+
+    return None
+
+
+def enhance_dark_face(face_crop, force_night_mode=False):
+    if not force_night_mode and float(np.mean(face_crop)) >= LOW_LIGHT_MEAN_THRESHOLD:
+        return face_crop
+
+    return night_mode_variants(face_crop)[0]
+
+
+def prepare_face(frame, force_night_mode=False):
+    gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+    detected = detect_largest_face(gray, force_night_mode=force_night_mode)
 
     if detected is None:
         return None, None
 
     x, y, w, h = detected
     face_crop = gray[y : y + h, x : x + w]
+    face_crop = enhance_dark_face(face_crop, force_night_mode=force_night_mode)
     face_resized = cv2.resize(face_crop, IMG_SIZE)
     face_equalized = cv2.equalizeHist(face_resized)
     face_normalized = face_equalized.astype(np.float32) / 255.0
@@ -191,7 +295,7 @@ def export_test_images_to_users(
 
     users_dir.mkdir(parents=True, exist_ok=True)
 
-    print("[INFO] Izvoz v format, ki ga uporablja detect-face.py login ...")
+    print("[INFO] Izvoz v format, ki ga uporablja face_name_preview.py login-users ...")
 
     for label_id, person_name in label_map.items():
         samples = X[y == label_id].reshape((-1, IMG_SIZE[1], IMG_SIZE[0]))
@@ -353,60 +457,6 @@ def is_accepted_prediction(name, score, margin, expected_username, threshold, mi
     )
 
 
-def preview_users(users_dir=DATA_DIR / "users", camera_index=0, threshold=0.95):
-    profiles = load_user_profiles(users_dir)
-    print("[INFO] Nalozeni ORV profili:", ", ".join(profiles.keys()))
-    print("[INFO] To uporablja isti tip profila kot: python .\\detect-face.py login ziga")
-    print("[INFO] Pritisni q za izhod.")
-
-    cap = cv2.VideoCapture(camera_index)
-    if not cap.isOpened():
-        raise RuntimeError("Kamere ni mogoce odpreti.")
-
-    last_printed = None
-    focused = False
-
-    cv2.namedWindow(USERS_PREVIEW_WINDOW, cv2.WINDOW_NORMAL)
-
-    while True:
-        ret, frame = cap.read()
-        if not ret:
-            break
-
-        face, box = prepare_face(frame)
-
-        if face is not None and box is not None:
-            name, confidence, margin, _ = predict_from_user_profiles(face, profiles)
-            draw_label(frame, box, name, confidence, threshold)
-
-            printed = (name, round(confidence, 2), round(margin, 2))
-            if printed != last_printed:
-                print(f"[PREDICT] {name} ({confidence:.2f}, margin {margin:.2f})")
-                last_printed = printed
-        else:
-            cv2.putText(
-                frame,
-                "Obraz ni zaznan",
-                (16, 32),
-                cv2.FONT_HERSHEY_SIMPLEX,
-                0.8,
-                (0, 0, 255),
-                2,
-            )
-
-        cv2.imshow(USERS_PREVIEW_WINDOW, frame)
-
-        if not focused:
-            focus_window(USERS_PREVIEW_WINDOW)
-            focused = True
-
-        if cv2.waitKey(1) & 0xFF == ord("q"):
-            break
-
-    cap.release()
-    cv2.destroyAllWindows()
-
-
 def verify_live_frames(
     cap,
     profiles,
@@ -415,6 +465,7 @@ def verify_live_frames(
     frame_count=9,
     min_agreement=0.7,
     min_margin=0.08,
+    force_night_mode=False,
 ):
     predictions = []
     attempts = 0
@@ -426,7 +477,7 @@ def verify_live_frames(
         if not ret:
             break
 
-        face, _ = prepare_face(frame)
+        face, _ = prepare_face(frame, force_night_mode=force_night_mode)
         if face is None:
             continue
 
@@ -482,6 +533,7 @@ def login_users(
     frame_count=9,
     min_agreement=0.7,
     min_margin=0.08,
+    force_night_mode=False,
 ):
     expected_username = safe_username(username)
     profiles = load_user_profiles(users_dir)
@@ -516,27 +568,34 @@ def login_users(
     predictions = []
     success = False
     focused = False
+    night_state = {"enabled": bool(force_night_mode), "rect": None}
 
     print("Poglej v kamero. Pritisni SPACE za preverjanje, ali q za izhod.")
+    print("Klikni Night mode v oknu ali pritisni n za preklop.")
+    if night_state["enabled"]:
+        print("Night mode je vklopljen.")
     print("Nalozeni profili:", ", ".join(profiles.keys()))
 
     cv2.namedWindow(LOGIN_WINDOW, cv2.WINDOW_NORMAL)
+    cv2.setMouseCallback(LOGIN_WINDOW, make_night_mode_mouse_handler(night_state))
 
     while True:
         ret, frame = cap.read()
         if not ret:
             break
 
-        face, box = prepare_face(frame)
+        prikaz = night_mode_frame(frame) if night_state["enabled"] else frame.copy()
+
+        face, box = prepare_face(frame, force_night_mode=night_state["enabled"])
 
         if face is not None and box is not None:
             best_name, best_score, best_margin, _ = predict_from_user_profiles(face, profiles)
-            draw_label(frame, box, best_name, best_score, threshold)
+            draw_label(prikaz, box, best_name, best_score, threshold)
 
             x, y, _, h = box
             expected_text = f"Prijava kot: {expected_username}"
             cv2.putText(
-                frame,
+                prikaz,
                 expected_text,
                 (x, y + h + 28),
                 cv2.FONT_HERSHEY_SIMPLEX,
@@ -546,7 +605,7 @@ def login_users(
             )
         else:
             cv2.putText(
-                frame,
+                prikaz,
                 "Obraz ni zaznan",
                 (16, 32),
                 cv2.FONT_HERSHEY_SIMPLEX,
@@ -555,7 +614,8 @@ def login_users(
                 2,
             )
 
-        cv2.imshow(LOGIN_WINDOW, frame)
+        night_state["rect"] = draw_night_mode_button(prikaz, night_state["enabled"])
+        cv2.imshow(LOGIN_WINDOW, prikaz)
 
         if not focused:
             focus_window(LOGIN_WINDOW)
@@ -572,10 +632,14 @@ def login_users(
                 frame_count=frame_count,
                 min_agreement=min_agreement,
                 min_margin=min_margin,
+                force_night_mode=night_state["enabled"],
             )
             break
 
-        if key == ord("q"):
+        if key == ord("n"):
+            night_state["enabled"] = not night_state["enabled"]
+            print(f"Night mode {'ON' if night_state['enabled'] else 'OFF'}")
+        elif key == ord("q"):
             break
 
     cap.release()
@@ -592,6 +656,7 @@ def login_users(
         "threshold": threshold,
         "effective_threshold": max(float(threshold), MIN_EFFECTIVE_THRESHOLD),
         "min_margin": min_margin,
+        "night_mode": bool(night_state["enabled"]),
         "method": "orv-face-name-preview",
         "error": None if success else "Face login ni uspel.",
     }
@@ -705,7 +770,7 @@ def preview(model_dir=MODEL_DIR, camera_index=0, threshold=0.45):
     label_map = recognizer["label_map"]
     print("[INFO] Nalozena imena:", ", ".join(str(name) for name in label_map.values()))
     print(f"[INFO] Nacin prepoznave: {recognizer['kind']}")
-    print("[INFO] Pritisni q za izhod.")
+    print("[INFO] Klikni Night mode v oknu ali pritisni n. Pritisni q za izhod.")
 
     cap = cv2.VideoCapture(camera_index)
     if not cap.isOpened():
@@ -713,19 +778,23 @@ def preview(model_dir=MODEL_DIR, camera_index=0, threshold=0.45):
 
     last_printed = None
     focused = False
+    night_state = {"enabled": False, "rect": None}
 
     cv2.namedWindow(PREVIEW_WINDOW, cv2.WINDOW_NORMAL)
+    cv2.setMouseCallback(PREVIEW_WINDOW, make_night_mode_mouse_handler(night_state))
 
     while True:
         ret, frame = cap.read()
         if not ret:
             break
 
-        face, box = prepare_face(frame)
+        prikaz = night_mode_frame(frame) if night_state["enabled"] else frame.copy()
+
+        face, box = prepare_face(frame, force_night_mode=night_state["enabled"])
 
         if face is not None and box is not None:
             name, confidence = predict_face(face, recognizer)
-            draw_label(frame, box, name, confidence, threshold)
+            draw_label(prikaz, box, name, confidence, threshold)
 
             printed = (name, round(confidence, 2))
             if printed != last_printed:
@@ -733,7 +802,7 @@ def preview(model_dir=MODEL_DIR, camera_index=0, threshold=0.45):
                 last_printed = printed
         else:
             cv2.putText(
-                frame,
+                prikaz,
                 "Obraz ni zaznan",
                 (16, 32),
                 cv2.FONT_HERSHEY_SIMPLEX,
@@ -742,25 +811,22 @@ def preview(model_dir=MODEL_DIR, camera_index=0, threshold=0.45):
                 2,
             )
 
-        cv2.imshow(PREVIEW_WINDOW, frame)
+        night_state["rect"] = draw_night_mode_button(prikaz, night_state["enabled"])
+        cv2.imshow(PREVIEW_WINDOW, prikaz)
 
         if not focused:
             focus_window(PREVIEW_WINDOW)
             focused = True
 
-        if cv2.waitKey(1) & 0xFF == ord("q"):
+        key = cv2.waitKey(1) & 0xFF
+        if key == ord("n"):
+            night_state["enabled"] = not night_state["enabled"]
+            print(f"Night mode {'ON' if night_state['enabled'] else 'OFF'}")
+        elif key == ord("q"):
             break
 
     cap.release()
     cv2.destroyAllWindows()
-
-
-def print_labels(model_dir=MODEL_DIR):
-    recognizer = load_model(model_dir)
-    label_map = recognizer["label_map"]
-    print("[INFO] Imena v modelu:")
-    for label_id, name in label_map.items():
-        print(f"  - {label_id}: {name}")
 
 
 def build_parser():
@@ -784,27 +850,13 @@ def build_parser():
     preview_parser.add_argument("--camera", type=int, default=0)
     preview_parser.add_argument("--threshold", type=float, default=0.45)
 
-    labels_parser = subparsers.add_parser(
-        "labels",
-        help="Izpise imena, ki jih pozna model.",
-    )
-    labels_parser.add_argument("--model-dir", default=str(MODEL_DIR))
-
     export_parser = subparsers.add_parser(
         "export-users",
-        help="Iz test_images/ImeOsebe ustvari data/users/ime.npz za obstojeci detect-face.py login.",
+        help="Iz test_images/ImeOsebe ustvari data/users/ime.npz za login-users.",
     )
     export_parser.add_argument("--images-dir", default=str(TEST_IMAGES_DIR))
     export_parser.add_argument("--users-dir", default=str(DATA_DIR / "users"))
     export_parser.add_argument("--overwrite", action="store_true")
-
-    preview_users_parser = subparsers.add_parser(
-        "preview-users",
-        help="Odpre kamero in prikaze ime/podobnost iz obstojecih data/users profilov.",
-    )
-    preview_users_parser.add_argument("--users-dir", default=str(DATA_DIR / "users"))
-    preview_users_parser.add_argument("--camera", type=int, default=0)
-    preview_users_parser.add_argument("--threshold", type=float, default=0.95)
 
     login_users_parser = subparsers.add_parser(
         "login-users",
@@ -817,6 +869,11 @@ def build_parser():
     login_users_parser.add_argument("--frames", type=int, default=9)
     login_users_parser.add_argument("--min-agreement", type=float, default=0.7)
     login_users_parser.add_argument("--margin", type=float, default=0.08)
+    login_users_parser.add_argument(
+        "--night-mode",
+        action="store_true",
+        help="Vedno uporabi invert/binarni low-light preprocessing za kamero.",
+    )
 
     return parser
 
@@ -836,22 +893,11 @@ def main():
             camera_index=args.camera,
             threshold=args.threshold,
         )
-    elif args.command == "labels":
-        print_labels(model_dir=Path(args.model_dir))
     elif args.command == "export-users":
         export_test_images_to_users(
             images_dir=Path(args.images_dir),
             users_dir=Path(args.users_dir),
             overwrite=args.overwrite,
-        )
-    elif args.command == "preview-users":
-        preview_users(
-            users_dir=Path(args.users_dir),
-            camera_index=args.camera,
-            threshold=args.threshold,
-            frame_count=args.frames,
-            min_agreement=args.min_agreement,
-            min_margin=args.margin,
         )
     elif args.command == "login-users":
         result = login_users(

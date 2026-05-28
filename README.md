@@ -17,8 +17,7 @@ ORV
 cd "C:\Users\Ziga\Desktop\Projektna-naloga---Analize-masivnih-podatkov-za-aplikacije-v-realnem-svetu\osnove-racunalniskega-vida"
 python .\face_name_preview.py train
 python .\face_name_preview.py preview
-
-python .\augment_images.py
+python .\face_name_preview.py login-users ziga
 
 --------------------------------------------
 
@@ -149,7 +148,7 @@ Te naslove lahko odprete v brskalniku, ko backend tece:
 
 ## 2. Osnove racunalniskega vida
 
-Ta del projekta omogoca registracijo obraza in preverjanje prijave s kamero. Uporablja Python, OpenCV in NumPy. Backend ga lahko uporabi tudi prek datoteke `face_login_bridge.py`.
+Ta del projekta omogoca prepoznavo obraza in preverjanje prijave s kamero. Uporablja Python, OpenCV, NumPy in scikit-learn. Backend uporablja skripto `face_name_preview.py`.
 
 ### Namestitev ORV modula
 
@@ -167,45 +166,35 @@ pip install opencv-python numpy scikit-learn joblib
 
 Preverite, da ima racunalnik delujoco kamero.
 
-### Primer uporabe 1: registracija obraza
+### Primer uporabe 1: ucenje modela iz slik
 
 V mapi `osnove-racunalniskega-vida` zazenite:
 
 V powershell:
-python .\detect-face.py register ziga
+python .\face_name_preview.py train
 
-1. Odpre se okno kamere.
-2. Poglejte v kamero in veckrat pritisnite **SPACE**, da program zajame vec vzorcev obraza.
-3. Za izhod lahko pritisnete **q**.
-4. Program ustvari uporabniski profil v mapi:
+Slike naj bodo v podmapah `data\test_images\ImeOsebe`. Program ustvari model v mapi `model_from_test_images`.
 
-osnove-racunalniskega-vida\data\users
+Ce zelite iz slik ustvariti tudi uporabniske profile za login:
+
+V powershell:
+python .\face_name_preview.py export-users --overwrite
 
 ### Primer uporabe 2: prijava z obrazom
 
-1. Po registraciji zazenite:
+1. Po treningu ali izvozu profilov zazenite:
 
 V powershell:
-python .\detect-face.py login ziga
+python .\face_name_preview.py login-users ziga
 
 1. Poglejte v kamero.
 2. Pritisnite **SPACE** za preverjanje.
-3. Program izpise enega od rezultatov:
+3. Program vrne JSON rezultat prijave.
 
-LOGIN DOVOLJEN
-LOGIN ZAVRNJEN
+Za navaden predogled imena brez prijave:
 
-Vsak poskus prijave se shrani v dnevnik:
-
-osnove-racunalniskega-vida\data\login-attempts.json
-
-### Dodaten primer: obdelava slik
-
-Ce imate slike v mapi `data\raw`, jih lahko obdelate z ukazom:
-
-python .\detect-face.py preprocess
-
-Program zazna obraz, sliko pretvori v sivinsko obliko, jo obreze, normalizira in shrani rezultat v `data\processed`.
+V powershell:
+python .\face_name_preview.py preview
 
 ## 3. Namenska programska oprema
 
@@ -241,7 +230,7 @@ Ta del vsebuje mobilno aplikacijo. Aplikacija prikazuje Hribovc vmesnik, omogoca
 - Ce imate vec kamer, poskusite z drugim indeksom:
 
 V powershell:
-python .\detect-face.py login ziga --camera 1
+python .\face_name_preview.py preview --camera 1
 
 ## Kratek povzetek zagonov
 
@@ -261,5 +250,5 @@ ORV:
 
 cd "C:\Users\Ziga\Desktop\Projektna-naloga---Analize-masivnih-podatkov-za-aplikacije-v-realnem-svetu\osnove-racunalniskega-vida"
 pip install opencv-python numpy scikit-learn joblib
-python .\detect-face.py register ziga
-python .\detect-face.py login ziga
+python .\face_name_preview.py train
+python .\face_name_preview.py preview

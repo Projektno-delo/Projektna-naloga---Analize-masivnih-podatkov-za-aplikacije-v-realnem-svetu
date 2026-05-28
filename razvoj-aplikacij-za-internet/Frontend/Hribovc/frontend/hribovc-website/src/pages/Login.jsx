@@ -38,7 +38,7 @@ function Login() {
       if (response.ok) {
         // Store user data in localStorage for session management
         const emailUsername = data.user.email.split('@')[0].toLowerCase()
-        setFaceStatus('ORV face login: poglejte v kamero in pritisnite SPACE.')
+        setFaceStatus('ORV face login: poglejte v kamero, night mode lahko vklopite v oknu kamere.')
 
         const faceResponse = await fetch('http://localhost:3000/face-login', {
           method: 'POST',
