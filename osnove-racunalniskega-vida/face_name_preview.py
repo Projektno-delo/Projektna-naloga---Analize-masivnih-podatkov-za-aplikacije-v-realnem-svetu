@@ -139,6 +139,28 @@ def night_mode_frame(frame):
     return cv2.cvtColor(night_gray, cv2.COLOR_GRAY2BGR)
 
 
+def blur_background_except_face(frame, box, padding=0.22):
+    if box is None:
+        return frame
+
+    height, width = frame.shape[:2]
+    x, y, w, h = box
+    pad_x = int(w * padding)
+    pad_y = int(h * padding)
+    x1 = max(0, x - pad_x)
+    y1 = max(0, y - pad_y)
+    x2 = min(width, x + w + pad_x)
+    y2 = min(height, y + h + pad_y)
+
+    blurred = cv2.GaussianBlur(frame, (41, 41), 0)
+    mask = np.zeros((height, width), dtype=np.uint8)
+    cv2.rectangle(mask, (x1, y1), (x2, y2), 255, -1)
+    mask = cv2.GaussianBlur(mask, (31, 31), 0).astype(np.float32) / 255.0
+    mask = mask[:, :, np.newaxis]
+
+    return (frame.astype(np.float32) * mask + blurred.astype(np.float32) * (1.0 - mask)).astype(np.uint8)
+
+
 def build_face_detection_images(gray, force_night_mode=False):
     normal_candidates = [gray, cv2.equalizeHist(gray)]
 
@@ -599,6 +621,7 @@ def login_users(
         prikaz = night_mode_frame(frame) if night_state["enabled"] else frame.copy()
 
         face, box = prepare_face(frame, force_night_mode=night_state["enabled"])
+        prikaz = blur_background_except_face(prikaz, box)
 
         if face is not None and box is not None:
             best_name, best_score, best_margin, _ = predict_from_user_profiles(face, profiles)
@@ -803,6 +826,7 @@ def preview(model_dir=MODEL_DIR, camera_index=0, threshold=0.45):
         prikaz = night_mode_frame(frame) if night_state["enabled"] else frame.copy()
 
         face, box = prepare_face(frame, force_night_mode=night_state["enabled"])
+        prikaz = blur_background_except_face(prikaz, box)
 
         if face is not None and box is not None:
             name, confidence = predict_face(face, recognizer)
