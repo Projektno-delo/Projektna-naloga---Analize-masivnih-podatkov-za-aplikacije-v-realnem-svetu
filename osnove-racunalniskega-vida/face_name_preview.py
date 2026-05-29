@@ -22,6 +22,7 @@ USERS_PREVIEW_WINDOW = "Face login profiles preview"
 LOGIN_WINDOW = "Hribovc ORV face login"
 MIN_EFFECTIVE_THRESHOLD = 0.58
 LOW_LIGHT_MEAN_THRESHOLD = 75.0
+AUTO_LOGIN_FREEZE_MS = 1000
 
 face_cascade = cv2.CascadeClassifier(
     cv2.data.haarcascades + "haarcascade_frontalface_default.xml"
@@ -651,6 +652,7 @@ def login_users(
     if night_state["enabled"]:
         print("Night mode je vklopljen.")
     print("Nalozeni profili:", ", ".join(profiles.keys()))
+    print("Ko je zaznan pravi obraz z odprtimi ocmi, preverjanje stece samodejno.")
 
     cv2.namedWindow(LOGIN_WINDOW, cv2.WINDOW_NORMAL)
     cv2.setMouseCallback(LOGIN_WINDOW, make_night_mode_mouse_handler(night_state))
@@ -663,6 +665,8 @@ def login_users(
         prikaz = night_mode_frame(frame) if night_state["enabled"] else frame.copy()
 
         face, box = prepare_face(frame, force_night_mode=night_state["enabled"])
+        ready_to_verify = False
+        current_prediction = None
         gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
         eyes_open = has_open_eyes(gray, box, force_night_mode=night_state["enabled"])
         if not eyes_open:
@@ -671,6 +675,20 @@ def login_users(
 
         if face is not None and box is not None:
             best_name, best_score, best_margin, _ = predict_from_user_profiles(face, profiles)
+            ready_to_verify = is_accepted_prediction(
+                best_name,
+                best_score,
+                best_margin,
+                expected_username,
+                threshold,
+                min_margin,
+            )
+            current_prediction = {
+                "name": best_name,
+                "score": float(best_score),
+                "margin": float(best_margin),
+                "accepted": bool(ready_to_verify),
+            }
             draw_label(prikaz, box, best_name, best_score, threshold)
 
             x, y, _, h = box
@@ -711,6 +729,24 @@ def login_users(
         if not focused:
             focus_window(LOGIN_WINDOW)
             focused = True
+
+        if ready_to_verify:
+            cv2.putText(
+                prikaz,
+                "Preverjam...",
+                (16, 64),
+                cv2.FONT_HERSHEY_SIMPLEX,
+                0.8,
+                (125, 210, 145),
+                2,
+            )
+            night_state["rect"] = draw_night_mode_button(prikaz, night_state["enabled"])
+            cv2.imshow(LOGIN_WINDOW, prikaz)
+            cv2.waitKey(AUTO_LOGIN_FREEZE_MS)
+            success = True
+            agreement = 1.0
+            predictions = [current_prediction] if current_prediction else []
+            break
 
         key = cv2.waitKey(1) & 0xFF
 
