@@ -113,18 +113,52 @@ def binarna_segmentacija(slika: np.ndarray, invert_dark=True) -> np.ndarray:
     return cv2.morphologyEx(maska, cv2.MORPH_OPEN, kernel)
 
 
+def gamma_lighten_gray(gray, gamma=0.55):
+    table = np.array([
+        ((i / 255.0) ** gamma) * 255
+        for i in range(256)
+    ]).astype(np.uint8)
+    return cv2.LUT(gray, table)
+
+
+def clahe_gray(gray, clip_limit=2.0):
+    clahe = cv2.createCLAHE(clipLimit=clip_limit, tileGridSize=(8, 8))
+    return clahe.apply(gray)
+
+
 def night_mode_variants(gray):
-    inverted = cv2.bitwise_not(gray)
-    dark_mask = binarna_segmentacija(gray, invert_dark=True)
-    blended = cv2.addWeighted(inverted, 0.65, dark_mask, 0.35, 0)
-    clahe = cv2.createCLAHE(clipLimit=2.0, tileGridSize=(8, 8))
-    return [clahe.apply(blended), blended, inverted, dark_mask]
+    brightened = gamma_lighten_gray(gray)
+    contrast = clahe_gray(gray)
+    bright_contrast = clahe_gray(brightened)
+    return [bright_contrast, brightened, contrast]
 
 
 def night_mode_frame(frame):
     gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
     night_gray = night_mode_variants(gray)[0]
     return cv2.cvtColor(night_gray, cv2.COLOR_GRAY2BGR)
+
+
+def blur_background_except_face(frame, box, padding=0.22):
+    if box is None:
+        return frame
+
+    height, width = frame.shape[:2]
+    x, y, w, h = box
+    pad_x = int(w * padding)
+    pad_y = int(h * padding)
+    x1 = max(0, x - pad_x)
+    y1 = max(0, y - pad_y)
+    x2 = min(width, x + w + pad_x)
+    y2 = min(height, y + h + pad_y)
+
+    blurred = cv2.GaussianBlur(frame, (41, 41), 0)
+    mask = np.zeros((height, width), dtype=np.uint8)
+    cv2.rectangle(mask, (x1, y1), (x2, y2), 255, -1)
+    mask = cv2.GaussianBlur(mask, (31, 31), 0).astype(np.float32) / 255.0
+    mask = mask[:, :, np.newaxis]
+
+    return (frame.astype(np.float32) * mask + blurred.astype(np.float32) * (1.0 - mask)).astype(np.uint8)
 
 
 def build_face_detection_images(gray, force_night_mode=False):
@@ -587,6 +621,7 @@ def login_users(
         prikaz = night_mode_frame(frame) if night_state["enabled"] else frame.copy()
 
         face, box = prepare_face(frame, force_night_mode=night_state["enabled"])
+        prikaz = blur_background_except_face(prikaz, box)
 
         if face is not None and box is not None:
             best_name, best_score, best_margin, _ = predict_from_user_profiles(face, profiles)
@@ -791,6 +826,7 @@ def preview(model_dir=MODEL_DIR, camera_index=0, threshold=0.45):
         prikaz = night_mode_frame(frame) if night_state["enabled"] else frame.copy()
 
         face, box = prepare_face(frame, force_night_mode=night_state["enabled"])
+        prikaz = blur_background_except_face(prikaz, box)
 
         if face is not None and box is not None:
             name, confidence = predict_face(face, recognizer)
@@ -872,7 +908,7 @@ def build_parser():
     login_users_parser.add_argument(
         "--night-mode",
         action="store_true",
-        help="Vedno uporabi invert/binarni low-light preprocessing za kamero.",
+        help="Vedno uporabi gamma/CLAHE low-light preprocessing za kamero.",
     )
 
     return parser
@@ -905,6 +941,10 @@ def main():
             users_dir=Path(args.users_dir),
             camera_index=args.camera,
             threshold=args.threshold,
+            frame_count=args.frames,
+            min_agreement=args.min_agreement,
+            min_margin=args.margin,
+            force_night_mode=args.night_mode,
         )
         print(json.dumps(result, ensure_ascii=False))
     else:
