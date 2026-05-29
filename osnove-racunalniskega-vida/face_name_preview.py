@@ -113,12 +113,24 @@ def binarna_segmentacija(slika: np.ndarray, invert_dark=True) -> np.ndarray:
     return cv2.morphologyEx(maska, cv2.MORPH_OPEN, kernel)
 
 
+def gamma_lighten_gray(gray, gamma=0.55):
+    table = np.array([
+        ((i / 255.0) ** gamma) * 255
+        for i in range(256)
+    ]).astype(np.uint8)
+    return cv2.LUT(gray, table)
+
+
+def clahe_gray(gray, clip_limit=2.0):
+    clahe = cv2.createCLAHE(clipLimit=clip_limit, tileGridSize=(8, 8))
+    return clahe.apply(gray)
+
+
 def night_mode_variants(gray):
-    inverted = cv2.bitwise_not(gray)
-    dark_mask = binarna_segmentacija(gray, invert_dark=True)
-    blended = cv2.addWeighted(inverted, 0.65, dark_mask, 0.35, 0)
-    clahe = cv2.createCLAHE(clipLimit=2.0, tileGridSize=(8, 8))
-    return [clahe.apply(blended), blended, inverted, dark_mask]
+    brightened = gamma_lighten_gray(gray)
+    contrast = clahe_gray(gray)
+    bright_contrast = clahe_gray(brightened)
+    return [bright_contrast, brightened, contrast]
 
 
 def night_mode_frame(frame):
@@ -872,7 +884,7 @@ def build_parser():
     login_users_parser.add_argument(
         "--night-mode",
         action="store_true",
-        help="Vedno uporabi invert/binarni low-light preprocessing za kamero.",
+        help="Vedno uporabi gamma/CLAHE low-light preprocessing za kamero.",
     )
 
     return parser
@@ -905,6 +917,10 @@ def main():
             users_dir=Path(args.users_dir),
             camera_index=args.camera,
             threshold=args.threshold,
+            frame_count=args.frames,
+            min_agreement=args.min_agreement,
+            min_margin=args.margin,
+            force_night_mode=args.night_mode,
         )
         print(json.dumps(result, ensure_ascii=False))
     else:
