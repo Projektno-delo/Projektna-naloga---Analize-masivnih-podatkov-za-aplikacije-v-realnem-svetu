@@ -1,6 +1,5 @@
 import './Weather.css'
 import goraImg from '../assets/gora.png'
-import weatherHero from '../assets/ozadje_za_vreme_sreen.png'
 import { LuShieldCheck } from 'react-icons/lu' 
 import { useState, useEffect } from 'react'
 import { LuChevronDown, LuChevronUp, LuWind, LuDroplets, LuEye, LuGauge } from 'react-icons/lu'
@@ -88,8 +87,8 @@ function Weather() {
 
   return (
     <div className="weather">
-      <div className="weather-hero" style={{ backgroundImage: 'url(' + weatherHero + ')' }}>
-        <div className="hero-content">
+      <div className="weather-hero">
+        <div className="weather-hero-content">
           <h1 style={{ textAlign: 'left' }}>Vremenska napoved</h1>
           <p>Podatki po višinah za varno načrtovanje vzpona</p>
           <div className="hero-status">
@@ -199,4 +198,4 @@ function Weather() {
   )
 }
 
-export default Weather
+export default Weather

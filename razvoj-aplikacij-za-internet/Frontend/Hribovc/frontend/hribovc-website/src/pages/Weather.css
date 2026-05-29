@@ -1,9 +1,13 @@
-﻿.weather {
+.weather {
   min-height: 100vh;
-  background-image: url('../assets/ozadje_za_vreme_sreen.png');
+  background-color: #0d0d0d;
+  background-image:
+    linear-gradient(to bottom, rgba(13, 13, 13, 0.22) 0%, rgba(13, 13, 13, 0.82) 42%, #0d0d0d 100%),
+    url('../assets/ozadje_za_vreme_sreen.png');
   background-size: cover;
-  background-position: center;
+  background-position: center top;
   background-attachment: fixed;
+  background-repeat: no-repeat;
   padding-bottom: 4rem;
   font-family: 'Inter', sans-serif; 
 }
@@ -14,12 +18,14 @@
   position: relative;
   display: flex;
   align-items: flex-end;
+  min-height: 340px;
 }
 
-.hero-content {
+.weather-hero-content {
   position: relative;
   z-index: 1;
   width: 100%;
+  max-width: 720px;
   text-align: left;
 }
 
