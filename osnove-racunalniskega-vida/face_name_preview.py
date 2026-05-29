@@ -26,6 +26,9 @@ LOW_LIGHT_MEAN_THRESHOLD = 75.0
 face_cascade = cv2.CascadeClassifier(
     cv2.data.haarcascades + "haarcascade_frontalface_default.xml"
 )
+eye_cascade = cv2.CascadeClassifier(
+    cv2.data.haarcascades + "haarcascade_eye_tree_eyeglasses.xml"
+)
 
 
 def draw_night_mode_button(frame, enabled):
@@ -159,6 +162,41 @@ def blur_background_except_face(frame, box, padding=0.22):
     mask = mask[:, :, np.newaxis]
 
     return (frame.astype(np.float32) * mask + blurred.astype(np.float32) * (1.0 - mask)).astype(np.uint8)
+
+
+def has_open_eyes(gray, box, force_night_mode=False):
+    if box is None or eye_cascade.empty():
+        return False
+
+    x, y, w, h = box
+    upper_face = gray[y : y + int(h * 0.62), x : x + w]
+    if upper_face.size == 0:
+        return False
+
+    candidates = [upper_face, cv2.equalizeHist(upper_face)]
+    if force_night_mode or float(np.mean(upper_face)) < LOW_LIGHT_MEAN_THRESHOLD:
+        candidates.extend(night_mode_variants(upper_face))
+
+    min_eye_w = max(16, int(w * 0.12))
+    min_eye_h = max(10, int(h * 0.08))
+
+    for candidate in candidates:
+        eyes = eye_cascade.detectMultiScale(
+            candidate,
+            scaleFactor=1.1,
+            minNeighbors=4,
+            minSize=(min_eye_w, min_eye_h),
+        )
+
+        if len(eyes) < 2:
+            continue
+
+        centers = sorted(ex + ew / 2 for ex, _, ew, _ in eyes)
+        for left, right in zip(centers, centers[1:]):
+            if right - left >= w * 0.18:
+                return True
+
+    return False
 
 
 def build_face_detection_images(gray, force_night_mode=False):
@@ -511,8 +549,12 @@ def verify_live_frames(
         if not ret:
             break
 
-        face, _ = prepare_face(frame, force_night_mode=force_night_mode)
+        face, box = prepare_face(frame, force_night_mode=force_night_mode)
         if face is None:
+            continue
+
+        gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+        if not has_open_eyes(gray, box, force_night_mode=force_night_mode):
             continue
 
         name, score, margin, _ = predict_from_user_profiles(face, profiles)
@@ -621,6 +663,10 @@ def login_users(
         prikaz = night_mode_frame(frame) if night_state["enabled"] else frame.copy()
 
         face, box = prepare_face(frame, force_night_mode=night_state["enabled"])
+        gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+        eyes_open = has_open_eyes(gray, box, force_night_mode=night_state["enabled"])
+        if not eyes_open:
+            face = None
         prikaz = blur_background_except_face(prikaz, box)
 
         if face is not None and box is not None:
@@ -636,6 +682,16 @@ def login_users(
                 cv2.FONT_HERSHEY_SIMPLEX,
                 0.65,
                 (255, 255, 255),
+                2,
+            )
+        elif box is not None:
+            cv2.putText(
+                prikaz,
+                "Odpri oci",
+                (16, 32),
+                cv2.FONT_HERSHEY_SIMPLEX,
+                0.8,
+                (0, 165, 255),
                 2,
             )
         else:
@@ -826,6 +882,10 @@ def preview(model_dir=MODEL_DIR, camera_index=0, threshold=0.45):
         prikaz = night_mode_frame(frame) if night_state["enabled"] else frame.copy()
 
         face, box = prepare_face(frame, force_night_mode=night_state["enabled"])
+        gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+        eyes_open = has_open_eyes(gray, box, force_night_mode=night_state["enabled"])
+        if not eyes_open:
+            face = None
         prikaz = blur_background_except_face(prikaz, box)
 
         if face is not None and box is not None:
@@ -836,6 +896,16 @@ def preview(model_dir=MODEL_DIR, camera_index=0, threshold=0.45):
             if printed != last_printed:
                 print(f"[PREDICT] {name} ({confidence:.2f})")
                 last_printed = printed
+        elif box is not None:
+            cv2.putText(
+                prikaz,
+                "Odpri oci",
+                (16, 32),
+                cv2.FONT_HERSHEY_SIMPLEX,
+                0.8,
+                (0, 165, 255),
+                2,
+            )
         else:
             cv2.putText(
                 prikaz,
