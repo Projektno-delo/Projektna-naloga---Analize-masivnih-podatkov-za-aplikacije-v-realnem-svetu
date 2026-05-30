@@ -73,6 +73,18 @@ async function initDb() {
     { userId: 1, trailId: 1, type: 1 }
   );
 
+  await db.collection('mobileSensorReadings').createIndex(
+    { receivedAt: -1 }
+  );
+
+  await db.collection('mobileSensorReadings').createIndex(
+    { deviceTimestamp: -1 }
+  );
+
+  await db.collection('mobileSensorHeartbeats').createIndex(
+    { receivedAt: -1 }
+  );
+
   console.log('MongoDB data model initialized');
 }
 

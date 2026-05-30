@@ -21,15 +21,27 @@ python .\face_name_preview.py login-users ziga
 
 NPO
 
-Po ponovnem odprtju VS Code morajo za prenos senzorjev teci trije terminali.
+Po ponovnem odprtju VS Code morajo za prenos in shranjevanje senzorjev teci stirje terminali.
 Telefon in racunalnik morata biti na istem Wi-Fi omrezju.
 
-Terminal 1 - MQTT broker:
+Terminal 1 - backend in MongoDB shranjevanje:
+
+cd "C:\Users\Ziga\Desktop\Projektna-naloga---Analize-masivnih-podatkov-za-aplikacije-v-realnem-svetu\razvoj-aplikacij-za-internet\backend"
+npm install
+node server.js
+
+Backend mora ob zagonu izpisati vrstico podobno:
+
+MQTT backend connected to mqtt://192.168.0.138:1883
+
+Ce pise `mqtt://127.0.0.1:1883`, je backend priklopljen na lokalni Mosquitto service namesto na broker, ki ga uporabljata telefon in spletna aplikacija. Takrat ustavite backend in ga znova zazenite po zagonu MQTT brokerja iz Terminala 2.
+
+Terminal 2 - MQTT broker:
 
 cd "C:\Users\Ziga\Desktop\Projektna-naloga---Analize-masivnih-podatkov-za-aplikacije-v-realnem-svetu"
 & "C:\Program Files\mosquitto\mosquitto.exe" -c "C:\Users\Ziga\Desktop\Projektna-naloga---Analize-masivnih-podatkov-za-aplikacije-v-realnem-svetu\namenska-programska-oprema\mosquitto\mosquitto.conf" -v
 
-Terminal 2 - spletna aplikacija:
+Terminal 3 - spletna aplikacija:
 
 cd "C:\Users\Ziga\Desktop\Projektna-naloga---Analize-masivnih-podatkov-za-aplikacije-v-realnem-svetu\razvoj-aplikacij-za-internet\Frontend\Hribovc\frontend\hribovc-website"
 npm install
@@ -37,7 +49,7 @@ npm run dev
 
 V brskalniku odpri stran, ki jo izpise Vite, in pojdi na zavihek Senzorji.
 
-Terminal 3 - mobilna aplikacija:
+Terminal 4 - mobilna aplikacija:
 
 cd "C:\Users\Ziga\Desktop\Projektna-naloga---Analize-masivnih-podatkov-za-aplikacije-v-realnem-svetu\namenska-programska-oprema\mobilna-app"
 npm install
@@ -45,6 +57,9 @@ npx expo start
 
 V Expo Go skeniraj QR kodo. V mobilni aplikaciji odpri dashboard in pritisni AKTIVIRAJ ZAJEM.
 Na telefonu mora pisati MQTT povezan, na spletni strani Senzorji pa Povezan.
+Backend shranjuje prejete meritve v MongoDB bazo `hribovc`, kolekcijo `mobileSensorReadings`.
+Ko v mobilni aplikaciji pritisnes USTAVI SENZORJE, aplikacija dodatno poslje zadnji pospeskomer in svezo GPS lokacijo direktno na backend.
+Preveris jih lahko na naslovu http://localhost:3000/sensor-readings.
 
 Ce na telefonu pri MQTT BROKER pise ws://localhost:9001, Expo zaznava napacen host.
 Takrat mobilno aplikacijo zazeni tako:
@@ -265,6 +280,7 @@ Konfiguracija odpre:
 - `9001` za WebSocket MQTT odjemalce, kar uporablja spletna aplikacija
 
 Ko broker tece, odprite spletno aplikacijo in pojdite na stran **Senzorji**. Nato v mobilni aplikaciji odprite dashboard in pritisnite **AKTIVIRAJ ZAJEM**.
+Ce tece tudi backend, se meritve shranjujejo v MongoDB bazo `hribovc`, kolekcijo `mobileSensorReadings`. Heartbeat sporocila se shranjujejo v `mobileSensorHeartbeats`. Zadnje meritve lahko preverite na `http://localhost:3000/sensor-readings`.
 
 ## Pogoste tezave
 

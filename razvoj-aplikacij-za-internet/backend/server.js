@@ -15,6 +15,12 @@ const {
 } = require('./services/trailService');
 
 const { analyzeTrail } = require('./services/riskService');
+const {
+  startSensorMqttSubscriber,
+  saveSensorReading,
+  SENSOR_READINGS_COLLECTION,
+  SENSOR_HEARTBEATS_COLLECTION
+} = require('./services/sensorMqttService');
 
 const { getCollection, connect, initDb } = require('./db');
 
@@ -401,6 +407,76 @@ const server = http.createServer(async (req, res) => {
         ...corsHeaders,
       });
       res.end(JSON.stringify(weather));
+    } catch (error) {
+      res.writeHead(500, {
+        'Content-Type': 'application/json',
+        ...corsHeaders,
+      });
+      res.end(JSON.stringify({ error: error.message || String(error) }));
+    }
+    return;
+  }
+
+  if (req.method === 'GET' && requestUrl.pathname === '/sensor-readings') {
+    try {
+      const limit = Math.min(
+        Math.max(parseInt(requestUrl.searchParams.get('limit') || '50', 10), 1),
+        200
+      );
+      const sensorReadingsCollection = await getCollection(SENSOR_READINGS_COLLECTION);
+      const sensorHeartbeatsCollection = await getCollection(SENSOR_HEARTBEATS_COLLECTION);
+      const readings = await sensorReadingsCollection
+        .find({})
+        .sort({ receivedAt: -1 })
+        .limit(limit)
+        .toArray();
+      const latestHeartbeat = await sensorHeartbeatsCollection
+        .find({})
+        .sort({ receivedAt: -1 })
+        .limit(1)
+        .toArray();
+
+      res.writeHead(200, {
+        'Content-Type': 'application/json',
+        ...corsHeaders,
+      });
+
+      res.end(JSON.stringify({
+        readings,
+        latestHeartbeat: latestHeartbeat[0] || null,
+      }));
+    } catch (error) {
+      res.writeHead(500, {
+        'Content-Type': 'application/json',
+        ...corsHeaders,
+      });
+      res.end(JSON.stringify({ error: error.message || String(error) }));
+    }
+    return;
+  }
+
+  if (req.method === 'POST' && requestUrl.pathname === '/sensor-readings') {
+    try {
+      const sensorData = await readJsonBody(req);
+      const reading = await saveSensorReading(sensorData, 'mobile-http-stop');
+
+      if (!reading) {
+        res.writeHead(400, {
+          'Content-Type': 'application/json',
+          ...corsHeaders,
+        });
+        res.end(JSON.stringify({ error: 'Invalid sensor reading payload' }));
+        return;
+      }
+
+      res.writeHead(201, {
+        'Content-Type': 'application/json',
+        ...corsHeaders,
+      });
+      res.end(JSON.stringify({
+        message: 'Sensor reading saved',
+        reading,
+      }));
     } catch (error) {
       res.writeHead(500, {
         'Content-Type': 'application/json',
@@ -955,11 +1031,13 @@ const server = http.createServer(async (req, res) => {
     const weatherCollection = await getCollection('weather');
     const trailsCollection = await getCollection('trails');
     const riskAnalysesCollection = await getCollection('riskAnalyses');
+    const sensorReadingsCollection = await getCollection(SENSOR_READINGS_COLLECTION);
 
     const usersCount = await usersCollection.countDocuments();
     const weatherCount = await weatherCollection.countDocuments();
     const trailsCount = await trailsCollection.countDocuments();
     const riskAnalysesCount = await riskAnalysesCollection.countDocuments();
+    const sensorReadingsCount = await sensorReadingsCollection.countDocuments();
 
     const latestWeather = await weatherCollection
       .find({})
@@ -977,6 +1055,7 @@ const server = http.createServer(async (req, res) => {
       weatherCount,
       trailsCount,
       riskAnalysesCount,
+      sensorReadingsCount,
       lastWeatherScrape: latestWeather[0]?.scrapedAt || null
     }));
   } catch (error) {
@@ -1006,6 +1085,8 @@ connect()
     } catch (err) {
       console.error('Weather scrape on startup failed:', err.message || err);
     }
+
+    startSensorMqttSubscriber();
 
     try {
       const { scrapeAndSaveTrails } = require('./trail-scraper');

@@ -16,9 +16,12 @@ export default function Dashboard() {
   const [location, setLocation] = useState<{ latitude: number; longitude: number } | null>(null);
   const [isActive, setIsActive] = useState(false);
   const [mqttConnected, setMqttConnected] = useState(false);
+  const [lastUploadStatus, setLastUploadStatus] = useState('Ni zapisa');
   const [subscription, setSubscription] = useState<any>(null);
   const clientRef = useRef<any>(null);
   const heartbeatRef = useRef<any>(null);
+  const latestAccelRef = useRef({ x: 0, y: 0, z: 0 });
+  const latestLocationRef = useRef<{ latitude: number; longitude: number } | null>(null);
   const pulseAnim = useRef(new Animated.Value(1)).current;
   
 
@@ -73,23 +76,78 @@ export default function Dashboard() {
       if (status !== 'granted') return;
       const loc = await Location.getCurrentPositionAsync({});
       console.log('GPS loc:', loc);
-      setLocation({ latitude: loc.coords.latitude, longitude: loc.coords.longitude });
+      const nextLocation = { latitude: loc.coords.latitude, longitude: loc.coords.longitude };
+      latestLocationRef.current = nextLocation;
+      setLocation(nextLocation);
     })();
   }, []);
 
+  const getFreshLocation = async () => {
+    try {
+      const { status } = await Location.getForegroundPermissionsAsync();
+      if (status !== 'granted') {
+        return latestLocationRef.current;
+      }
+
+      const loc = await Location.getCurrentPositionAsync({});
+      const nextLocation = { latitude: loc.coords.latitude, longitude: loc.coords.longitude };
+      latestLocationRef.current = nextLocation;
+      setLocation(nextLocation);
+      return nextLocation;
+    } catch (error) {
+      console.log('GPS refresh error:', error);
+      return latestLocationRef.current;
+    }
+  };
+
+  const buildReading = (readingLocation = latestLocationRef.current) => ({
+    accelerometer: latestAccelRef.current,
+    location: readingLocation,
+    timestamp: new Date().toISOString(),
+  });
+
+  const saveReadingToBackend = async (reading: any) => {
+    const response = await fetch(`${CONFIG.API_URL}/sensor-readings`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(reading),
+    });
+
+    if (!response.ok) {
+      throw new Error(`Backend save failed: ${response.status}`);
+    }
+
+    return response.json();
+  };
+
   const toggleAccelerometer = async () => {
     if (subscription) {
-        subscription.remove();
-        setSubscription(null);
+      subscription.remove();
+      setSubscription(null);
+      setIsActive(false);
+
+      const stopLocation = await getFreshLocation();
+      const finalReading = buildReading(stopLocation);
+      saveReading(finalReading);
+
+      try {
+        await saveReadingToBackend(finalReading);
+        setLastUploadStatus('Shranjeno v bazo');
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      } catch (error) {
+        console.log('Backend sensor save error:', error);
+        const message = error instanceof Error ? error.message : 'Ni shranjeno v bazo';
+        setLastUploadStatus(`Napaka: ${message}`);
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
-        setIsActive(false);
-      } else {
+      }
+    } else {
       Accelerometer.setUpdateInterval(500);
       const sub = Accelerometer.addListener((data) => {
+        latestAccelRef.current = data;
         setAccel(data);
         const reading = {
           accelerometer: data,
-          location,
+          location: latestLocationRef.current,
           timestamp: new Date().toISOString(),
         };
         if (clientRef.current?.connected) {
@@ -152,6 +210,16 @@ export default function Dashboard() {
           <View style={styles.statItem}>
             <Text style={styles.statLabel}>MQTT BROKER</Text>
             <Text style={[styles.statValue, { fontSize: 16, color: '#666' }]}>{CONFIG.MQTT_BROKER}</Text>
+          </View>
+          <View style={styles.divider} />
+          <View style={styles.statItem}>
+            <Text style={styles.statLabel}>API SERVER</Text>
+            <Text style={[styles.statValue, { fontSize: 16, color: '#666' }]}>{CONFIG.API_URL}</Text>
+          </View>
+          <View style={styles.divider} />
+          <View style={styles.statItem}>
+            <Text style={styles.statLabel}>ZADNJI ZAPIS</Text>
+            <Text style={[styles.statValue, { fontSize: 16, color: '#666' }]}>{lastUploadStatus}</Text>
           </View>
         </View>
 
