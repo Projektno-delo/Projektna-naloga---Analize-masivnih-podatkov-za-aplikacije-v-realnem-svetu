@@ -19,6 +19,12 @@ python .\face_name_preview.py train
 python .\face_name_preview.py preview
 python .\face_name_preview.py login-users ziga
 
+NPO
+
+cd "C:\Users\Ziga\Desktop\Projektna-naloga---Analize-masivnih-podatkov-za-aplikacije-v-realnem-svetu\namenska-programska-oprema\mobilna-app"
+npm install
+npx expo start
+
 --------------------------------------------
 
 Hribovc je projekt za varnejse nacrtovanje pohodov in vzponov. Zdruzuje spletno aplikacijo, backend z vremenskimi in pohodno-potnimi podatki, modul za prepoznavo obraza ter mobilno aplikacijo za zajem senzorskih podatkov.
