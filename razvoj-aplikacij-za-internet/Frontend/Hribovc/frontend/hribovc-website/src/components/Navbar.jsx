@@ -34,6 +34,9 @@ function Navbar() {
         <NavLink to="/weather" className={({ isActive }) => isActive ? 'active' : ''}>
           Vreme
         </NavLink>
+        <NavLink to="/senzorji" className={({ isActive }) => isActive ? 'active' : ''}>
+          Senzorji
+        </NavLink>
         <NavLink to="/profile" className={({ isActive }) => isActive ? 'active' : ''}>
           Profil
         </NavLink>

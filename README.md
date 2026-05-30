@@ -21,9 +21,36 @@ python .\face_name_preview.py login-users ziga
 
 NPO
 
+Po ponovnem odprtju VS Code morajo za prenos senzorjev teci trije terminali.
+Telefon in racunalnik morata biti na istem Wi-Fi omrezju.
+
+Terminal 1 - MQTT broker:
+
+cd "C:\Users\Ziga\Desktop\Projektna-naloga---Analize-masivnih-podatkov-za-aplikacije-v-realnem-svetu"
+& "C:\Program Files\mosquitto\mosquitto.exe" -c "C:\Users\Ziga\Desktop\Projektna-naloga---Analize-masivnih-podatkov-za-aplikacije-v-realnem-svetu\namenska-programska-oprema\mosquitto\mosquitto.conf" -v
+
+Terminal 2 - spletna aplikacija:
+
+cd "C:\Users\Ziga\Desktop\Projektna-naloga---Analize-masivnih-podatkov-za-aplikacije-v-realnem-svetu\razvoj-aplikacij-za-internet\Frontend\Hribovc\frontend\hribovc-website"
+npm install
+npm run dev
+
+V brskalniku odpri stran, ki jo izpise Vite, in pojdi na zavihek Senzorji.
+
+Terminal 3 - mobilna aplikacija:
+
 cd "C:\Users\Ziga\Desktop\Projektna-naloga---Analize-masivnih-podatkov-za-aplikacije-v-realnem-svetu\namenska-programska-oprema\mobilna-app"
 npm install
 npx expo start
+
+V Expo Go skeniraj QR kodo. V mobilni aplikaciji odpri dashboard in pritisni AKTIVIRAJ ZAJEM.
+Na telefonu mora pisati MQTT povezan, na spletni strani Senzorji pa Povezan.
+
+Ce na telefonu pri MQTT BROKER pise ws://localhost:9001, Expo zaznava napacen host.
+Takrat mobilno aplikacijo zazeni tako:
+
+$env:EXPO_PUBLIC_DEV_SERVER_HOST="192.168.0.138"
+npx expo start -c
 
 --------------------------------------------
 
@@ -208,6 +235,37 @@ Ta del vsebuje mobilno aplikacijo. Aplikacija prikazuje Hribovc vmesnik, omogoca
 
 ### Namestitev mobilne aplikacije
 
+Odprite novo PowerShell okno in se premaknite v mapo mobilne aplikacije:
+
+V powershell:
+cd "C:\Users\Ziga\Desktop\Projektna-naloga---Analize-masivnih-podatkov-za-aplikacije-v-realnem-svetu\namenska-programska-oprema\mobilna-app"
+
+Namestite knjiznice in zazenite Expo:
+
+V powershell:
+npm install
+npx expo start
+
+Telefon in racunalnik morata biti na istem Wi-Fi omrezju. V aplikaciji Expo Go skenirajte QR kodo, ki jo izpise Expo.
+
+### MQTT posrednik za senzorje
+
+Za prenos podatkov iz mobilne aplikacije v spletno aplikacijo mora teci MQTT broker z WebSocket podporo. Projekt vsebuje Mosquitto konfiguracijo v:
+
+`namenska-programska-oprema\mosquitto\mosquitto.conf`
+
+Ce Mosquitto se ni namescen, ga namestite, nato odprite novo PowerShell okno in zazenite:
+
+V powershell:
+mosquitto -c "C:\Users\Ziga\Desktop\Projektna-naloga---Analize-masivnih-podatkov-za-aplikacije-v-realnem-svetu\namenska-programska-oprema\mosquitto\mosquitto.conf" -v
+
+Konfiguracija odpre:
+
+- `1883` za navadne MQTT odjemalce
+- `9001` za WebSocket MQTT odjemalce, kar uporablja spletna aplikacija
+
+Ko broker tece, odprite spletno aplikacijo in pojdite na stran **Senzorji**. Nato v mobilni aplikaciji odprite dashboard in pritisnite **AKTIVIRAJ ZAJEM**.
+
 ## Pogoste tezave
 
 ### Backend se ne zazene
@@ -225,9 +283,17 @@ Ta del vsebuje mobilno aplikacijo. Aplikacija prikazuje Hribovc vmesnik, omogoca
 ### Mobilna aplikacija ne najde streznika
 
 - Telefon in racunalnik morata biti na istem Wi-Fi omrezju.
-- V `config.ts` mora biti pravi IP naslov racunalnika.
+- Mobilna aplikacija samodejno vzame IP iz Expo dev streznika. Ce to ne uspe, nastavite `EXPO_PUBLIC_DEV_SERVER_HOST` na IP racunalnika.
 - Backend mora biti zagnan.
 - Windows Firewall lahko vprasa za dovoljenje; izberite **Allow access**.
+
+### Spletna aplikacija ne prejme senzorjev
+
+- Preverite, da Mosquitto tece s konfiguracijo `namenska-programska-oprema\mosquitto\mosquitto.conf`.
+- Preverite, da je port `9001` odprt za WebSocket MQTT.
+- Na mobilni aplikaciji mora pisati `MQTT povezan`.
+- Na spletni strani **Senzorji** mora status pokazati `Povezan`.
+- Telefon, racunalnik, Expo in spletna aplikacija morajo uporabljati isti racunalnik kot MQTT broker.
 
 ### Kamera pri ORV ne deluje
 
