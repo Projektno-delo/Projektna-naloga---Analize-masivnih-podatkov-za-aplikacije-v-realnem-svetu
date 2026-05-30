@@ -5,6 +5,7 @@ import Home from './pages/Home'
 import Trails from './pages/Trails'
 import Weather from './pages/Weather'
 import Profile from './pages/Profile'
+import LiveSensors from './pages/LiveSensors'
 import Login from './pages/Login'
 import Register from './pages/Register'
 import './App.css'
@@ -60,6 +61,7 @@ function AppRoutes() {
               <Route path="/trails" element={<Trails />} />
               <Route path="/weather" element={<Weather />} />
               <Route path="/profile" element={<Profile />} />
+              <Route path="/senzorji" element={<LiveSensors />} />
             </Routes>
           </>
         } />

@@ -39,8 +39,16 @@ export default function Dashboard() {
   useEffect(() => {
     const client = mqtt.connect(CONFIG.MQTT_BROKER);
     clientRef.current = client;
-    client.on('connect', () => setMqttConnected(true));
-    client.on('error', () => setMqttConnected(false));
+    client.on('connect', () => {
+      console.log('MQTT connected:', CONFIG.MQTT_BROKER);
+      setMqttConnected(true);
+    });
+    client.on('reconnect', () => setMqttConnected(false));
+    client.on('error', (error) => {
+      console.log('MQTT error:', error?.message);
+      setMqttConnected(false);
+    });
+    client.on('close', () => setMqttConnected(false));
     client.on('disconnect', () => setMqttConnected(false));
 
     heartbeatRef.current = setInterval(() => {
@@ -139,6 +147,11 @@ export default function Dashboard() {
           <View style={styles.statItem}>
             <Text style={styles.statLabel}>MQTT KANAL</Text>
             <Text style={[styles.statValue, { fontSize: 16, color: '#666' }]}>{CONFIG.MQTT_TOPIC_SENSORS}</Text>
+          </View>
+          <View style={styles.divider} />
+          <View style={styles.statItem}>
+            <Text style={styles.statLabel}>MQTT BROKER</Text>
+            <Text style={[styles.statValue, { fontSize: 16, color: '#666' }]}>{CONFIG.MQTT_BROKER}</Text>
           </View>
         </View>
 

@@ -1,0 +1,239 @@
+.live-sensors-page {
+  min-height: 100vh;
+  padding: 150px 8% 80px;
+  background:
+    linear-gradient(to bottom, rgba(0, 0, 0, 0.35), #0a0a0a 420px),
+    url('../assets/ozadje_za_vreme_sreen.png');
+  background-size: cover;
+  background-position: center top;
+  color: #fff;
+}
+
+.live-sensors-hero {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 28px;
+  margin-bottom: 48px;
+}
+
+.live-eyebrow {
+  margin: 0 0 10px;
+  color: #ff6b35;
+  font-size: 0.82rem;
+  font-weight: 800;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+}
+
+.live-sensors-hero h1 {
+  margin: 0;
+  font-size: 3.2rem;
+  line-height: 1;
+  text-transform: uppercase;
+}
+
+.mqtt-status-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 160px;
+  justify-content: center;
+  padding: 12px 18px;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  border-radius: 999px;
+  color: #fff;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+.mqtt-status-pill.connected {
+  border-color: rgba(112, 220, 142, 0.5);
+  color: #70dc8e;
+}
+
+.mqtt-status-pill.offline {
+  border-color: rgba(255, 107, 53, 0.55);
+  color: #ff9b77;
+}
+
+.live-sensors-grid {
+  display: grid;
+  grid-template-columns: 1.1fr 1fr 1fr;
+  gap: 22px;
+  margin-bottom: 42px;
+}
+
+.sensor-panel {
+  min-height: 230px;
+  padding: 24px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 8px;
+  background: rgba(8, 8, 8, 0.82);
+  backdrop-filter: blur(10px);
+}
+
+.panel-heading {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 24px;
+  color: #ff6b35;
+}
+
+.panel-heading h2 {
+  margin: 0;
+  color: #fff;
+  font-size: 1.1rem;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+.connection-list {
+  margin: 0;
+}
+
+.connection-list div {
+  display: grid;
+  grid-template-columns: 90px 1fr;
+  gap: 12px;
+  padding: 10px 0;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.connection-list dt {
+  color: #777;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.connection-list dd {
+  margin: 0;
+  color: #f5f5f5;
+  overflow-wrap: anywhere;
+}
+
+.mqtt-error {
+  margin: 18px 0 0;
+  color: #ff9b77;
+  font-weight: 700;
+}
+
+.metric-row {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.metric-card {
+  min-height: 130px;
+  padding: 18px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.045);
+}
+
+.metric-card span,
+.location-values span {
+  display: block;
+  margin-bottom: 14px;
+  color: #777;
+  font-size: 0.8rem;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.metric-card strong {
+  font-family: monospace;
+  font-size: 1.85rem;
+  font-weight: 500;
+}
+
+.location-values {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 18px;
+}
+
+.location-values strong {
+  font-family: monospace;
+  font-size: 1.9rem;
+  font-weight: 500;
+}
+
+.last-reading {
+  margin: 22px 0 0;
+  color: #8fa998;
+  font-weight: 700;
+}
+
+.sensor-history-section {
+  padding: 26px 0 0;
+}
+
+.history-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 16px;
+}
+
+.history-header h2 {
+  margin: 0;
+  font-size: 1.25rem;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+.history-header span {
+  color: #777;
+  font-weight: 800;
+}
+
+.sensor-history-list {
+  border-top: 1px solid rgba(255, 255, 255, 0.12);
+}
+
+.history-row {
+  display: grid;
+  grid-template-columns: 1.1fr repeat(3, 1fr) 2fr;
+  gap: 14px;
+  padding: 15px 0;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  color: #ddd;
+  font-family: monospace;
+}
+
+.empty-history {
+  margin: 0;
+  padding: 22px 0;
+  color: #777;
+  font-weight: 700;
+}
+
+@media (max-width: 1050px) {
+  .live-sensors-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 720px) {
+  .live-sensors-page {
+    padding: 130px 6% 56px;
+  }
+
+  .live-sensors-hero {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .live-sensors-hero h1 {
+    font-size: 2.35rem;
+  }
+
+  .metric-row,
+  .history-row {
+    grid-template-columns: 1fr;
+  }
+}
