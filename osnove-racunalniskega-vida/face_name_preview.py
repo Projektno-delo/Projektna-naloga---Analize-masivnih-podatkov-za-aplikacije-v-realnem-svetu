@@ -2,6 +2,7 @@ import argparse
 from collections import Counter
 import json
 from pathlib import Path
+import time
 
 import cv2
 import joblib
@@ -22,7 +23,7 @@ USERS_PREVIEW_WINDOW = "Face login profiles preview"
 LOGIN_WINDOW = "Hribovc ORV face login"
 MIN_EFFECTIVE_THRESHOLD = 0.58
 LOW_LIGHT_MEAN_THRESHOLD = 75.0
-AUTO_LOGIN_FREEZE_MS = 1000
+LOGIN_RESULT_HOLD_SECONDS = 3.0
 
 face_cascade = cv2.CascadeClassifier(
     cv2.data.haarcascades + "haarcascade_frontalface_default.xml"
@@ -58,6 +59,21 @@ def draw_night_mode_button(frame, enabled):
         2,
     )
     return (x1, y1, x2, y2)
+
+
+def draw_login_result_status(frame, success):
+    status_text = "Prijava potrjena" if success else "Prijava ni uspela"
+    color = (125, 210, 145) if success else (0, 0, 255)
+
+    cv2.putText(
+        frame,
+        status_text,
+        (16, 64),
+        cv2.FONT_HERSHEY_SIMPLEX,
+        0.8,
+        color,
+        2,
+    )
 
 
 def make_night_mode_mouse_handler(state):
@@ -645,6 +661,8 @@ def login_users(
     predictions = []
     success = False
     focused = False
+    login_result_hold_until = None
+    login_result_hold_success = False
     night_state = {"enabled": bool(force_night_mode), "rect": None}
 
     print("Poglej v kamero. Pritisni SPACE za preverjanje, ali q za izhod.")
@@ -664,64 +682,87 @@ def login_users(
 
         prikaz = night_mode_frame(frame) if night_state["enabled"] else frame.copy()
 
-        face, box = prepare_face(frame, force_night_mode=night_state["enabled"])
         ready_to_verify = False
         current_prediction = None
-        gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-        eyes_open = has_open_eyes(gray, box, force_night_mode=night_state["enabled"])
-        if not eyes_open:
-            face = None
-        prikaz = blur_background_except_face(prikaz, box)
 
-        if face is not None and box is not None:
-            best_name, best_score, best_margin, _ = predict_from_user_profiles(face, profiles)
-            ready_to_verify = is_accepted_prediction(
-                best_name,
-                best_score,
-                best_margin,
-                expected_username,
-                threshold,
-                min_margin,
-            )
-            current_prediction = {
-                "name": best_name,
-                "score": float(best_score),
-                "margin": float(best_margin),
-                "accepted": bool(ready_to_verify),
-            }
-            draw_label(prikaz, box, best_name, best_score, threshold)
+        if login_result_hold_until is not None:
+            _, box = prepare_face(frame, force_night_mode=night_state["enabled"])
+            prikaz = blur_background_except_face(prikaz, box)
+            if box is not None and best_name is not None:
+                draw_label(prikaz, box, best_name, best_score, threshold)
 
-            x, y, _, h = box
-            expected_text = f"Prijava kot: {expected_username}"
-            cv2.putText(
+            draw_login_result_status(
                 prikaz,
-                expected_text,
-                (x, y + h + 28),
-                cv2.FONT_HERSHEY_SIMPLEX,
-                0.65,
-                (255, 255, 255),
-                2,
-            )
-        elif box is not None:
-            cv2.putText(
-                prikaz,
-                "Odpri oci",
-                (16, 32),
-                cv2.FONT_HERSHEY_SIMPLEX,
-                0.8,
-                (0, 165, 255),
-                2,
+                login_result_hold_success,
             )
         else:
-            cv2.putText(
-                prikaz,
-                "Obraz ni zaznan",
-                (16, 32),
-                cv2.FONT_HERSHEY_SIMPLEX,
-                0.8,
-                (0, 0, 255),
-                2,
-            )
+            face, box = prepare_face(frame, force_night_mode=night_state["enabled"])
+            gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+            eyes_open = has_open_eyes(gray, box, force_night_mode=night_state["enabled"])
+            if not eyes_open:
+                face = None
+            prikaz = blur_background_except_face(prikaz, box)
+
+            if face is not None and box is not None:
+                best_name, best_score, best_margin, _ = predict_from_user_profiles(face, profiles)
+                ready_to_verify = is_accepted_prediction(
+                    best_name,
+                    best_score,
+                    best_margin,
+                    expected_username,
+                    threshold,
+                    min_margin,
+                )
+                current_prediction = {
+                    "name": best_name,
+                    "score": float(best_score),
+                    "margin": float(best_margin),
+                    "accepted": bool(ready_to_verify),
+                }
+                draw_label(prikaz, box, best_name, best_score, threshold)
+
+                x, y, _, h = box
+                expected_text = f"Prijava kot: {expected_username}"
+                cv2.putText(
+                    prikaz,
+                    expected_text,
+                    (x, y + h + 28),
+                    cv2.FONT_HERSHEY_SIMPLEX,
+                    0.65,
+                    (255, 255, 255),
+                    2,
+                )
+            elif box is not None:
+                cv2.putText(
+                    prikaz,
+                    "Odpri oci",
+                    (16, 32),
+                    cv2.FONT_HERSHEY_SIMPLEX,
+                    0.8,
+                    (0, 165, 255),
+                    2,
+                )
+            else:
+                cv2.putText(
+                    prikaz,
+                    "Obraz ni zaznan",
+                    (16, 32),
+                    cv2.FONT_HERSHEY_SIMPLEX,
+                    0.8,
+                    (0, 0, 255),
+                    2,
+                )
+
+            if ready_to_verify:
+                success = True
+                agreement = 1.0
+                predictions = [current_prediction] if current_prediction else []
+                login_result_hold_success = True
+                login_result_hold_until = time.monotonic() + LOGIN_RESULT_HOLD_SECONDS
+                draw_login_result_status(
+                    prikaz,
+                    login_result_hold_success,
+                )
 
         night_state["rect"] = draw_night_mode_button(prikaz, night_state["enabled"])
         cv2.imshow(LOGIN_WINDOW, prikaz)
@@ -730,25 +771,18 @@ def login_users(
             focus_window(LOGIN_WINDOW)
             focused = True
 
-        if ready_to_verify:
-            cv2.putText(
-                prikaz,
-                "Preverjam...",
-                (16, 64),
-                cv2.FONT_HERSHEY_SIMPLEX,
-                0.8,
-                (125, 210, 145),
-                2,
-            )
-            night_state["rect"] = draw_night_mode_button(prikaz, night_state["enabled"])
-            cv2.imshow(LOGIN_WINDOW, prikaz)
-            cv2.waitKey(AUTO_LOGIN_FREEZE_MS)
-            success = True
-            agreement = 1.0
-            predictions = [current_prediction] if current_prediction else []
-            break
-
         key = cv2.waitKey(1) & 0xFF
+
+        if login_result_hold_until is not None:
+            if key == ord("n"):
+                night_state["enabled"] = not night_state["enabled"]
+                print(f"Night mode {'ON' if night_state['enabled'] else 'OFF'}")
+            elif key == ord("q"):
+                break
+
+            if time.monotonic() >= login_result_hold_until:
+                break
+            continue
 
         if key == ord(" "):
             success, best_name, best_score, best_margin, agreement, predictions = verify_live_frames(
@@ -761,7 +795,9 @@ def login_users(
                 min_margin=min_margin,
                 force_night_mode=night_state["enabled"],
             )
-            break
+            login_result_hold_success = bool(success)
+            login_result_hold_until = time.monotonic() + LOGIN_RESULT_HOLD_SECONDS
+            continue
 
         if key == ord("n"):
             night_state["enabled"] = not night_state["enabled"]
