@@ -6,9 +6,8 @@ import * as Location from 'expo-location';
 import mqtt from 'mqtt';
 import { CONFIG } from './config';
 import { saveReading } from './service/sensorStorage';
-//import { requestPermissions, sendNotification } from './service/notifications';
 import * as Haptics from 'expo-haptics';
-
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 export default function Dashboard() {
   const router = useRouter();
@@ -17,14 +16,15 @@ export default function Dashboard() {
   const [isActive, setIsActive] = useState(false);
   const [mqttConnected, setMqttConnected] = useState(false);
   const [lastUploadStatus, setLastUploadStatus] = useState('Ni zapisa');
+  const [userEmail, setUserEmail] = useState('');
   const [subscription, setSubscription] = useState<any>(null);
   const clientRef = useRef<any>(null);
   const heartbeatRef = useRef<any>(null);
   const latestAccelRef = useRef({ x: 0, y: 0, z: 0 });
   const latestLocationRef = useRef<{ latitude: number; longitude: number } | null>(null);
   const pulseAnim = useRef(new Animated.Value(1)).current;
-  
 
+  // Animacija pulzirajoče pike
   useEffect(() => {
     if (isActive) {
       Animated.loop(
@@ -38,10 +38,25 @@ export default function Dashboard() {
     }
   }, [isActive]);
 
-  
+  // MQTT + user + heartbeat + last will
   useEffect(() => {
-    const client = mqtt.connect(CONFIG.MQTT_BROKER);
+    AsyncStorage.getItem('user').then((data) => {
+      if (data) {
+        const user = JSON.parse(data);
+        setUserEmail(user.email || '');
+      }
+    });
+
+    const client = mqtt.connect(CONFIG.MQTT_BROKER, {
+      will: {
+        topic: 'hribovc/status',
+        payload: JSON.stringify({ status: 'offline', timestamp: new Date().toISOString() }),
+        qos: 1,
+        retain: false,
+      }
+    });
     clientRef.current = client;
+
     client.on('connect', () => {
       console.log('MQTT connected:', CONFIG.MQTT_BROKER);
       setMqttConnected(true);
@@ -58,6 +73,8 @@ export default function Dashboard() {
       if (client.connected) {
         client.publish(CONFIG.MQTT_TOPIC_HEARTBEAT, JSON.stringify({
           status: 'alive',
+          deviceId: userEmail || 'unknown',
+          userEmail: userEmail || 'unknown',
           timestamp: new Date().toISOString(),
         }));
       }
@@ -69,13 +86,12 @@ export default function Dashboard() {
     };
   }, []);
 
+  // GPS
   useEffect(() => {
     (async () => {
       const { status } = await Location.requestForegroundPermissionsAsync();
-      console.log('GPS status:', status);
       if (status !== 'granted') return;
       const loc = await Location.getCurrentPositionAsync({});
-      console.log('GPS loc:', loc);
       const nextLocation = { latitude: loc.coords.latitude, longitude: loc.coords.longitude };
       latestLocationRef.current = nextLocation;
       setLocation(nextLocation);
@@ -85,22 +101,20 @@ export default function Dashboard() {
   const getFreshLocation = async () => {
     try {
       const { status } = await Location.getForegroundPermissionsAsync();
-      if (status !== 'granted') {
-        return latestLocationRef.current;
-      }
-
+      if (status !== 'granted') return latestLocationRef.current;
       const loc = await Location.getCurrentPositionAsync({});
       const nextLocation = { latitude: loc.coords.latitude, longitude: loc.coords.longitude };
       latestLocationRef.current = nextLocation;
       setLocation(nextLocation);
       return nextLocation;
     } catch (error) {
-      console.log('GPS refresh error:', error);
       return latestLocationRef.current;
     }
   };
 
   const buildReading = (readingLocation = latestLocationRef.current) => ({
+    deviceId: userEmail || 'unknown',
+    userEmail: userEmail || 'unknown',
     accelerometer: latestAccelRef.current,
     location: readingLocation,
     timestamp: new Date().toISOString(),
@@ -112,11 +126,7 @@ export default function Dashboard() {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(reading),
     });
-
-    if (!response.ok) {
-      throw new Error(`Backend save failed: ${response.status}`);
-    }
-
+    if (!response.ok) throw new Error(`Backend save failed: ${response.status}`);
     return response.json();
   };
 
@@ -135,7 +145,6 @@ export default function Dashboard() {
         setLastUploadStatus('Shranjeno v bazo');
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       } catch (error) {
-        console.log('Backend sensor save error:', error);
         const message = error instanceof Error ? error.message : 'Ni shranjeno v bazo';
         setLastUploadStatus(`Napaka: ${message}`);
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
@@ -146,6 +155,8 @@ export default function Dashboard() {
         latestAccelRef.current = data;
         setAccel(data);
         const reading = {
+          deviceId: userEmail || 'unknown',
+          userEmail: userEmail || 'unknown',
           accelerometer: data,
           location: latestLocationRef.current,
           timestamp: new Date().toISOString(),
@@ -167,14 +178,20 @@ export default function Dashboard() {
 
   return (
     <SafeAreaView style={styles.container}>
-      <View style={styles.scrollContent}>
+      <ScrollView contentContainerStyle={styles.scrollContent}>
 
         <View style={styles.header}>
           <Text style={styles.logo}>HRIBOVC <Text style={styles.orange}>DASH</Text></Text>
           <View style={styles.statusRow}>
-            <Animated.View style={[styles.statusDot, { backgroundColor: isActive ? '#44ff44' : '#ff4444', transform: [{ scale: pulseAnim }]}]} />
+            <Animated.View style={[styles.statusDot, {
+              backgroundColor: isActive ? '#44ff44' : '#ff4444',
+              transform: [{ scale: pulseAnim }]
+            }]} />
             <Text style={styles.statusText}>{isActive ? 'Senzorji tečejo' : 'Senzorji ustavljeni'}</Text>
-            <View style={[styles.statusDot, { backgroundColor: mqttConnected ? '#44ff44' : '#ff4444', marginLeft: 12 }]} />
+            <View style={[styles.statusDot, {
+              backgroundColor: mqttConnected ? '#44ff44' : '#ff4444',
+              marginLeft: 12
+            }]} />
             <Text style={styles.statusText}>{mqttConnected ? 'MQTT povezan' : 'MQTT odklopljen'}</Text>
           </View>
         </View>
@@ -224,22 +241,27 @@ export default function Dashboard() {
         </View>
 
         <View style={styles.footer}>
-        <TouchableOpacity
-          style={[styles.mainBtn, isActive && styles.btnActive]}
-          onPress={toggleAccelerometer}
-        >
-          <Text style={styles.btnText}>
-            {isActive ? 'USTAVI SENZORJE' : 'AKTIVIRAJ ZAJEM'}
-          </Text>
-        </TouchableOpacity>
-        
-        <View style={styles.bottomRow}>
-          <TouchableOpacity onPress={() => router.push('/history')}>
-            <Text style={styles.logoutText}>ZGODOVINA</Text>
+          <TouchableOpacity
+            style={[styles.mainBtn, isActive && styles.btnActive]}
+            onPress={toggleAccelerometer}
+          >
+            <Text style={styles.btnText}>
+              {isActive ? 'USTAVI SENZORJE' : 'AKTIVIRAJ ZAJEM'}
+            </Text>
           </TouchableOpacity>
+
+          <View style={styles.bottomRow}>
+            <TouchableOpacity onPress={() => router.push('/history')}>
+              <Text style={styles.logoutText}>ZGODOVINA</Text>
+            </TouchableOpacity>
+            <Text style={styles.logoutText}>·</Text>
+            <TouchableOpacity onPress={() => router.replace('/')}>
+              <Text style={styles.logoutText}>DOMOV</Text>
+            </TouchableOpacity>
+          </View>
         </View>
-      </View>
-      </View>
+
+      </ScrollView>
     </SafeAreaView>
   );
 }
@@ -252,7 +274,7 @@ const styles = StyleSheet.create({
   scrollContent: {
     paddingHorizontal: 30,
     paddingTop: 20,
-    paddingBottom: 20,
+    paddingBottom: 100,
   },
 
   header: {
