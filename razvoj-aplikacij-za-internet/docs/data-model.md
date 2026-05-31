@@ -676,3 +676,196 @@ Uporabnik izbere pot
 ```
 
 ---
+# 8. Backend endpoint za vizualizacijo podatkov
+
+Za potrebe spletnega vmesnika za vizualizacijo podatkov je dodan backend endpoint:
+
+```txt
+GET /visualization-data
+```
+
+## Namen
+
+Endpoint pripravi podatke iz MongoDB baze v obliki, ki jo lahko frontend uporabi za grafe, statistične kartice ali dashboard.
+
+Endpoint ne shranjuje novih podatkov, ampak bere obstoječe podatke iz baze in jih agregira.
+
+Uporablja se za prikaz:
+
+- osnovnih statistik baze,
+- števila poti po regijah,
+- števila poti po težavnosti,
+- analiz tveganja po priporočilih,
+- analiz tveganja po tipu,
+- zadnjih vremenskih podatkov,
+- zadnjih senzorskih podatkov, če obstajajo.
+
+## Request
+
+```txt
+GET http://localhost:3000/visualization-data
+```
+
+## Podatki, ki jih endpoint uporablja
+
+Endpoint bere podatke iz kolekcij:
+
+```txt
+users
+weather
+trails
+riskAnalyses
+mobileSensorReadings
+```
+
+## Struktura responsa
+
+```js
+{
+  stats: {
+    usersCount: Number,
+    weatherCount: Number,
+    trailsCount: Number,
+    riskAnalysesCount: Number,
+    sensorReadingsCount: Number,
+    lastWeatherScrape: Date
+  },
+
+  trailsByRegion: [
+    {
+      region: String,
+      count: Number
+    }
+  ],
+
+  trailsByDifficulty: [
+    {
+      difficulty: String,
+      count: Number
+    }
+  ],
+
+  riskAnalysesByRecommendation: [
+    {
+      recommendation: String,
+      count: Number
+    }
+  ],
+
+  riskAnalysesByType: [
+    {
+      type: String,
+      count: Number
+    }
+  ],
+
+  latestWeatherRisk: [
+    {
+      risk: String,
+      riskLabel: String,
+      count: Number
+    }
+  ],
+
+  latestWeather: Object,
+
+  latestSensorReadings: Array
+}
+```
+
+## Primer responsa
+
+```json
+{
+  "stats": {
+    "usersCount": 1,
+    "weatherCount": 5,
+    "trailsCount": 50,
+    "riskAnalysesCount": 20,
+    "sensorReadingsCount": 10,
+    "lastWeatherScrape": "2026-05-31T20:00:00.000Z"
+  },
+  "trailsByRegion": [
+    {
+      "region": "Julijske Alpe",
+      "count": 20
+    }
+  ],
+  "trailsByDifficulty": [
+    {
+      "difficulty": "zahtevna",
+      "count": 12
+    }
+  ],
+  "riskAnalysesByRecommendation": [
+    {
+      "recommendation": "PREVIDNO",
+      "count": 8
+    }
+  ],
+  "riskAnalysesByType": [
+    {
+      "type": "trailRisk",
+      "count": 20
+    }
+  ],
+  "latestWeatherRisk": [
+    {
+      "risk": "medium",
+      "riskLabel": "Previdno",
+      "count": 2
+    }
+  ],
+  "latestWeather": {},
+  "latestSensorReadings": []
+}
+```
+
+## Razlaga
+
+Endpoint `/visualization-data` je namenjen predvsem frontendu.
+
+Namesto da frontend sam računa podatke za grafe, backend pripravi agregirane podatke direktno iz MongoDB baze.
+
+Primeri uporabe na frontendu:
+
+```txt
+trailsByRegion
+  -> graf poti po regijah
+
+trailsByDifficulty
+  -> graf poti po težavnosti
+
+riskAnalysesByRecommendation
+  -> graf priporočil PRIPOROČENO / PREVIDNO / ODSVETOVANO
+
+latestWeatherRisk
+  -> prikaz trenutnega vremenskega tveganja
+
+stats
+  -> statistične kartice na dashboardu
+```
+
+---
+
+# 9. Povezava z zahtevami za vizualizacijo
+
+
+## Backend podpora
+
+Backend za to zahtevo pripravi endpoint:
+
+```txt
+GET /visualization-data
+```
+
+Ta endpoint omogoča branje in agregacijo podatkov iz MongoDB baze.
+
+Frontend lahko te podatke uporabi za:
+
+- prikaz statistik,
+- prikaz grafov,
+- prikaz vremenskih tveganj,
+- prikaz analiz tveganja,
+- prikaz senzorskih podatkov.
+
