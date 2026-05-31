@@ -24,7 +24,6 @@ export default function Dashboard() {
   const latestLocationRef = useRef<{ latitude: number; longitude: number } | null>(null);
   const pulseAnim = useRef(new Animated.Value(1)).current;
 
-  // Animacija pulzirajoče pike
   useEffect(() => {
     if (isActive) {
       Animated.loop(
@@ -38,8 +37,8 @@ export default function Dashboard() {
     }
   }, [isActive]);
 
-  // MQTT + user + heartbeat + last will
   useEffect(() => {
+    console.log('MQTT USEEFFECT STARTED');
     AsyncStorage.getItem('user').then((data) => {
       if (data) {
         const user = JSON.parse(data);
@@ -49,25 +48,77 @@ export default function Dashboard() {
 
     const client = mqtt.connect(CONFIG.MQTT_BROKER, {
       will: {
-        topic: 'hribovc/status',
-        payload: JSON.stringify({ status: 'offline', timestamp: new Date().toISOString() }),
+        topic: CONFIG.MQTT_TOPIC_STATUS,
+        payload: JSON.stringify({
+          deviceId: userEmail || 'unknown',
+          userEmail: userEmail || 'unknown',
+          status: 'offline',
+          timestamp: new Date().toISOString(),
+        }),
         qos: 1,
         retain: false,
       }
     });
+    console.log('CONNECTING TO MQTT:', CONFIG.MQTT_BROKER);
+    console.log('CLIENT CREATED', client);
+
     clientRef.current = client;
 
     client.on('connect', () => {
-      console.log('MQTT connected:', CONFIG.MQTT_BROKER);
-      setMqttConnected(true);
-    });
-    client.on('reconnect', () => setMqttConnected(false));
+    console.log('MQTT connected:', CONFIG.MQTT_BROKER);
+    setMqttConnected(true);
+
     client.on('error', (error) => {
-      console.log('MQTT error:', error?.message);
+      console.log('MQTT ERROR FULL:', error);
       setMqttConnected(false);
     });
-    client.on('close', () => setMqttConnected(false));
-    client.on('disconnect', () => setMqttConnected(false));
+
+    client.stream?.on?.('error', (err: any) => {
+      console.log('STREAM ERROR:', err);
+    });
+
+    client.on('packetreceive', (packet) => {
+      console.log('PACKET RECEIVED:', packet);
+    });
+
+    client.on('offline', () => {
+      console.log('MQTT OFFLINE');
+    });
+
+    client.on('close', () => {
+      console.log('MQTT CLOSED');
+      setMqttConnected(false);
+    });
+
+    client.on('end', () => {
+      console.log('MQTT END');
+    });
+
+    client.publish(
+      CONFIG.MQTT_TOPIC_STATUS,
+      JSON.stringify({
+        deviceId: userEmail || 'unknown',
+        userEmail: userEmail || 'unknown',
+        status: 'online',
+        timestamp: new Date().toISOString(),
+      })
+    );
+    console.log('STATUS ONLINE SENT', {
+    deviceId: userEmail || 'unknown',
+    userEmail: userEmail || 'unknown',
+    status: 'online',
+  });
+
+  client.on('reconnect', () => setMqttConnected(false));
+});
+
+  client.on('error', (error) => {
+    console.log('MQTT error:', error?.message);
+    setMqttConnected(false);
+  });
+
+  client.on('close', () => setMqttConnected(false));
+  client.on('disconnect', () => setMqttConnected(false));
 
     heartbeatRef.current = setInterval(() => {
       if (client.connected) {

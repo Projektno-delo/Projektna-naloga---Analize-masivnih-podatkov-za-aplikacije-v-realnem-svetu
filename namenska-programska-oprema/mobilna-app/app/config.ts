@@ -46,6 +46,8 @@ const DEV_SERVER_HOST = getDevServerHost();
 export const CONFIG = {
   API_URL: `http://${DEV_SERVER_HOST}:3000`,
   MQTT_BROKER: `ws://${DEV_SERVER_HOST}:9001`,
+   //MQTT_BROKER: 'ws://broker.emqx.io:8083/mqtt', // Javen testni broker
   MQTT_TOPIC_SENSORS: 'hribovc/senzorji',
   MQTT_TOPIC_HEARTBEAT: 'hribovc/heartbeat',
+  MQTT_TOPIC_STATUS: 'hribovc/status',
 };
