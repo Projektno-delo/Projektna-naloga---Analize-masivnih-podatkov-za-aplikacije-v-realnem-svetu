@@ -15,6 +15,7 @@ const {
 } = require('./services/trailService');
 
 const { analyzeTrail } = require('./services/riskService');
+const { getVisualizationData } = require('./services/visualizationService');
 const {
   startSensorMqttSubscriber,
   saveSensorReading,
@@ -1024,6 +1025,29 @@ const server = http.createServer(async (req, res) => {
 
     return;
   }
+
+  if (req.method === 'GET' && req.url === '/visualization-data') {
+    try {
+      const visualizationData = await getVisualizationData();
+
+      res.writeHead(200, {
+        'Content-Type': 'application/json',
+        ...corsHeaders,
+      });
+
+      res.end(JSON.stringify(visualizationData));
+    } catch (error) {
+      res.writeHead(500, {
+        'Content-Type': 'application/json',
+        ...corsHeaders,
+      });
+
+      res.end(JSON.stringify({ error: error.message || String(error) }));
+    }
+
+    return;
+  }
+
 
   if (req.method === 'GET' && req.url === '/stats') {
   try {
