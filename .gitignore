@@ -2,3 +2,5 @@ node_modules/
 dist/
 .env
 .env.local
+actions-runner/
+**/actions-runner/
