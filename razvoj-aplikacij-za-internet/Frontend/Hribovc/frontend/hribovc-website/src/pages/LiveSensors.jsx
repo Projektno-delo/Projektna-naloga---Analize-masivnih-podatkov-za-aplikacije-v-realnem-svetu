@@ -55,13 +55,12 @@ const createEmptyDevice = deviceId => ({
   lastStatusAt: null,
 })
 
-const isDeviceActive = device => {
+const isDeviceActive = (device, now = Date.now()) => {
   if (!device.lastHeartbeatAt) {
     return false
   }
 
   const lastHeartbeatTime = new Date(device.lastHeartbeatAt).getTime()
-  const now = Date.now()
 
   return now - lastHeartbeatTime <= MQTT_CONFIG.activeDeviceTimeoutMs
 }
@@ -72,11 +71,12 @@ function LiveSensors() {
   const [heartbeat, setHeartbeat] = useState(null)
   const [readings, setReadings] = useState([])
   const [devices, setDevices] = useState({})
+  const [activityNow, setActivityNow] = useState(Date.now())
   const [errorMessage, setErrorMessage] = useState('')
   const clientRef = useRef(null)
 
   const deviceList = Object.values(devices)
-  const activeDevicesCount = deviceList.filter(isDeviceActive).length
+  const activeDevicesCount = deviceList.filter(device => isDeviceActive(device, activityNow)).length
   const totalDevicesCount = deviceList.length
 
   useEffect(() => {
@@ -105,6 +105,7 @@ function LiveSensors() {
           }
         })
       },
+
 
       onHeartbeat: heartbeatMessage => {
         const deviceId = getDeviceId(heartbeatMessage)
@@ -153,6 +154,16 @@ function LiveSensors() {
     return () => {
       clientRef.current?.end(true)
       clientRef.current = null
+    }
+  }, [])
+
+  useEffect(() => {
+    const intervalId = window.setInterval(() => {
+      setActivityNow(Date.now())
+    }, 1000)
+
+    return () => {
+      window.clearInterval(intervalId)
     }
   }, [])
 
