@@ -7,4 +7,5 @@ export const MQTT_CONFIG = {
   brokerUrl: import.meta.env.VITE_MQTT_BROKER_URL || getDefaultBrokerUrl(),
   sensorsTopic: import.meta.env.VITE_MQTT_SENSORS_TOPIC || 'hribovc/senzorji',
   heartbeatTopic: import.meta.env.VITE_MQTT_HEARTBEAT_TOPIC || 'hribovc/heartbeat',
+  statusTopic: import.meta.env.VITE_MQTT_STATUS_TOPIC || 'hribovc/status',
 }
