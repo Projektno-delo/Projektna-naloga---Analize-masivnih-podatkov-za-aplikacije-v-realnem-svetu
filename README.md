@@ -63,17 +63,11 @@ cd "C:\Users\Ziga\Desktop\Projektna-naloga---Analize-masivnih-podatkov-za-aplika
 npm install
 npx expo start
 
-V Expo Go skeniraj QR kodo. V mobilni aplikaciji odpri dashboard in pritisni AKTIVIRAJ ZAJEM.
-Na telefonu mora pisati MQTT povezan, na spletni strani Senzorji pa Povezan.
-Backend shranjuje prejete meritve v MongoDB bazo `hribovc`, kolekcijo `mobileSensorReadings`.
-Ko v mobilni aplikaciji pritisnes USTAVI SENZORJE, aplikacija dodatno poslje zadnji pospeskomer in svezo GPS lokacijo direktno na backend.
-Preveris jih lahko na naslovu http://localhost:3000/sensor-readings.
+RUNNERS
 
-Ce na telefonu pri MQTT BROKER pise ws://localhost:9001, Expo zaznava napacen host.
-Takrat mobilno aplikacijo zazeni tako:
+cd C:\tmp\actions-runner-from-repo
 
-$env:EXPO_PUBLIC_DEV_SERVER_HOST="192.168.0.138"
-npx expo start -c
+.\run.cmd
 
 --------------------------------------------
 
