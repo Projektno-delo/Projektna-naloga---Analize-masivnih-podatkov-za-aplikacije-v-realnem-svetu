@@ -18,6 +18,7 @@ const formatTime = timestamp => {
   }
 
   const date = new Date(timestamp)
+
   if (Number.isNaN(date.getTime())) {
     return '--'
   }
@@ -37,23 +38,113 @@ const statusLabel = {
   error: 'Napaka',
 }
 
+const getDeviceId = value => (
+  value?.deviceId
+  || value?.device_id
+  || value?.clientId
+  || value?.id
+  || 'unknown-device'
+)
+
+const createEmptyDevice = deviceId => ({
+  deviceId,
+  lastReading: null,
+  lastReadingAt: null,
+  lastHeartbeatAt: null,
+  status: 'unknown',
+  lastStatusAt: null,
+})
+
+const isDeviceActive = device => {
+  if (!device.lastHeartbeatAt) {
+    return false
+  }
+
+  const lastHeartbeatTime = new Date(device.lastHeartbeatAt).getTime()
+  const now = Date.now()
+
+  return now - lastHeartbeatTime <= MQTT_CONFIG.activeDeviceTimeoutMs
+}
+
 function LiveSensors() {
   const [status, setStatus] = useState('connecting')
   const [latestReading, setLatestReading] = useState(null)
   const [heartbeat, setHeartbeat] = useState(null)
   const [readings, setReadings] = useState([])
+  const [devices, setDevices] = useState({})
   const [errorMessage, setErrorMessage] = useState('')
   const clientRef = useRef(null)
 
+  const deviceList = Object.values(devices)
+  const activeDevicesCount = deviceList.filter(isDeviceActive).length
+  const totalDevicesCount = deviceList.length
+
   useEffect(() => {
     setStatus('connecting')
+
     const client = createWebMqttClient({
       onStatusChange: nextStatus => setStatus(nextStatus),
+
       onSensorReading: reading => {
+        const deviceId = getDeviceId(reading)
+        const receivedAt = reading.timestamp || new Date().toISOString()
+
         setLatestReading(reading)
         setReadings(previous => [reading, ...previous].slice(0, 8))
+
+        setDevices(previous => {
+          const currentDevice = previous[deviceId] || createEmptyDevice(deviceId)
+
+          return {
+            ...previous,
+            [deviceId]: {
+              ...currentDevice,
+              lastReading: reading,
+              lastReadingAt: receivedAt,
+            },
+          }
+        })
       },
-      onHeartbeat: value => setHeartbeat(value),
+
+      onHeartbeat: heartbeatMessage => {
+        const deviceId = getDeviceId(heartbeatMessage)
+        const heartbeatAt = heartbeatMessage.timestamp || new Date().toISOString()
+
+        setHeartbeat(heartbeatMessage)
+
+        setDevices(previous => {
+          const currentDevice = previous[deviceId] || createEmptyDevice(deviceId)
+
+          return {
+            ...previous,
+            [deviceId]: {
+              ...currentDevice,
+              lastHeartbeatAt: heartbeatAt,
+              status: currentDevice.status === 'unknown' ? 'active' : currentDevice.status,
+            },
+          }
+        })
+      },
+
+      onDeviceStatus: statusMessage => {
+        const deviceId = getDeviceId(statusMessage)
+        const statusAt = statusMessage.timestamp || new Date().toISOString()
+        const deviceStatus = statusMessage.status || statusMessage.state || 'unknown'
+
+        setDevices(previous => {
+          const currentDevice = previous[deviceId] || createEmptyDevice(deviceId)
+
+          return {
+            ...previous,
+            [deviceId]: {
+              ...currentDevice,
+              status: deviceStatus,
+              lastStatusAt: statusAt,
+            },
+          }
+        })
+      },
+
       onError: error => setErrorMessage(error?.message || 'MQTT povezava ni uspela'),
     })
 
@@ -83,6 +174,7 @@ function LiveSensors() {
           <p className="live-eyebrow">MQTT sprejemnik</p>
           <h1>Senzorji v zivo</h1>
         </div>
+
         <div className={`mqtt-status-pill ${connectionClass}`}>
           {status === 'connected' ? <LuRadio size={18} /> : <LuWifiOff size={18} />}
           <span>{statusLabel[status] || status}</span>
@@ -95,20 +187,34 @@ function LiveSensors() {
             <LuSatellite size={22} />
             <h2>Broker</h2>
           </div>
+
           <dl className="connection-list">
             <div>
               <dt>URL</dt>
               <dd>{MQTT_CONFIG.brokerUrl}</dd>
             </div>
+
             <div>
               <dt>Topic</dt>
               <dd>{MQTT_CONFIG.sensorsTopic}</dd>
             </div>
+
+            <div>
+              <dt>Status topic</dt>
+              <dd>{MQTT_CONFIG.statusTopic}</dd>
+            </div>
+
             <div>
               <dt>Heartbeat</dt>
               <dd>{formatTime(heartbeat?.timestamp)}</dd>
             </div>
+
+            <div>
+              <dt>Aktivne naprave</dt>
+              <dd>{activeDevicesCount}/{totalDevicesCount}</dd>
+            </div>
           </dl>
+
           {errorMessage && <p className="mqtt-error">{errorMessage}</p>}
         </div>
 
@@ -117,6 +223,7 @@ function LiveSensors() {
             <LuActivity size={22} />
             <h2>Pospeskomer</h2>
           </div>
+
           <div className="metric-row">
             {metrics.map(metric => (
               <div className="metric-card" key={metric.label}>
@@ -132,16 +239,19 @@ function LiveSensors() {
             <LuMapPin size={22} />
             <h2>GPS</h2>
           </div>
+
           <div className="location-values">
             <div>
               <span>Lat</span>
               <strong>{formatCoordinate(location?.latitude)}</strong>
             </div>
+
             <div>
               <span>Lon</span>
               <strong>{formatCoordinate(location?.longitude)}</strong>
             </div>
           </div>
+
           <p className="last-reading">Zadnja meritev: {formatTime(latestTime)}</p>
         </div>
       </section>
@@ -151,6 +261,7 @@ function LiveSensors() {
           <h2>Zadnje meritve</h2>
           <span>{readings.length}/8</span>
         </div>
+
         <div className="sensor-history-list">
           {readings.length === 0 ? (
             <p className="empty-history">Ni prejetih meritev.</p>
@@ -160,7 +271,9 @@ function LiveSensors() {
               <span>X {formatNumber(reading.accelerometer.x)}</span>
               <span>Y {formatNumber(reading.accelerometer.y)}</span>
               <span>Z {formatNumber(reading.accelerometer.z)}</span>
-              <span>{formatCoordinate(reading.location?.latitude)}, {formatCoordinate(reading.location?.longitude)}</span>
+              <span>
+                {formatCoordinate(reading.location?.latitude)}, {formatCoordinate(reading.location?.longitude)}
+              </span>
             </div>
           ))}
         </div>
