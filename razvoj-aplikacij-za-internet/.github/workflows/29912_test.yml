@@ -1,0 +1,80 @@
+name: 29912 Testiranje Website
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  preveri-teste:
+    name: Preveri obstoj testov
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Prenesi kodo iz repozitorija
+        uses: actions/checkout@v4
+
+      - name: Preveri, ali obstajajo testne skripte
+        shell: bash
+        run: |
+          # Standardno napako preusmerimo v napaka.txt, kot zahteva naloga.
+          if [ ! -d "razvoj-aplikacij-za-internet/Frontend/Hribovc/frontend/hribovc-website/tests" ]; then
+            echo "Mapa tests ne obstaja." 2> napaka.txt
+            exit 1
+          fi
+
+          if ! ls razvoj-aplikacij-za-internet/Frontend/Hribovc/frontend/hribovc-website/tests/*.test.cjs 1> /dev/null 2> napaka.txt; then
+            echo "Testne datoteke ne obstajajo." >> napaka.txt
+            exit 1
+          fi
+
+          # Če ni napake, mora biti datoteka prazna.
+          : > napaka.txt
+
+      - name: Shrani artefakt z napakami
+        uses: actions/upload-artifact@v4
+        with:
+          name: napaka
+          path: napaka.txt
+
+  izvedi-teste:
+    name: Izvedi teste
+    runs-on: ubuntu-latest
+    needs: preveri-teste
+
+    strategy:
+      matrix:
+        node-version: [20, 22]
+
+    steps:
+      - name: Prenesi kodo iz repozitorija
+        uses: actions/checkout@v4
+
+      - name: Prenesi artefakt napaka.txt iz prvega posla
+        uses: actions/download-artifact@v4
+        with:
+          name: napaka
+
+      - name: Preveri vsebino napaka.txt
+        shell: bash
+        run: |
+          # Če datoteka ni prazna, prekinemo izvajanje drugega posla.
+          if [ -s napaka.txt ]; then
+            cat napaka.txt
+            exit 1
+          fi
+
+      - name: Nastavi Node.js okolje
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node-version }}
+          cache: npm
+          cache-dependency-path: razvoj-aplikacij-za-internet/Frontend/Hribovc/frontend/hribovc-website/package-lock.json
+
+      - name: Namesti odvisnosti
+        working-directory: razvoj-aplikacij-za-internet/Frontend/Hribovc/frontend/hribovc-website
+        run: npm ci
+
+      - name: Poženi teste
+        working-directory: razvoj-aplikacij-za-internet/Frontend/Hribovc/frontend/hribovc-website
+        run: npm test
