@@ -68,8 +68,24 @@ function LiveSensors() {
     const client = createWebMqttClient({
       onStatusChange: nextStatus => setStatus(nextStatus),
       onSensorReading: reading => {
+        const deviceId = getDeviceId(reading)
+        const receivedAt = reading.timestamp || new Date().toISOString()
+
         setLatestReading(reading)
         setReadings(previous => [reading, ...previous].slice(0, 8))
+
+        setDevices(previous => {
+          const currentDevice = previous[deviceId] || createEmptyDevice(deviceId)
+
+          return {
+            ...previous,
+            [deviceId]: {
+              ...currentDevice,
+              lastReading: reading,
+              lastReadingAt: receivedAt,
+            },
+          }
+        })
       },
       onHeartbeat: value => setHeartbeat(value),
       onError: error => setErrorMessage(error?.message || 'MQTT povezava ni uspela'),
