@@ -1,4 +1,4 @@
-import { View, Text, SafeAreaView, ScrollView, TouchableOpacity, Alert} from 'react-native';
+import { View, Text, SafeAreaView, ScrollView, TouchableOpacity, Alert } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useState, useEffect } from 'react';
 import { getReadings, clearReadings, SensorReading } from './service/sensorStorage';
@@ -26,30 +26,30 @@ export default function History() {
     return;
   }
 
-  Alert.alert(
-    'Izbris zgodovine',
-    `Ali res želite izbrisati vseh ${readings.length} shranjenih meritev? Teh podatkov ni mogoče obnoviti.`,
-    [
-      {
-        text: 'Prekliči',
-        style: 'cancel',
-      },
-      {
-        text: 'Izbriši',
-        style: 'destructive',
-        onPress: async () => {
-          await clearReadings();
-          setReadings([]);
-
-          Alert.alert(
-            'Uspešno',
-            'Zgodovina meritev je bila uspešno izbrisana.'
-          );
+    Alert.alert(
+      'Izbris zgodovine',
+      `Ali res želite izbrisati vseh ${readings.length} shranjenih meritev? Teh podatkov ni mogoče obnoviti.`,
+      [
+        {
+          text: 'Prekliči',
+          style: 'cancel',
         },
-      },
-    ]
-  );
-};
+        {
+          text: 'Izbriši',
+          style: 'destructive',
+          onPress: async () => {
+            await clearReadings();
+            setReadings([]);
+
+            Alert.alert(
+              'Uspešno',
+              'Zgodovina meritev je bila uspešno izbrisana.'
+            );
+          },
+        },
+      ]
+    );
+  };
 
   const avgX =
   readings.length > 0
