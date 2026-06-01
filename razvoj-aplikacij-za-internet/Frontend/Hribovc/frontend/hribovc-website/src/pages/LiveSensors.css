@@ -24,6 +24,7 @@
   font-weight: 800;
   letter-spacing: 2px;
   text-transform: uppercase;
+  margin-bottom: 0.6rem;
 }
 
 .live-sensors-hero h1 {
@@ -74,7 +75,9 @@
   backdrop-filter: blur(10px);
 }
 
-.panel-heading {
+.panel-heading,
+.history-header,
+.device-card-header {
   display: flex;
   align-items: center;
   gap: 10px;
@@ -82,7 +85,19 @@
   color: #ff6b35;
 }
 
-.panel-heading h2 {
+.panel-heading {
+  justify-content: flex-start;
+}
+
+.panel-heading svg {
+  color: #ff6b35;
+}
+
+.panel-heading h2,
+.history-header h2,
+.devices-section h2 {
+  color: #ffffff;
+  font-size: 1.2rem;
   margin: 0;
   color: #fff;
   font-size: 1.1rem;
@@ -122,8 +137,8 @@
 
 .metric-row {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 12px;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 0.75rem;
 }
 
 .metric-card {
@@ -174,8 +189,8 @@
 
 .device-list {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
-  gap: 16px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1rem;
 }
 
 .device-card {
@@ -219,6 +234,13 @@
   overflow-wrap: anywhere;
 }
 
+.device-label span {
+  display: block;
+  color: #888888;
+  font-size: 0.85rem;
+  margin-top: 0.25rem;
+}
+
 .device-status {
   flex: 0 0 auto;
   border: 1px solid rgba(255, 255, 255, 0.14);
@@ -228,6 +250,7 @@
   font-weight: 800;
   letter-spacing: 1px;
   text-transform: uppercase;
+  letter-spacing: 0.06em;
 }
 
 .device-status.active {
@@ -342,6 +365,14 @@
   .live-sensors-grid {
     grid-template-columns: 1fr;
   }
+
+  .device-list {
+    grid-template-columns: 1fr;
+  }
+
+  .history-row {
+    grid-template-columns: 1fr 1fr;
+  }
 }
 
 @media (max-width: 720px) {
@@ -350,7 +381,6 @@
   }
 
   .live-sensors-hero {
-    align-items: flex-start;
     flex-direction: column;
   }
 
