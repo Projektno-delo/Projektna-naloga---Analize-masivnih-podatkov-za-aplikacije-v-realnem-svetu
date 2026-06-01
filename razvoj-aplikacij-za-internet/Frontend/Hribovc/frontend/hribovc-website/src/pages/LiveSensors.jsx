@@ -106,6 +106,24 @@ function LiveSensors() {
           }
         })
       },
+      onDeviceStatus: statusMessage => {
+        const deviceId = getDeviceId(statusMessage)
+        const statusAt = statusMessage.timestamp || new Date().toISOString()
+        const deviceStatus = statusMessage.status || statusMessage.state || 'unknown'
+
+        setDevices(previous => {
+          const currentDevice = previous[deviceId] || createEmptyDevice(deviceId)
+
+          return {
+            ...previous,
+            [deviceId]: {
+              ...currentDevice,
+              status: deviceStatus,
+              lastStatusAt: statusAt,
+            },
+          }
+        })
+      },
       onError: error => setErrorMessage(error?.message || 'MQTT povezava ni uspela'),
     })
 
