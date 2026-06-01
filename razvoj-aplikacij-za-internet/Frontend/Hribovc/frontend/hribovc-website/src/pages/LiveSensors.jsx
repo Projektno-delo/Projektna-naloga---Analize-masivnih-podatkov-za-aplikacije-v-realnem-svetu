@@ -106,7 +106,6 @@ function LiveSensors() {
         })
       },
 
-
       onHeartbeat: heartbeatMessage => {
         const deviceId = getDeviceId(heartbeatMessage)
         const heartbeatAt = heartbeatMessage.timestamp || new Date().toISOString()
@@ -183,7 +182,7 @@ function LiveSensors() {
       <section className="live-sensors-hero">
         <div>
           <p className="live-eyebrow">MQTT sprejemnik</p>
-          <h1>Senzorji v zivo</h1>
+          <h1>Senzorji v živo</h1>
         </div>
 
         <div className={`mqtt-status-pill ${connectionClass}`}>
@@ -232,7 +231,7 @@ function LiveSensors() {
         <div className="sensor-panel accelerometer-panel">
           <div className="panel-heading">
             <LuActivity size={22} />
-            <h2>Pospeskomer</h2>
+            <h2>Pospeškomer</h2>
           </div>
 
           <div className="metric-row">
@@ -267,6 +266,43 @@ function LiveSensors() {
         </div>
       </section>
 
+      <section className="devices-section">
+        <div className="history-header">
+          <h2>Povezane naprave</h2>
+          <span>{activeDevicesCount}/{totalDevicesCount} aktivnih</span>
+        </div>
+
+        {deviceList.length === 0 ? (
+          <p className="empty-history">Čakam na MQTT podatke iz naprav.</p>
+        ) : (
+          <div className="device-list">
+            {deviceList.map(device => {
+              const active = isDeviceActive(device, activityNow)
+
+              return (
+                <article className={`device-card ${active ? 'active' : 'inactive'}`} key={device.deviceId}>
+                  <div className="device-card-header">
+                    <div>
+                      <span className="device-label">Device ID</span>
+                      <h3>{device.deviceId}</h3>
+                    </div>
+
+                    <span className={`device-status ${active ? 'active' : 'inactive'}`}>
+                      {active ? 'active' : 'inactive'}
+                    </span>
+                  </div>
+
+                  <div className="device-meta">
+                    <span>Zadnji heartbeat: {formatTime(device.lastHeartbeatAt)}</span>
+                    <span>Zadnja meritev: {formatTime(device.lastReadingAt)}</span>
+                  </div>
+                </article>
+              )
+            })}
+          </div>
+        )}
+      </section>
+
       <section className="sensor-history-section">
         <div className="history-header">
           <h2>Zadnje meritve</h2>
@@ -276,12 +312,12 @@ function LiveSensors() {
         <div className="sensor-history-list">
           {readings.length === 0 ? (
             <p className="empty-history">Ni prejetih meritev.</p>
-          ) : readings.map(reading => (
-            <div className="history-row" key={`${reading.timestamp}-${reading.accelerometer.x}`}>
+          ) : readings.map((reading, index) => (
+            <div className="history-row" key={`${reading.timestamp || index}-${index}`}>
               <span>{formatTime(reading.timestamp)}</span>
-              <span>X {formatNumber(reading.accelerometer.x)}</span>
-              <span>Y {formatNumber(reading.accelerometer.y)}</span>
-              <span>Z {formatNumber(reading.accelerometer.z)}</span>
+              <span>X {formatNumber(reading.accelerometer?.x)}</span>
+              <span>Y {formatNumber(reading.accelerometer?.y)}</span>
+              <span>Z {formatNumber(reading.accelerometer?.z)}</span>
               <span>
                 {formatCoordinate(reading.location?.latitude)}, {formatCoordinate(reading.location?.longitude)}
               </span>
