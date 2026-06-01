@@ -210,6 +210,11 @@ function LiveSensors() {
             </div>
 
             <div>
+              <dt>Heartbeat topic</dt>
+              <dd>{MQTT_CONFIG.heartbeatTopic}</dd>
+            </div>
+
+            <div>
               <dt>Status topic</dt>
               <dd>{MQTT_CONFIG.statusTopic}</dd>
             </div>
@@ -217,6 +222,11 @@ function LiveSensors() {
             <div>
               <dt>Heartbeat</dt>
               <dd>{formatTime(heartbeat?.timestamp)}</dd>
+            </div>
+
+            <div>
+              <dt>Timeout</dt>
+              <dd>{MQTT_CONFIG.activeDeviceTimeoutMs / 1000}s</dd>
             </div>
 
             <div>
@@ -291,37 +301,43 @@ function LiveSensors() {
                       {active ? 'active' : 'inactive'}
                     </span>
                   </div>
-                  <div className="device-data-grid">
-                  </div>
-                  
-                  <div className="device-data-block">
-                    <span>GPS latitude</span>
-                    <strong>{formatCoordinate(device.lastReading?.location?.latitude)}</strong>
-                  </div>
-
-                  <div className="device-data-block">
-                    <span>GPS longitude</span>
-                    <strong>{formatCoordinate(device.lastReading?.location?.longitude)}</strong>
-                  </div>
-
-                  <div className="device-data-block">
-                    <span>Accel X</span>
-                    <strong>{formatNumber(device.lastReading?.accelerometer?.x)}</strong>
-                  </div>
-
-                  <div className="device-data-block">
-                    <span>Accel Y</span>
-                    <strong>{formatNumber(device.lastReading?.accelerometer?.y)}</strong>
-                  </div>
-
-                  <div className="device-data-block">
-                    <span>Accel Z</span>
-                    <strong>{formatNumber(device.lastReading?.accelerometer?.z)}</strong>
-                  </div>
 
                   <div className="device-meta">
                     <span>Zadnji heartbeat: {formatTime(device.lastHeartbeatAt)}</span>
                     <span>Zadnja meritev: {formatTime(device.lastReadingAt)}</span>
+                  </div>
+
+                  <div className="device-data-grid">
+                    <div className="device-data-block">
+                      <span>GPS latitude</span>
+                      <strong>{formatCoordinate(device.lastReading?.location?.latitude)}</strong>
+                    </div>
+
+                    <div className="device-data-block">
+                      <span>GPS longitude</span>
+                      <strong>{formatCoordinate(device.lastReading?.location?.longitude)}</strong>
+                    </div>
+
+                    <div className="device-data-block">
+                      <span>Accel X</span>
+                      <strong>{formatNumber(device.lastReading?.accelerometer?.x)}</strong>
+                    </div>
+
+                    <div className="device-data-block">
+                      <span>Accel Y</span>
+                      <strong>{formatNumber(device.lastReading?.accelerometer?.y)}</strong>
+                    </div>
+
+                    <div className="device-data-block">
+                      <span>Accel Z</span>
+                      <strong>{formatNumber(device.lastReading?.accelerometer?.z)}</strong>
+                    </div>
+                  </div>
+
+                  <div className="device-status-message">
+                    <span>Zadnji status</span>
+                    <strong>{device.status || 'unknown'}</strong>
+                    <small>{formatTime(device.lastStatusAt)}</small>
                   </div>
                 </article>
               )
