@@ -34,6 +34,66 @@ export default function Register() {
       Alert.alert('Napaka', 'Ime, email in geslo so obvezni.')
       return
     }
+
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+    if (!emailRegex.test(email)) {
+      Alert.alert('Napaka', 'Vnesite veljaven email naslov.')
+      return
+    }
+
+    if (ime.trim().split(' ').length < 2) {
+      Alert.alert('Napaka', 'Vnesite ime in priimek.')
+      return
+    }
+
+    if (!/[A-Z]/.test(password)) {
+      Alert.alert(
+        'Napaka',
+        'Geslo mora vsebovati vsaj eno veliko črko.'
+      )
+      return
+    }
+
+    if (password.length < 6) {
+      Alert.alert('Napaka', 'Geslo mora vsebovati vsaj 6 znakov.')
+      return
+    }
+
+    if (!/\d/.test(password)) {
+      Alert.alert('Napaka', 'Geslo mora vsebovati vsaj eno številko.')
+      return
+    }
+
+    if (starost && isNaN(Number(starost))) {
+      Alert.alert('Napaka', 'Starost mora biti število.')
+      return
+    }
+
+    if (visina && isNaN(Number(visina))) {
+      Alert.alert('Napaka', 'Višina mora biti število.')
+      return
+    }
+
+    if (teza && isNaN(Number(teza))) {
+      Alert.alert('Napaka', 'Teža mora biti število.')
+      return
+    }
+
+    if (starost && (parseInt(starost) < 1 || parseInt(starost) > 120)) {
+      Alert.alert('Napaka', 'Neveljavna starost.')
+      return
+    }
+
+    if (visina && (parseInt(visina) < 50 || parseInt(visina) > 250)) {
+      Alert.alert('Napaka', 'Neveljavna višina.')
+      return
+    }
+
+    if (teza && (parseInt(teza) < 20 || parseInt(teza) > 300)) {
+      Alert.alert('Napaka', 'Neveljavna teža.')
+      return
+    }
     setLoading(true)
     try {
       const response = await fetch(`${CONFIG.API_URL}/register`, {
