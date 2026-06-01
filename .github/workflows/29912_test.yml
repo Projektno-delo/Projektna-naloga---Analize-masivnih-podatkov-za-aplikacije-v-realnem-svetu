@@ -76,6 +76,30 @@ jobs:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
+      - name: Preveri Docker engine
+        shell: powershell
+        run: |
+          $dockerDesktop = Join-Path $env:ProgramFiles "Docker\Docker\Docker Desktop.exe"
+
+          if (Test-Path $dockerDesktop) {
+            Start-Process $dockerDesktop
+          }
+
+          $timeout = (Get-Date).AddMinutes(3)
+
+          do {
+            docker info *> $null
+
+            if ($LASTEXITCODE -eq 0) {
+              Write-Host "Docker engine je pripravljen."
+              exit 0
+            }
+
+            Start-Sleep -Seconds 5
+          } while ((Get-Date) -lt $timeout)
+
+          throw "Docker engine ni zagnan. Na self-hosted runnerju zazeni Docker Desktop ali runner zazeni v uporabniski seji."
+
       - name: Zgradi Docker sliko
         shell: powershell
         env:
