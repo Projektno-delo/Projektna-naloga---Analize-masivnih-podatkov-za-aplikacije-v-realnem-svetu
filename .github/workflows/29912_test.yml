@@ -63,6 +63,16 @@ jobs:
     if: github.ref == 'refs/heads/main'
 
     steps:
+      - name: Debug DockerHub secrets
+        shell: powershell
+        env:
+          DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
+          DOCKERHUB_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}
+        
+        run: |
+          Write-Host "Username length: $($env:DOCKERHUB_USERNAME.Length)"
+          Write-Host "Token length: $($env:DOCKERHUB_TOKEN.Length)"
+
       - name: Omogoci dolge poti v Gitu
         shell: powershell
         run: git config --global core.longpaths true
