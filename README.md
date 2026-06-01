@@ -284,6 +284,44 @@ Konfiguracija odpre:
 Ko broker tece, odprite spletno aplikacijo in pojdite na stran **Senzorji**. Nato v mobilni aplikaciji odprite dashboard in pritisnite **AKTIVIRAJ ZAJEM**.
 Ce tece tudi backend, se meritve shranjujejo v MongoDB bazo `hribovc`, kolekcijo `mobileSensorReadings`. Heartbeat sporocila se shranjujejo v `mobileSensorHeartbeats`. Zadnje meritve lahko preverite na `http://localhost:3000/sensor-readings`.
 
+### Testni uporabnik
+
+Za testiranje mobilne aplikacije se lahko uporabi poljuben uporabniški račun, ustvarjen preko registracijskega zaslona mobilne ali spletne aplikacije.
+
+### Primer MQTT payload-a
+
+Primer JSON sporočila, ki ga mobilna aplikacija pošlje na temo `hribovc/senzorji`:
+
+```json
+{
+  "deviceId": "android-123",
+  "userEmail": "uporabnik@example.com",
+  "timestamp": "2025-06-01T18:30:15.000Z",
+  "accelerometer": {
+    "x": 0.12,
+    "y": -0.45,
+    "z": 9.81
+  },
+  "location": {
+    "latitude": 46.5547,
+    "longitude": 15.6459
+  }
+}
+```
+
+### Primer heartbeat payload-a
+
+Primer JSON sporočila, ki ga mobilna aplikacija periodično pošilja na temo `hribovc/heartbeat`:
+
+```json
+{
+  "deviceId": "android-123",
+  "userEmail": "uporabnik@example.com",
+  "timestamp": "2025-06-01T18:30:20.000Z",
+  "status": "online"
+}
+```
+
 ## Pogoste tezave
 
 ### Backend se ne zazene
