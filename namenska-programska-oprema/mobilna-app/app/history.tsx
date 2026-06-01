@@ -22,6 +22,21 @@ export default function History() {
     setReadings([]);
   };
 
+  const avgX =
+  readings.length > 0
+    ? readings.reduce((sum, r) => sum + r.accelerometer.x, 0) / readings.length
+    : 0;
+
+  const avgY =
+    readings.length > 0
+      ? readings.reduce((sum, r) => sum + r.accelerometer.y, 0) / readings.length
+      : 0;
+
+  const avgZ =
+    readings.length > 0
+      ? readings.reduce((sum, r) => sum + r.accelerometer.z, 0) / readings.length
+      : 0;
+
   return (
     <SafeAreaView style={styles.container}>
       <ScrollView contentContainerStyle={styles.scrollContent}>
@@ -29,6 +44,26 @@ export default function History() {
           <Text style={styles.title}>HRIBOVC <Text style={styles.orange}>HISTORY</Text></Text>
           <Text style={styles.count}>Shranjenih meritev: {readings.length}</Text>
         </View>
+
+        <View style={styles.statsBox}>
+        <Text style={styles.statsTitle}>STATISTIKA MERITEV</Text>
+
+        <Text style={styles.statText}>
+          Meritev skupaj: {readings.length}
+        </Text>
+
+        <Text style={styles.statText}>
+          Povprečen X: {avgX.toFixed(3)}
+        </Text>
+
+        <Text style={styles.statText}>
+          Povprečen Y: {avgY.toFixed(3)}
+        </Text>
+
+        <Text style={styles.statText}>
+          Povprečen Z: {avgZ.toFixed(3)}
+        </Text>
+      </View>
 
         {readings.length === 0 ? (
           <Text style={styles.empty}>Ni še nobenih meritev.</Text>
@@ -173,4 +208,28 @@ export default function History() {
     fontWeight: '700', 
     letterSpacing: 1 
   },
+
+  statsBox: {
+  marginTop: -10,
+  marginBottom: 16,
+  padding: 14,
+  borderRadius: 12,
+  backgroundColor: 'rgba(255,255,255,0.04)',
+  borderWidth: 1,
+  borderColor: 'rgba(255,255,255,0.06)',
+},
+
+statText: {
+  color: '#fff',
+  fontSize: 14,
+  marginBottom: 4,
+},
+
+statsTitle: {
+  color: '#ff6b35',
+  fontSize: 18,
+  fontWeight: '800',
+  letterSpacing: 1,
+  marginBottom: 14,
+},
 }); 
