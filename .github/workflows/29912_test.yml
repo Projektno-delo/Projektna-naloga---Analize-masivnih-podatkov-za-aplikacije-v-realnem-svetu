@@ -12,14 +12,14 @@ jobs:
 
     steps:
       - name: Omogoci dolge poti v Gitu na Windows runnerju
-        shell: pwsh
+        shell: powershell
         run: git config --global core.longpaths true
 
       - name: Prenesi kodo iz repozitorija
         uses: actions/checkout@v4
 
       - name: Preveri, ali obstajajo testne skripte
-        shell: pwsh
+        shell: powershell
         run: |
           # Standardno napako preusmerimo v napaka.txt, kot zahteva naloga.
           if (!(Test-Path "razvoj-aplikacij-za-internet/Frontend/Hribovc/frontend/hribovc-website/tests")) {
