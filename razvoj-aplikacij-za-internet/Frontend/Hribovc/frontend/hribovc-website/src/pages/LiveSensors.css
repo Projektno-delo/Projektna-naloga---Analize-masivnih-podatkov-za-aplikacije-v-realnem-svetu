@@ -1,122 +1,113 @@
 .live-sensors-page {
   min-height: 100vh;
-  padding: 150px 8% 80px;
+  padding: 32px;
   background:
-    linear-gradient(to bottom, rgba(0, 0, 0, 0.35), #0a0a0a 420px),
-    url('../assets/ozadje_za_vreme_sreen.png');
-  background-size: cover;
-  background-position: center top;
-  color: #fff;
+    radial-gradient(circle at top left, rgba(34, 197, 94, 0.16), transparent 32%),
+    linear-gradient(135deg, #f8fafc 0%, #eef2ff 100%);
+  color: #0f172a;
 }
 
 .live-sensors-hero {
   display: flex;
-  align-items: flex-end;
+  align-items: center;
   justify-content: space-between;
-  gap: 28px;
-  margin-bottom: 48px;
+  gap: 24px;
+  margin-bottom: 28px;
 }
 
 .live-eyebrow {
-  margin: 0 0 10px;
-  color: #ff6b35;
-  font-size: 0.82rem;
-  font-weight: 800;
-  letter-spacing: 2px;
+  margin: 0 0 6px;
+  color: #16a34a;
+  font-size: 0.85rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
   text-transform: uppercase;
 }
 
 .live-sensors-hero h1 {
   margin: 0;
-  font-size: 3.2rem;
+  font-size: clamp(2rem, 4vw, 3.3rem);
   line-height: 1;
-  text-transform: uppercase;
 }
 
 .mqtt-status-pill {
   display: inline-flex;
   align-items: center;
-  gap: 10px;
-  min-width: 160px;
-  justify-content: center;
-  padding: 12px 18px;
-  border: 1px solid rgba(255, 255, 255, 0.18);
+  gap: 8px;
   border-radius: 999px;
-  color: #fff;
-  font-weight: 800;
-  text-transform: uppercase;
-  letter-spacing: 1px;
+  padding: 10px 16px;
+  font-weight: 700;
+  box-shadow: 0 12px 28px rgba(15, 23, 42, 0.1);
 }
 
 .mqtt-status-pill.connected {
-  border-color: rgba(112, 220, 142, 0.5);
-  color: #70dc8e;
+  background: rgba(34, 197, 94, 0.14);
+  color: #15803d;
 }
 
 .mqtt-status-pill.offline {
-  border-color: rgba(255, 107, 53, 0.55);
-  color: #ff9b77;
+  background: rgba(239, 68, 68, 0.12);
+  color: #b91c1c;
 }
 
 .live-sensors-grid {
   display: grid;
-  grid-template-columns: 1.1fr 1fr 1fr;
-  gap: 22px;
-  margin-bottom: 42px;
+  grid-template-columns: 1.2fr 1fr 1fr;
+  gap: 18px;
 }
 
 .sensor-panel {
-  min-height: 230px;
-  padding: 24px;
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  border-radius: 8px;
-  background: rgba(8, 8, 8, 0.82);
-  backdrop-filter: blur(10px);
+  background: rgba(255, 255, 255, 0.92);
+  border: 1px solid rgba(15, 23, 42, 0.08);
+  border-radius: 24px;
+  padding: 22px;
+  box-shadow: 0 16px 40px rgba(15, 23, 42, 0.08);
 }
 
 .panel-heading {
   display: flex;
   align-items: center;
   gap: 10px;
-  margin-bottom: 24px;
-  color: #ff6b35;
+  margin-bottom: 18px;
 }
 
 .panel-heading h2 {
   margin: 0;
-  color: #fff;
-  font-size: 1.1rem;
-  text-transform: uppercase;
-  letter-spacing: 1px;
+  font-size: 1.15rem;
 }
 
 .connection-list {
+  display: grid;
+  gap: 12px;
   margin: 0;
 }
 
 .connection-list div {
   display: grid;
-  grid-template-columns: 90px 1fr;
-  gap: 12px;
-  padding: 10px 0;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  gap: 4px;
 }
 
 .connection-list dt {
-  color: #777;
-  font-weight: 800;
+  color: #64748b;
+  font-size: 0.8rem;
+  font-weight: 700;
   text-transform: uppercase;
+  letter-spacing: 0.06em;
 }
 
 .connection-list dd {
   margin: 0;
-  color: #f5f5f5;
-  overflow-wrap: anywhere;
+  color: #0f172a;
+  font-weight: 700;
+  word-break: break-word;
 }
 
 .mqtt-error {
-  margin: 18px 0 0;
-  color: #ff9b77;
+  margin: 16px 0 0;
+  border-radius: 14px;
+  background: rgba(239, 68, 68, 0.12);
+  color: #b91c1c;
+  padding: 12px;
   font-weight: 700;
 }
 
@@ -127,88 +118,231 @@
 }
 
 .metric-card {
-  min-height: 130px;
-  padding: 18px;
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  border-radius: 8px;
-  background: rgba(255, 255, 255, 0.045);
+  border-radius: 18px;
+  background: rgba(241, 245, 249, 0.9);
+  padding: 16px;
+  text-align: center;
 }
 
-.metric-card span,
-.location-values span {
+.metric-card span {
   display: block;
-  margin-bottom: 14px;
-  color: #777;
-  font-size: 0.8rem;
-  font-weight: 800;
-  text-transform: uppercase;
+  color: #64748b;
+  font-size: 0.78rem;
+  font-weight: 700;
+  margin-bottom: 6px;
 }
 
 .metric-card strong {
-  font-family: monospace;
-  font-size: 1.85rem;
-  font-weight: 500;
+  color: #0f172a;
+  font-size: 1.25rem;
 }
 
 .location-values {
   display: grid;
-  grid-template-columns: 1fr;
-  gap: 18px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.location-values div {
+  border-radius: 18px;
+  background: rgba(241, 245, 249, 0.9);
+  padding: 16px;
+}
+
+.location-values span {
+  display: block;
+  color: #64748b;
+  font-size: 0.78rem;
+  font-weight: 700;
+  margin-bottom: 6px;
 }
 
 .location-values strong {
-  font-family: monospace;
-  font-size: 1.9rem;
-  font-weight: 500;
+  color: #0f172a;
+  font-size: 1.1rem;
 }
 
 .last-reading {
-  margin: 22px 0 0;
-  color: #8fa998;
+  margin: 16px 0 0;
+  color: #475569;
+  font-weight: 600;
+}
+
+.devices-section {
+  margin-top: 24px;
+}
+
+.device-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 16px;
+}
+
+.device-card {
+  background: rgba(255, 255, 255, 0.92);
+  border: 1px solid rgba(15, 23, 42, 0.08);
+  border-radius: 20px;
+  padding: 18px;
+  box-shadow: 0 12px 32px rgba(15, 23, 42, 0.08);
+}
+
+.device-card.active {
+  border-color: rgba(34, 197, 94, 0.45);
+}
+
+.device-card.inactive {
+  border-color: rgba(239, 68, 68, 0.35);
+  opacity: 0.82;
+}
+
+.device-card-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.device-label {
+  display: block;
+  color: #64748b;
+  font-size: 0.78rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.device-card h3 {
+  margin: 4px 0 0;
+  font-size: 1rem;
+  color: #0f172a;
+  word-break: break-word;
+}
+
+.device-status {
+  border-radius: 999px;
+  padding: 6px 10px;
+  font-size: 0.78rem;
   font-weight: 700;
+  text-transform: uppercase;
+}
+
+.device-status.active {
+  background: rgba(34, 197, 94, 0.14);
+  color: #15803d;
+}
+
+.device-status.inactive {
+  background: rgba(239, 68, 68, 0.12);
+  color: #b91c1c;
+}
+
+.device-meta {
+  display: grid;
+  gap: 6px;
+  margin-top: 14px;
+  color: #475569;
+  font-size: 0.9rem;
+}
+
+.device-data-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  margin-top: 14px;
+}
+
+.device-data-block {
+  border-radius: 14px;
+  background: rgba(241, 245, 249, 0.9);
+  padding: 12px;
+}
+
+.device-data-block span {
+  display: block;
+  color: #64748b;
+  font-size: 0.78rem;
+  margin-bottom: 4px;
+}
+
+.device-data-block strong {
+  color: #0f172a;
+  font-size: 0.98rem;
+}
+
+.device-status-message {
+  margin-top: 14px;
+  border-radius: 14px;
+  background: rgba(14, 165, 233, 0.1);
+  padding: 12px;
+}
+
+.device-status-message span {
+  display: block;
+  color: #0369a1;
+  font-size: 0.78rem;
+  margin-bottom: 4px;
+}
+
+.device-status-message strong {
+  display: block;
+  color: #0f172a;
+}
+
+.device-status-message small {
+  display: block;
+  margin-top: 4px;
+  color: #64748b;
 }
 
 .sensor-history-section {
-  padding: 26px 0 0;
+  margin-top: 24px;
+  background: rgba(255, 255, 255, 0.92);
+  border: 1px solid rgba(15, 23, 42, 0.08);
+  border-radius: 24px;
+  padding: 22px;
+  box-shadow: 0 16px 40px rgba(15, 23, 42, 0.08);
 }
 
 .history-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
+  gap: 16px;
   margin-bottom: 16px;
 }
 
 .history-header h2 {
   margin: 0;
-  font-size: 1.25rem;
-  text-transform: uppercase;
-  letter-spacing: 1px;
+  font-size: 1.2rem;
 }
 
 .history-header span {
-  color: #777;
-  font-weight: 800;
+  color: #64748b;
+  font-weight: 700;
 }
 
 .sensor-history-list {
-  border-top: 1px solid rgba(255, 255, 255, 0.12);
+  display: grid;
+  gap: 10px;
 }
 
 .history-row {
   display: grid;
-  grid-template-columns: 1.1fr repeat(3, 1fr) 2fr;
+  grid-template-columns: 1fr repeat(4, auto);
   gap: 14px;
-  padding: 15px 0;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
-  color: #ddd;
-  font-family: monospace;
+  align-items: center;
+  border-radius: 16px;
+  background: rgba(241, 245, 249, 0.9);
+  padding: 12px 14px;
+  color: #334155;
+  font-weight: 600;
 }
 
 .empty-history {
   margin: 0;
-  padding: 22px 0;
-  color: #777;
+  border-radius: 16px;
+  background: rgba(241, 245, 249, 0.9);
+  padding: 18px;
+  color: #64748b;
   font-weight: 700;
 }
 
@@ -220,7 +354,7 @@
 
 @media (max-width: 720px) {
   .live-sensors-page {
-    padding: 130px 6% 56px;
+    padding: 20px;
   }
 
   .live-sensors-hero {
@@ -228,12 +362,13 @@
     flex-direction: column;
   }
 
-  .live-sensors-hero h1 {
-    font-size: 2.35rem;
+  .history-row {
+    grid-template-columns: 1fr;
   }
 
   .metric-row,
-  .history-row {
+  .location-values,
+  .device-data-grid {
     grid-template-columns: 1fr;
   }
 }
