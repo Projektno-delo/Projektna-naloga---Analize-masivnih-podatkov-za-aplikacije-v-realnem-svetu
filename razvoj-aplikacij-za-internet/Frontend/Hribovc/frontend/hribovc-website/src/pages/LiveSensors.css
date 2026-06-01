@@ -321,3 +321,28 @@
     grid-template-columns: 1fr;
   }
 }
+
+.device-data-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  margin-top: 14px;
+}
+
+.device-data-block {
+  border-radius: 14px;
+  background: rgba(241, 245, 249, 0.9);
+  padding: 12px;
+}
+
+.device-data-block span {
+  display: block;
+  color: #64748b;
+  font-size: 0.78rem;
+  margin-bottom: 4px;
+}
+
+.device-data-block strong {
+  color: #0f172a;
+  font-size: 0.98rem;
+}

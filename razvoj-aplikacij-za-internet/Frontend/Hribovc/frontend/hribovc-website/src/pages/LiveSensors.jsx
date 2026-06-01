@@ -291,7 +291,19 @@ function LiveSensors() {
                       {active ? 'active' : 'inactive'}
                     </span>
                   </div>
+                  <div className="device-data-grid">
+                  </div>
+                  
+                  <div className="device-data-block">
+                    <span>GPS latitude</span>
+                    <strong>{formatCoordinate(device.lastReading?.location?.latitude)}</strong>
+                  </div>
 
+                  <div className="device-data-block">
+                    <span>GPS longitude</span>
+                    <strong>{formatCoordinate(device.lastReading?.location?.longitude)}</strong>
+                  </div>
+                  
                   <div className="device-meta">
                     <span>Zadnji heartbeat: {formatTime(device.lastHeartbeatAt)}</span>
                     <span>Zadnja meritev: {formatTime(device.lastReadingAt)}</span>
