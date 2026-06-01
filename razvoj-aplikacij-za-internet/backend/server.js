@@ -4,6 +4,12 @@ const path = require('path');
 const { spawn } = require('child_process');
 const { ObjectId } = require('mongodb');
 
+const axios = require('axios');
+const FormData = require('form-data');
+
+const ORV_API_URL = process.env.ORV_API_URL || 'http://localhost:8000';
+const ORV_FACE_THRESHOLD = Number(process.env.ORV_FACE_THRESHOLD) || 0.7;
+
 const {
   scrapeAndStoreWeather,
   getLatestWeather
@@ -365,6 +371,50 @@ function findExistingFaceUsername(candidates) {
   return null;
 }
 
+function imageBase64ToBuffer(imageBase64) {
+  if (!imageBase64) {
+    return null;
+  }
+
+  const value = String(imageBase64);
+  const base64 = value.includes(',')
+    ? value.split(',')[1]
+    : value;
+
+  return Buffer.from(base64, 'base64');
+}
+
+async function verifyFaceWithOrvApi({
+  imageBase64,
+  expectedUser,
+  threshold = ORV_FACE_THRESHOLD,
+  nightMode = false,
+}) {
+  const imageBuffer = imageBase64ToBuffer(imageBase64);
+
+  if (!imageBuffer || imageBuffer.length === 0) {
+    throw new Error('Slika za preverjanje obraza ni bila poslana.');
+  }
+
+  const form = new FormData();
+
+  form.append('image', imageBuffer, {
+    filename: 'face-login.jpg',
+    contentType: 'image/jpeg',
+  });
+
+  form.append('expectedUser', expectedUser);
+  form.append('threshold', String(threshold));
+  form.append('nightMode', String(Boolean(nightMode)));
+
+  const response = await axios.post(`${ORV_API_URL}/verify-face`, form, {
+    headers: form.getHeaders(),
+    timeout: 30000,
+  });
+
+  return response.data;
+}
+
 const server = http.createServer(async (req, res) => {
   const corsHeaders = {
     'Access-Control-Allow-Origin': '*',
@@ -630,9 +680,11 @@ const server = http.createServer(async (req, res) => {
     req.on('end', async () => {
       try {
         const data = JSON.parse(body);
+
         const usernameCandidates = Array.isArray(data.usernames)
           ? data.usernames
-          : [data.username];
+          : [data.username, data.expectedUser, data.email];
+
         const username = findExistingFaceUsername(usernameCandidates);
 
         if (!username) {
@@ -641,33 +693,64 @@ const server = http.createServer(async (req, res) => {
             ...corsHeaders,
           });
           res.end(JSON.stringify({
+            success: false,
+            verified: false,
             error: 'ORV profil ni najden. Preveri data/users ali ime uporabnika za face login.',
             tried: usernameCandidates.map(safeFaceUsername).filter(Boolean),
           }));
           return;
         }
 
-        const result = await runFaceLogin({
-          username,
-          threshold: Number(data.threshold || 0.95),
-          camera: Number(data.camera || 0),
-          frames: Number(data.frames || 9),
-          minAgreement: Number(data.minAgreement || 0.7),
-          margin: Number(data.margin || 0.08),
+        if (!data.imageBase64) {
+          res.writeHead(400, {
+            'Content-Type': 'application/json',
+            ...corsHeaders,
+          });
+          res.end(JSON.stringify({
+            success: false,
+            verified: false,
+            error: 'Slika za preverjanje obraza ni bila poslana.',
+          }));
+          return;
+        }
+
+        const result = await verifyFaceWithOrvApi({
+          imageBase64: data.imageBase64,
+          expectedUser: username,
+          threshold: Number(data.threshold || ORV_FACE_THRESHOLD),
           nightMode: Boolean(data.nightMode),
         });
 
-        res.writeHead(result.success ? 200 : 401, {
+        res.writeHead(result.verified ? 200 : 401, {
           'Content-Type': 'application/json',
           ...corsHeaders,
         });
-        res.end(JSON.stringify(result));
+
+        res.end(JSON.stringify({
+          success: result.success,
+          verified: result.verified,
+          faceDetected: result.faceDetected,
+          expectedUser: result.expectedUser,
+          predictedUser: result.predictedUser,
+          probability: result.probability,
+          threshold: result.threshold,
+          faceBox: result.faceBox,
+          message: result.message,
+        }));
       } catch (error) {
+        console.error('ORV API face login error:', error.response?.data || error.message || error);
+
         res.writeHead(500, {
           'Content-Type': 'application/json',
           ...corsHeaders,
         });
-        res.end(JSON.stringify({ error: error.message || String(error) }));
+
+        res.end(JSON.stringify({
+          success: false,
+          verified: false,
+          error: 'Napaka pri preverjanju obraza prek ORV API-ja.',
+          detail: error.response?.data || error.message || String(error),
+        }));
       }
     });
 
@@ -1048,51 +1131,50 @@ const server = http.createServer(async (req, res) => {
     return;
   }
 
-
   if (req.method === 'GET' && req.url === '/stats') {
-  try {
-    const usersCollection = await getCollection('users');
-    const weatherCollection = await getCollection('weather');
-    const trailsCollection = await getCollection('trails');
-    const riskAnalysesCollection = await getCollection('riskAnalyses');
-    const sensorReadingsCollection = await getCollection(SENSOR_READINGS_COLLECTION);
+    try {
+      const usersCollection = await getCollection('users');
+      const weatherCollection = await getCollection('weather');
+      const trailsCollection = await getCollection('trails');
+      const riskAnalysesCollection = await getCollection('riskAnalyses');
+      const sensorReadingsCollection = await getCollection(SENSOR_READINGS_COLLECTION);
 
-    const usersCount = await usersCollection.countDocuments();
-    const weatherCount = await weatherCollection.countDocuments();
-    const trailsCount = await trailsCollection.countDocuments();
-    const riskAnalysesCount = await riskAnalysesCollection.countDocuments();
-    const sensorReadingsCount = await sensorReadingsCollection.countDocuments();
+      const usersCount = await usersCollection.countDocuments();
+      const weatherCount = await weatherCollection.countDocuments();
+      const trailsCount = await trailsCollection.countDocuments();
+      const riskAnalysesCount = await riskAnalysesCollection.countDocuments();
+      const sensorReadingsCount = await sensorReadingsCollection.countDocuments();
 
-    const latestWeather = await weatherCollection
-      .find({})
-      .sort({ scrapedAt: -1 })
-      .limit(1)
-      .toArray();
+      const latestWeather = await weatherCollection
+        .find({})
+        .sort({ scrapedAt: -1 })
+        .limit(1)
+        .toArray();
 
-    res.writeHead(200, {
-      'Content-Type': 'application/json',
-      ...corsHeaders,
-    });
+      res.writeHead(200, {
+        'Content-Type': 'application/json',
+        ...corsHeaders,
+      });
 
-    res.end(JSON.stringify({
-      usersCount,
-      weatherCount,
-      trailsCount,
-      riskAnalysesCount,
-      sensorReadingsCount,
-      lastWeatherScrape: latestWeather[0]?.scrapedAt || null
-    }));
-  } catch (error) {
-    res.writeHead(500, {
-      'Content-Type': 'application/json',
-      ...corsHeaders,
-    });
+      res.end(JSON.stringify({
+        usersCount,
+        weatherCount,
+        trailsCount,
+        riskAnalysesCount,
+        sensorReadingsCount,
+        lastWeatherScrape: latestWeather[0]?.scrapedAt || null
+      }));
+    } catch (error) {
+      res.writeHead(500, {
+        'Content-Type': 'application/json',
+        ...corsHeaders,
+      });
 
-    res.end(JSON.stringify({ error: error.message || String(error) }));
+      res.end(JSON.stringify({ error: error.message || String(error) }));
+    }
+
+    return;
   }
-
-  return;
-}
 
   res.writeHead(404, { 'Content-Type': 'text/plain' });
   res.end('Not found');
