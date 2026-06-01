@@ -7,6 +7,7 @@ import { StyleSheet } from 'react-native';
 export default function History() {
   const router = useRouter();
   const [readings, setReadings] = useState<SensorReading[]>([]);
+  const [filter, setFilter] = useState<'all' | 'today' | '24h'>('all');
 
   useEffect(() => {
     loadReadings();
@@ -66,12 +67,54 @@ export default function History() {
       ? readings.reduce((sum, r) => sum + r.accelerometer.z, 0) / readings.length
       : 0;
 
+  const now = new Date();
+
+  const filteredReadings =
+    filter === 'today'
+      ? readings.filter(
+          r =>
+            new Date(r.timestamp).toDateString() ===
+            now.toDateString()
+        )
+      : filter === '24h'
+      ? readings.filter(r => {
+          const diff =
+            now.getTime() -
+            new Date(r.timestamp).getTime();
+
+          return diff <= 24 * 60 * 60 * 1000;
+        })
+      : readings;
+
   return (
     <SafeAreaView style={styles.container}>
       <ScrollView contentContainerStyle={styles.scrollContent}>
         <View style={styles.header}>
           <Text style={styles.title}>HRIBOVC <Text style={styles.orange}>HISTORY</Text></Text>
           <Text style={styles.count}>Shranjenih meritev: {readings.length}</Text>
+        </View>
+
+        <View style={styles.filterContainer}>
+          <TouchableOpacity
+            style={styles.filterBtn}
+            onPress={() => setFilter('all')}
+          >
+            <Text style={styles.filterText}>VSE</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={styles.filterBtn}
+            onPress={() => setFilter('today')}
+          >
+            <Text style={styles.filterText}>DANES</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={styles.filterBtn}
+            onPress={() => setFilter('24h')}
+          >
+            <Text style={styles.filterText}>24 UR</Text>
+          </TouchableOpacity>
         </View>
 
         <View style={styles.statsBox}>
@@ -97,7 +140,7 @@ export default function History() {
         {readings.length === 0 ? (
           <Text style={styles.empty}>Ni še nobenih meritev.</Text>
         ) : (
-          readings.map((r, i) => (
+          filteredReadings.map((r, i) => (
             <View key={i} style={styles.card}>
               <Text style={styles.time}>{new Date(r.timestamp).toLocaleTimeString()}</Text>
               <Text style={styles.data}>X: {r.accelerometer.x.toFixed(3)}</Text>
@@ -260,5 +303,27 @@ statsTitle: {
   fontWeight: '800',
   letterSpacing: 1,
   marginBottom: 14,
+},
+
+filterContainer: {
+  flexDirection: 'row',
+  justifyContent: 'center',
+  gap: 10,
+  marginTop: 15,
+  marginBottom: 20,
+},
+
+filterBtn: {
+  borderWidth: 1,
+  borderColor: 'rgba(255,255,255,0.15)',
+  borderRadius: 20,
+  paddingHorizontal: 12,
+  paddingVertical: 8,
+},
+
+filterText: {
+  color: '#fff',
+  fontSize: 12,
+  fontWeight: '700',
 },
 }); 
