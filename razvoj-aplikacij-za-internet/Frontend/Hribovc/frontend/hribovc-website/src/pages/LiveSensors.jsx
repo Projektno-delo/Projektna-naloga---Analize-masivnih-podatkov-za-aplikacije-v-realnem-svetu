@@ -54,6 +54,17 @@ const createEmptyDevice = deviceId => ({
   lastStatusAt: null,
 })
 
+const isDeviceActive = device => {
+  if (!device.lastHeartbeatAt) {
+    return false
+  }
+
+  const lastHeartbeatTime = new Date(device.lastHeartbeatAt).getTime()
+  const now = Date.now()
+
+  return now - lastHeartbeatTime <= MQTT_CONFIG.activeDeviceTimeoutMs
+}
+
 function LiveSensors() {
   const [status, setStatus] = useState('connecting')
   const [latestReading, setLatestReading] = useState(null)
