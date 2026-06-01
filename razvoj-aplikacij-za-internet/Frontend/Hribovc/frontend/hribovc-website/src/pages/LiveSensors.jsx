@@ -303,7 +303,22 @@ function LiveSensors() {
                     <span>GPS longitude</span>
                     <strong>{formatCoordinate(device.lastReading?.location?.longitude)}</strong>
                   </div>
-                  
+
+                  <div className="device-data-block">
+                    <span>Accel X</span>
+                    <strong>{formatNumber(device.lastReading?.accelerometer?.x)}</strong>
+                  </div>
+
+                  <div className="device-data-block">
+                    <span>Accel Y</span>
+                    <strong>{formatNumber(device.lastReading?.accelerometer?.y)}</strong>
+                  </div>
+
+                  <div className="device-data-block">
+                    <span>Accel Z</span>
+                    <strong>{formatNumber(device.lastReading?.accelerometer?.z)}</strong>
+                  </div>
+
                   <div className="device-meta">
                     <span>Zadnji heartbeat: {formatTime(device.lastHeartbeatAt)}</span>
                     <span>Zadnja meritev: {formatTime(device.lastReadingAt)}</span>
