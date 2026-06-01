@@ -28,7 +28,7 @@ jobs:
             exit 1
           fi
 
-          # Če ni napake, mora biti datoteka prazna.
+          # Ce ni napake, mora biti datoteka prazna.
           : > napaka.txt
 
       - name: Shrani artefakt z napakami
@@ -58,7 +58,7 @@ jobs:
       - name: Preveri vsebino napaka.txt
         shell: bash
         run: |
-          # Če datoteka ni prazna, prekinemo izvajanje drugega posla.
+          # Ce datoteka ni prazna, prekinemo izvajanje drugega posla.
           if [ -s napaka.txt ]; then
             cat napaka.txt
             exit 1
@@ -75,6 +75,6 @@ jobs:
         working-directory: razvoj-aplikacij-za-internet/Frontend/Hribovc/frontend/hribovc-website
         run: npm ci
 
-      - name: Poženi teste
+      - name: Pozeni teste
         working-directory: razvoj-aplikacij-za-internet/Frontend/Hribovc/frontend/hribovc-website
         run: npm test
