@@ -87,7 +87,25 @@ function LiveSensors() {
           }
         })
       },
-      onHeartbeat: value => setHeartbeat(value),
+      onHeartbeat: heartbeatMessage => {
+        const deviceId = getDeviceId(heartbeatMessage)
+        const heartbeatAt = heartbeatMessage.timestamp || new Date().toISOString()
+
+        setHeartbeat(heartbeatMessage)
+
+        setDevices(previous => {
+          const currentDevice = previous[deviceId] || createEmptyDevice(deviceId)
+
+          return {
+            ...previous,
+            [deviceId]: {
+              ...currentDevice,
+              lastHeartbeatAt: heartbeatAt,
+              status: currentDevice.status === 'unknown' ? 'active' : currentDevice.status,
+            },
+          }
+        })
+      },
       onError: error => setErrorMessage(error?.message || 'MQTT povezava ni uspela'),
     })
 
