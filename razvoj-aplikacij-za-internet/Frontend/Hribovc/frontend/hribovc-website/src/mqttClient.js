@@ -35,6 +35,7 @@ export const createWebMqttClient = ({
   onStatusChange,
   onSensorReading,
   onHeartbeat,
+  onDeviceStatus,
   onError,
 } = {}) => {
   const client = mqtt.connect(MQTT_CONFIG.brokerUrl, {
@@ -88,6 +89,11 @@ export const createWebMqttClient = ({
 
     if (topic === MQTT_CONFIG.heartbeatTopic) {
       onHeartbeat?.(parsed)
+      return
+    }
+
+    if (topic === MQTT_CONFIG.statusTopic) {
+      onDeviceStatus?.(parsed)
     }
   })
 
