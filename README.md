@@ -1,5 +1,13 @@
 # Hribovc
 
+Mosquitto broker docker server
+
+cd ...\...\namenska-programska-oprema\
+
+docker compose up -d
+
+docker ps
+
 cd C:\Users\Ziga\Desktop\Projektna-naloga---Analize-masivnih-podatkov-za-aplikacije-v-realnem-svetu\razvoj-aplikacij-za-internet\backend
 
 node server.js
