@@ -37,11 +37,29 @@ const statusLabel = {
   error: 'Napaka',
 }
 
+const getDeviceId = value => (
+  value?.deviceId
+  || value?.device_id
+  || value?.clientId
+  || value?.id
+  || 'unknown-device'
+)
+
+const createEmptyDevice = deviceId => ({
+  deviceId,
+  lastReading: null,
+  lastReadingAt: null,
+  lastHeartbeatAt: null,
+  status: 'unknown',
+  lastStatusAt: null,
+})
+
 function LiveSensors() {
   const [status, setStatus] = useState('connecting')
   const [latestReading, setLatestReading] = useState(null)
   const [heartbeat, setHeartbeat] = useState(null)
   const [readings, setReadings] = useState([])
+  const [devices, setDevices] = useState({})
   const [errorMessage, setErrorMessage] = useState('')
   const clientRef = useRef(null)
 
