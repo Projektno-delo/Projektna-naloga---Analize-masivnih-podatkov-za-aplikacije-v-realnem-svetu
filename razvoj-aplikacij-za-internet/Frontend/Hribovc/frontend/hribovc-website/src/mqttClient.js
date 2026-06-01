@@ -46,19 +46,29 @@ export const createWebMqttClient = ({
 
   client.on('connect', () => {
     onStatusChange?.('connected')
+
     client.subscribe([
       MQTT_CONFIG.sensorsTopic,
       MQTT_CONFIG.heartbeatTopic,
+      MQTT_CONFIG.statusTopic,
     ], (error) => {
       if (error) {
         onError?.(error)
+        return
       }
+
+      console.log('Subscribed to MQTT topics:', {
+        sensorsTopic: MQTT_CONFIG.sensorsTopic,
+        heartbeatTopic: MQTT_CONFIG.heartbeatTopic,
+        statusTopic: MQTT_CONFIG.statusTopic,
+      })
     })
   })
 
   client.on('reconnect', () => onStatusChange?.('reconnecting'))
   client.on('offline', () => onStatusChange?.('offline'))
   client.on('close', () => onStatusChange?.('offline'))
+
   client.on('error', error => {
     onStatusChange?.('error')
     onError?.(error)
@@ -66,6 +76,7 @@ export const createWebMqttClient = ({
 
   client.on('message', (topic, payload) => {
     const parsed = parseMqttJson(payload)
+
     if (!parsed) {
       return
     }
