@@ -10,8 +10,9 @@ export const parseMqttJson = (payload, topic = 'unknown') => {
   }
 }
 
-export const isSensorReading = (value) => {
+export const isSensorReading = value => {
   const accelerometer = value?.accelerometer
+
   const hasAccelerometer = (
     Number.isFinite(accelerometer?.x)
     && Number.isFinite(accelerometer?.y)
@@ -53,7 +54,7 @@ export const createWebMqttClient = ({
       MQTT_CONFIG.sensorsTopic,
       MQTT_CONFIG.heartbeatTopic,
       MQTT_CONFIG.statusTopic,
-    ], (error) => {
+    ], error => {
       if (error) {
         onError?.(error)
         return
