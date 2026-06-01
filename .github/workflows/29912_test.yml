@@ -63,16 +63,6 @@ jobs:
     if: github.ref == 'refs/heads/main'
 
     steps:
-      - name: Debug DockerHub secrets
-        shell: powershell
-        env:
-          DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
-          DOCKERHUB_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}
-        
-        run: |
-          Write-Host "Username length: $($env:DOCKERHUB_USERNAME.Length)"
-          Write-Host "Token length: $($env:DOCKERHUB_TOKEN.Length)"
-
       - name: Omogoci dolge poti v Gitu
         shell: powershell
         run: git config --global core.longpaths true
@@ -81,16 +71,10 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Prijava v DockerHub
-        shell: powershell
-        env:
-          DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
-          DOCKERHUB_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}
-        run: |
-          if (!$env:DOCKERHUB_USERNAME -or !$env:DOCKERHUB_TOKEN) {
-            throw "Manjkata secrets DOCKERHUB_USERNAME ali DOCKERHUB_TOKEN."
-          }
-
-          $env:DOCKERHUB_TOKEN | docker login -u $env:DOCKERHUB_USERNAME --password-stdin
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
 
       - name: Zgradi Docker sliko
         shell: powershell
