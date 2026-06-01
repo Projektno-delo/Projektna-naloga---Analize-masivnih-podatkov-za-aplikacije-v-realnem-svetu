@@ -1,90 +1,103 @@
-name: 29912 Testiranje Website
+name: 29912 CI/CD Website
 
 on:
   push:
     branches:
       - main
+  pull_request:
+    branches:
+      - main
+  workflow_dispatch:
+
+env:
+  APP_DIR: razvoj-aplikacij-za-internet/Frontend/Hribovc/frontend/hribovc-website
 
 jobs:
-  preveri-teste:
-    name: Preveri obstoj testov
+  test:
+    name: Test website
     runs-on: [self-hosted, Windows, X64]
 
     steps:
-      - name: Omogoci dolge poti v Gitu na Windows runnerju
-        shell: pwsh
+      - name: Omogoci dolge poti v Gitu
+        shell: powershell
         run: git config --global core.longpaths true
 
-      - name: Prenesi kodo iz repozitorija
+      - name: Prenesi kodo
         uses: actions/checkout@v4
 
-      - name: Preveri, ali obstajajo testne skripte
-        shell: pwsh
-        run: |
-          # Standardno napako preusmerimo v napaka.txt, kot zahteva naloga.
-          if (!(Test-Path "razvoj-aplikacij-za-internet/Frontend/Hribovc/frontend/hribovc-website/tests")) {
-            "Mapa tests ne obstaja." | Out-File -FilePath napaka.txt
-            exit 1
-          }
-
-          $testFiles = Get-ChildItem "razvoj-aplikacij-za-internet/Frontend/Hribovc/frontend/hribovc-website/tests" -Filter "*.test.cjs" -ErrorAction SilentlyContinue
-
-          if ($testFiles.Count -eq 0) {
-            "Testne datoteke ne obstajajo." | Out-File -FilePath napaka.txt
-            exit 1
-          }
-
-          # Ce ni napake, mora biti datoteka prazna.
-          New-Item -Path napaka.txt -ItemType File -Force | Out-Null
-
-      - name: Shrani artefakt z napakami
-        uses: actions/upload-artifact@v4
-        with:
-          name: napaka
-          path: napaka.txt
-
-  izvedi-teste:
-    name: Izvedi teste
-    runs-on: [self-hosted, Windows, X64]
-    needs: preveri-teste
-
-    strategy:
-      matrix:
-        node-version: [20, 22]
-
-    steps:
-      - name: Omogoci dolge poti v Gitu na Windows runnerju
-        shell: pwsh
-        run: git config --global core.longpaths true
-
-      - name: Prenesi kodo iz repozitorija
-        uses: actions/checkout@v4
-
-      - name: Prenesi artefakt napaka.txt iz prvega posla
-        uses: actions/download-artifact@v4
-        with:
-          name: napaka
-
-      - name: Preveri vsebino napaka.txt
-        shell: pwsh
-        run: |
-          # Ce datoteka ni prazna, prekinemo izvajanje drugega posla.
-          if ((Get-Item napaka.txt).Length -gt 0) {
-            Get-Content napaka.txt
-            exit 1
-          }
-
-      - name: Nastavi Node.js okolje
+      - name: Nastavi Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: ${{ matrix.node-version }}
+          node-version: 20
           cache: npm
-          cache-dependency-path: razvoj-aplikacij-za-internet/Frontend/Hribovc/frontend/hribovc-website/package-lock.json
+          cache-dependency-path: ${{ env.APP_DIR }}/package-lock.json
 
-      - name: Namesti odvisnosti
-        working-directory: razvoj-aplikacij-za-internet/Frontend/Hribovc/frontend/hribovc-website
-        run: npm ci
+      - name: Namesti, testiraj in zgradi
+        shell: powershell
+        run: |
+          $mapped = $false
 
-      - name: Pozeni teste
-        working-directory: razvoj-aplikacij-za-internet/Frontend/Hribovc/frontend/hribovc-website
-        run: npm test
+          if (-not (Test-Path "W:\")) {
+            subst W: "$env:GITHUB_WORKSPACE"
+            $mapped = $true
+            $app = "W:\$env:APP_DIR"
+          } else {
+            $app = Join-Path $env:GITHUB_WORKSPACE $env:APP_DIR
+          }
+
+          try {
+            Set-Location $app
+            npm ci
+            npm test
+            npm run build
+          } finally {
+            if ($mapped) {
+              subst W: /D
+            }
+          }
+
+  dockerhub:
+    name: Build and push Docker image
+    runs-on: [self-hosted, Windows, X64]
+    needs: test
+    if: github.ref == 'refs/heads/main'
+
+    steps:
+      - name: Omogoci dolge poti v Gitu
+        shell: powershell
+        run: git config --global core.longpaths true
+
+      - name: Prenesi kodo
+        uses: actions/checkout@v4
+
+      - name: Prijava v DockerHub
+        shell: powershell
+        env:
+          DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
+          DOCKERHUB_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}
+        run: |
+          if (!$env:DOCKERHUB_USERNAME -or !$env:DOCKERHUB_TOKEN) {
+            throw "Manjkata secrets DOCKERHUB_USERNAME ali DOCKERHUB_TOKEN."
+          }
+
+          $env:DOCKERHUB_TOKEN | docker login -u $env:DOCKERHUB_USERNAME --password-stdin
+
+      - name: Zgradi Docker sliko
+        shell: powershell
+        env:
+          DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
+        run: |
+          $app = Join-Path $env:GITHUB_WORKSPACE $env:APP_DIR
+          $image = "$env:DOCKERHUB_USERNAME/hribovc-website".ToLowerInvariant()
+
+          docker build -t "${image}:latest" -t "${image}:$env:GITHUB_SHA" $app
+
+      - name: Objavi Docker sliko
+        shell: powershell
+        env:
+          DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
+        run: |
+          $image = "$env:DOCKERHUB_USERNAME/hribovc-website".ToLowerInvariant()
+
+          docker push "${image}:latest"
+          docker push "${image}:$env:GITHUB_SHA"
