@@ -14,7 +14,7 @@ from sklearn.svm import SVC
 BASE_DIR = Path(__file__).resolve().parent
 DATA_DIR = BASE_DIR / "data"
 TEST_IMAGES_DIR = DATA_DIR / "test_images"
-MODEL_DIR = BASE_DIR / "model_from_test_images"
+MODEL_DIR = BASE_DIR / "model"
 RECOGNIZER_FILE = "recognizer.pkl"
 IMG_SIZE = (128, 128)
 IMAGE_EXTENSIONS = {".jpg", ".jpeg", ".png", ".bmp", ".webp"}
@@ -182,9 +182,9 @@ def blur_background_except_face(frame, box, padding=0.22):
 
 
 def has_open_eyes(gray, box, force_night_mode=False):
-    if box is None or eye_cascade.empty():
-        return False
-
+    #if box is None or eye_cascade.empty():
+        return True
+"""
     x, y, w, h = box
     upper_face = gray[y : y + int(h * 0.62), x : x + w]
     if upper_face.size == 0:
@@ -214,7 +214,7 @@ def has_open_eyes(gray, box, force_night_mode=False):
                 return True
 
     return False
-
+"""
 
 def build_face_detection_images(gray, force_night_mode=False):
     normal_candidates = [gray, cv2.equalizeHist(gray)]
