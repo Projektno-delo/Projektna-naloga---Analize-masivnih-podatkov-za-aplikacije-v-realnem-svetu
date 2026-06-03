@@ -3,6 +3,7 @@ const bcrypt = require('bcryptjs');
 const path = require('path');
 const { spawn } = require('child_process');
 const { ObjectId } = require('mongodb');
+const { randomUUID } = require('crypto');
 
 const axios = require('axios');
 const FormData = require('form-data');
@@ -10,6 +11,8 @@ const FormData = require('form-data');
 const ORV_API_URL = normalizeOrvApiUrl(process.env.ORV_API_URL || 'http://localhost:8000');
 const ORV_FACE_THRESHOLD = readFaceThreshold(process.env.ORV_FACE_THRESHOLD, 0.7);
 const ORV_FACE_TIMEOUT_MS = readPositiveInteger(process.env.ORV_FACE_TIMEOUT_MS, 30000);
+const ORV_2FA_TTL_MS = readPositiveInteger(process.env.ORV_2FA_TTL_MS, 90000);
+const orv2faChallenges = new Map();
 
 const {
   scrapeAndStoreWeather,
@@ -25,7 +28,9 @@ const { analyzeTrail } = require('./services/riskService');
 const { getVisualizationData } = require('./services/visualizationService');
 const {
   startSensorMqttSubscriber,
+  publishMqttMessage,
   saveSensorReading,
+  MQTT_ORV_2FA_REQUEST_TOPIC,
   SENSOR_READINGS_COLLECTION,
   SENSOR_HEARTBEATS_COLLECTION
 } = require('./services/sensorMqttService');
@@ -517,6 +522,112 @@ async function verifyFaceWithOrvApi({
   return response.data;
 }
 
+function getFaceUsernameFromRequest(data = {}) {
+  const usernameCandidates = Array.isArray(data.usernames)
+    ? data.usernames
+    : [data.username, data.expectedUser, data.email, data.userEmail];
+
+  const username = findExistingFaceUsername(usernameCandidates);
+
+  return {
+    username,
+    tried: usernameCandidates.map(safeFaceUsername).filter(Boolean),
+  };
+}
+
+function normalizeFaceLoginResult(result = {}, fallbackExpectedUser = null) {
+  const verified = Boolean(result.verified ?? result.success);
+
+  return {
+    success: Boolean(result.success ?? verified),
+    verified,
+    pending: false,
+    status: verified ? 'approved' : 'rejected',
+    faceDetected: result.faceDetected,
+    expectedUser: result.expectedUser ?? result.username ?? fallbackExpectedUser,
+    predictedUser: result.predictedUser ?? result.recognized,
+    probability: result.probability ?? result.score,
+    threshold: result.threshold,
+    faceBox: result.faceBox,
+    message: result.message || result.error || null,
+    error: result.error || null,
+  };
+}
+
+function createOrv2faChallenge({ username, userEmail, threshold, nightMode }) {
+  const now = new Date();
+  const expiresAt = new Date(now.getTime() + ORV_2FA_TTL_MS);
+  const challenge = {
+    challengeId: randomUUID(),
+    status: 'pending',
+    username,
+    userEmail: String(userEmail || '').trim().toLowerCase(),
+    threshold,
+    nightMode: Boolean(nightMode),
+    createdAt: now,
+    expiresAt,
+    result: null,
+  };
+
+  orv2faChallenges.set(challenge.challengeId, challenge);
+
+  setTimeout(() => {
+    const current = orv2faChallenges.get(challenge.challengeId);
+
+    if (current?.status === 'pending') {
+      current.status = 'expired';
+      current.result = {
+        success: false,
+        verified: false,
+        pending: false,
+        status: 'expired',
+        expectedUser: current.username,
+        error: 'ORV 2FA zahteva je potekla.',
+      };
+    }
+  }, ORV_2FA_TTL_MS + 1000);
+
+  return challenge;
+}
+
+function refreshOrv2faChallengeStatus(challenge) {
+  if (
+    challenge
+    && challenge.status === 'pending'
+    && new Date(challenge.expiresAt).getTime() <= Date.now()
+  ) {
+    challenge.status = 'expired';
+    challenge.result = {
+      success: false,
+      verified: false,
+      pending: false,
+      status: 'expired',
+      expectedUser: challenge.username,
+      error: 'ORV 2FA zahteva je potekla.',
+    };
+  }
+
+  return challenge;
+}
+
+function publicOrv2faChallenge(challenge) {
+  const current = refreshOrv2faChallengeStatus(challenge);
+
+  if (!current) {
+    return null;
+  }
+
+  return {
+    challengeId: current.challengeId,
+    pending: current.status === 'pending',
+    status: current.status,
+    expiresAt: current.expiresAt,
+    expectedUser: current.username,
+    userEmail: current.userEmail,
+    result: current.result,
+  };
+}
+
 const server = http.createServer(async (req, res) => {
   const corsHeaders = {
     'Access-Control-Allow-Origin': '*',
@@ -769,6 +880,212 @@ const server = http.createServer(async (req, res) => {
       }
     });
 
+    return;
+  }
+
+  if (req.method === 'POST' && requestUrl.pathname === '/orv-2fa/start') {
+    try {
+      const data = await readJsonBody(req);
+      const cameraMode = data.cameraMode === 'phone' ? 'phone' : 'pc';
+      const { username, tried } = getFaceUsernameFromRequest(data);
+
+      if (!username) {
+        res.writeHead(400, {
+          'Content-Type': 'application/json',
+          ...corsHeaders,
+        });
+        res.end(JSON.stringify({
+          success: false,
+          verified: false,
+          error: 'ORV profil ni najden. Preveri data/users ali ime uporabnika za face login.',
+          tried,
+        }));
+        return;
+      }
+
+      const threshold = parseRequestedFaceThreshold(data.threshold);
+      const nightMode = Boolean(data.nightMode);
+
+      if (cameraMode === 'pc') {
+        const result = await runFaceLogin({
+          username,
+          threshold,
+          camera: Number(data.camera || 0),
+          frames: Number(data.frames || 9),
+          minAgreement: Number(data.minAgreement || 0.7),
+          margin: Number(data.margin || 0.08),
+          nightMode,
+        });
+        const normalized = normalizeFaceLoginResult(result, username);
+
+        res.writeHead(normalized.verified ? 200 : 401, {
+          'Content-Type': 'application/json',
+          ...corsHeaders,
+        });
+        res.end(JSON.stringify({
+          ...normalized,
+          cameraMode,
+        }));
+        return;
+      }
+
+      const challenge = createOrv2faChallenge({
+        username,
+        userEmail: data.email || data.userEmail,
+        threshold,
+        nightMode,
+      });
+
+      await publishMqttMessage(MQTT_ORV_2FA_REQUEST_TOPIC, {
+        type: 'orv-2fa-request',
+        challengeId: challenge.challengeId,
+        userEmail: challenge.userEmail,
+        expectedUser: challenge.username,
+        threshold: challenge.threshold,
+        nightMode: challenge.nightMode,
+        createdAt: challenge.createdAt,
+        expiresAt: challenge.expiresAt,
+      });
+
+      res.writeHead(202, {
+        'Content-Type': 'application/json',
+        ...corsHeaders,
+      });
+      res.end(JSON.stringify({
+        success: false,
+        verified: false,
+        pending: true,
+        status: 'pending',
+        cameraMode,
+        challengeId: challenge.challengeId,
+        expiresAt: challenge.expiresAt,
+        topic: MQTT_ORV_2FA_REQUEST_TOPIC,
+      }));
+    } catch (error) {
+      console.error('ORV 2FA start error:', error.response?.data || error.message || error);
+
+      res.writeHead(getOrvApiErrorStatus(error), {
+        'Content-Type': 'application/json',
+        ...corsHeaders,
+      });
+      res.end(JSON.stringify({
+        success: false,
+        verified: false,
+        error: getOrvApiErrorMessage(error),
+        detail: getOrvApiErrorDetail(error),
+      }));
+    }
+    return;
+  }
+
+  if (req.method === 'GET' && requestUrl.pathname === '/orv-2fa/status') {
+    const challengeId = requestUrl.searchParams.get('challengeId');
+    const challenge = publicOrv2faChallenge(orv2faChallenges.get(challengeId));
+
+    if (!challenge) {
+      res.writeHead(404, {
+        'Content-Type': 'application/json',
+        ...corsHeaders,
+      });
+      res.end(JSON.stringify({
+        success: false,
+        verified: false,
+        error: 'ORV 2FA zahteva ni najdena.',
+      }));
+      return;
+    }
+
+    res.writeHead(200, {
+      'Content-Type': 'application/json',
+      ...corsHeaders,
+    });
+    res.end(JSON.stringify({
+      success: challenge.status === 'approved',
+      verified: challenge.status === 'approved',
+      ...challenge,
+    }));
+    return;
+  }
+
+  if (req.method === 'POST' && requestUrl.pathname === '/orv-2fa/verify') {
+    try {
+      const data = await readJsonBody(req);
+      const challenge = refreshOrv2faChallengeStatus(orv2faChallenges.get(data.challengeId));
+
+      if (!challenge) {
+        res.writeHead(404, {
+          'Content-Type': 'application/json',
+          ...corsHeaders,
+        });
+        res.end(JSON.stringify({
+          success: false,
+          verified: false,
+          error: 'ORV 2FA zahteva ni najdena.',
+        }));
+        return;
+      }
+
+      if (challenge.status !== 'pending') {
+        res.writeHead(409, {
+          'Content-Type': 'application/json',
+          ...corsHeaders,
+        });
+        res.end(JSON.stringify(publicOrv2faChallenge(challenge)));
+        return;
+      }
+
+      const senderEmail = String(data.userEmail || '').trim().toLowerCase();
+
+      if (challenge.userEmail && senderEmail && challenge.userEmail !== senderEmail) {
+        res.writeHead(403, {
+          'Content-Type': 'application/json',
+          ...corsHeaders,
+        });
+        res.end(JSON.stringify({
+          success: false,
+          verified: false,
+          error: 'ORV 2FA zahteva pripada drugemu uporabniku.',
+        }));
+        return;
+      }
+
+      const result = await verifyFaceWithOrvApi({
+        imageBase64: data.imageBase64,
+        expectedUser: challenge.username,
+        threshold: challenge.threshold,
+        nightMode: Boolean(data.nightMode ?? challenge.nightMode),
+      });
+      const normalized = normalizeFaceLoginResult(result, challenge.username);
+
+      challenge.status = normalized.verified ? 'approved' : 'rejected';
+      challenge.result = {
+        ...normalized,
+        status: challenge.status,
+        deviceId: data.deviceId || null,
+        userEmail: senderEmail || challenge.userEmail,
+        verifiedAt: new Date(),
+      };
+
+      res.writeHead(normalized.verified ? 200 : 401, {
+        'Content-Type': 'application/json',
+        ...corsHeaders,
+      });
+      res.end(JSON.stringify(publicOrv2faChallenge(challenge)));
+    } catch (error) {
+      console.error('ORV 2FA verify error:', error.response?.data || error.message || error);
+
+      res.writeHead(getOrvApiErrorStatus(error), {
+        'Content-Type': 'application/json',
+        ...corsHeaders,
+      });
+      res.end(JSON.stringify({
+        success: false,
+        verified: false,
+        error: getOrvApiErrorMessage(error),
+        detail: getOrvApiErrorDetail(error),
+        orvApiUrl: ORV_API_URL,
+      }));
+    }
     return;
   }
 
