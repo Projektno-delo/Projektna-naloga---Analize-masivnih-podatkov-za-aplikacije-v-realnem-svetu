@@ -20,6 +20,8 @@ MIN_THRESHOLD = 0.0
 MAX_THRESHOLD = 1.0
 IMAGE_SIZE = (128, 128)
 PHONE_PREVIEW_WINDOW = "ORV telefon kamera preview"
+PHONE_PREVIEW_MAX_WIDTH = 420
+PHONE_PREVIEW_MAX_HEIGHT = 560
 
 app = FastAPI(
     title="Hribovc ORV Face Recognition API",
@@ -118,6 +120,24 @@ def prepare_face_from_image(image: np.ndarray, force_night_mode: bool = False):
     }
 
 
+def resize_for_phone_preview(frame: np.ndarray) -> np.ndarray:
+    height, width = frame.shape[:2]
+    scale = min(
+        PHONE_PREVIEW_MAX_WIDTH / width,
+        PHONE_PREVIEW_MAX_HEIGHT / height,
+        1.0,
+    )
+
+    if scale >= 1.0:
+        return frame
+
+    return cv2.resize(
+        frame,
+        (int(width * scale), int(height * scale)),
+        interpolation=cv2.INTER_AREA,
+    )
+
+
 def show_phone_preview_frame(
     image: np.ndarray,
     expected_user: str = "",
@@ -152,7 +172,14 @@ def show_phone_preview_frame(
         2,
         cv2.LINE_AA,
     )
-    cv2.imshow(PHONE_PREVIEW_WINDOW, frame)
+    display_frame = resize_for_phone_preview(frame)
+    cv2.namedWindow(PHONE_PREVIEW_WINDOW, cv2.WINDOW_NORMAL)
+    cv2.resizeWindow(
+        PHONE_PREVIEW_WINDOW,
+        display_frame.shape[1],
+        display_frame.shape[0],
+    )
+    cv2.imshow(PHONE_PREVIEW_WINDOW, display_frame)
     cv2.waitKey(1)
 
     return face_box
