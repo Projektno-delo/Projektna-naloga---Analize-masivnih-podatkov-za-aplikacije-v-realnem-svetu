@@ -158,6 +158,7 @@ async def predict_face_endpoint(
     threshold: float = Form(DEFAULT_THRESHOLD),
     nightMode: bool = Form(False),
 ):
+    threshold = validate_threshold(threshold)
     recognizer = get_recognizer()
     uploaded_image = read_image_from_upload(image)
 
@@ -200,6 +201,7 @@ async def verify_face_endpoint(
     threshold: float = Form(DEFAULT_THRESHOLD),
     nightMode: bool = Form(False),
 ):
+    threshold = validate_threshold(threshold)
     recognizer = get_recognizer()
     uploaded_image = read_image_from_upload(image)
 
