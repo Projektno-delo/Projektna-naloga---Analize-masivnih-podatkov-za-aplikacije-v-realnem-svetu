@@ -9,6 +9,8 @@ import { saveReading } from './service/sensorStorage';
 import * as Haptics from 'expo-haptics';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
+const BACKEND_SAVE_INTERVAL_MS = 5000;
+
 export default function Dashboard() {
   const router = useRouter();
 
@@ -27,6 +29,7 @@ export default function Dashboard() {
   const latestLocationRef = useRef<{ latitude: number; longitude: number } | null>(null);
   const userEmailRef = useRef('');
   const deviceIdRef = useRef('unknown-device');
+  const lastBackendSaveAtRef = useRef(0);
   const pulseAnim = useRef(new Animated.Value(1)).current;
 
   const getCurrentDeviceId = () => deviceIdRef.current || 'unknown-device';
@@ -209,12 +212,47 @@ export default function Dashboard() {
     return response.json();
   };
 
-  const publishSensorReading = async (reading: any) => {
+  const publishSensorReading = (reading: any) => {
     if (!clientRef.current?.connected) {
-      throw new Error('MQTT ni povezan');
+      return Promise.reject(new Error('MQTT ni povezan'));
     }
 
-    clientRef.current.publish(CONFIG.MQTT_TOPIC_SENSORS, JSON.stringify(reading));
+    return new Promise<void>((resolve, reject) => {
+      clientRef.current.publish(
+        CONFIG.MQTT_TOPIC_SENSORS,
+        JSON.stringify(reading),
+        { qos: 1 },
+        (error: Error | null) => {
+          if (error) {
+            reject(error);
+            return;
+          }
+
+          resolve();
+        }
+      );
+    });
+  };
+
+  const queueBackendSave = (reading: any, force = false) => {
+    const now = Date.now();
+
+    if (!force && now - lastBackendSaveAtRef.current < BACKEND_SAVE_INTERVAL_MS) {
+      return Promise.resolve(null);
+    }
+
+    lastBackendSaveAtRef.current = now;
+
+    return saveReadingToBackend(reading)
+      .then((result) => {
+        setLastUploadStatus('Shranjeno v bazo');
+        return result;
+      })
+      .catch((error) => {
+        const message = error instanceof Error ? error.message : 'Ni shranjeno v bazo';
+        setLastUploadStatus(`Napaka: ${message}`);
+        throw error;
+      });
   };
 
   const sendTestReading = async () => {
@@ -234,12 +272,25 @@ export default function Dashboard() {
     };
 
     try {
-      await publishSensorReading(testReading);
-      saveReading(testReading);
-      setLastUploadStatus('Testna MQTT meritev poslana');
+      await saveReading(testReading);
+
+      const [mqttResult, backendResult] = await Promise.allSettled([
+        publishSensorReading(testReading),
+        queueBackendSave(testReading, true),
+      ]);
+
+      if (backendResult.status === 'rejected') {
+        throw backendResult.reason;
+      }
+
+      setLastUploadStatus(
+        mqttResult.status === 'fulfilled'
+          ? 'Testna meritev shranjena v bazo'
+          : 'Testna meritev shranjena v bazo, MQTT ni povezan'
+      );
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     } catch (error) {
-      const message = error instanceof Error ? error.message : 'Testna meritev ni bila poslana';
+      const message = error instanceof Error ? error.message : 'Testna meritev ni bila shranjena';
       setLastUploadStatus(`Napaka: ${message}`);
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
     }
@@ -257,8 +308,7 @@ export default function Dashboard() {
       saveReading(finalReading);
 
       try {
-        await saveReadingToBackend(finalReading);
-        setLastUploadStatus('Shranjeno v bazo');
+        await queueBackendSave(finalReading, true);
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       } catch (error) {
         const message = error instanceof Error ? error.message : 'Ni shranjeno v bazo';
@@ -280,11 +330,9 @@ export default function Dashboard() {
           timestamp: new Date().toISOString(),
         };
 
-        if (clientRef.current?.connected) {
-          clientRef.current.publish(CONFIG.MQTT_TOPIC_SENSORS, JSON.stringify(reading));
-        }
-
         saveReading(reading);
+        publishSensorReading(reading).catch(() => {});
+        queueBackendSave(reading).catch(() => {});
       });
 
       setSubscription(sub);
