@@ -16,6 +16,8 @@ from face_name_preview import (
 
 BASE_DIR = Path(__file__).resolve().parent
 DEFAULT_THRESHOLD = 0.7
+MIN_THRESHOLD = 0.0
+MAX_THRESHOLD = 1.0
 IMAGE_SIZE = (128, 128)
 
 app = FastAPI(
@@ -35,11 +37,38 @@ app.add_middleware(
 _model_cache: Any = None
 
 
+def validate_threshold(threshold: float) -> float:
+    if threshold < MIN_THRESHOLD or threshold > MAX_THRESHOLD:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Threshold mora biti med {MIN_THRESHOLD} in {MAX_THRESHOLD}.",
+        )
+
+    return threshold
+
+
 def get_recognizer():
     global _model_cache
 
+    if not is_model_available():
+        raise HTTPException(
+            status_code=503,
+            detail=(
+                "ORV model ni pripravljen. Najprej natreniraj model z ukazom: "
+                "python .\\face_name_preview.py train"
+            ),
+        )
+
     if _model_cache is None:
-        _model_cache = load_model(MODEL_DIR)
+        try:
+            _model_cache = load_model(MODEL_DIR)
+        except FileNotFoundError as error:
+            raise HTTPException(status_code=503, detail=str(error)) from error
+        except Exception as error:
+            raise HTTPException(
+                status_code=500,
+                detail=f"Napaka pri nalaganju ORV modela: {error}",
+            ) from error
 
     return _model_cache
 
@@ -129,6 +158,7 @@ async def predict_face_endpoint(
     threshold: float = Form(DEFAULT_THRESHOLD),
     nightMode: bool = Form(False),
 ):
+    threshold = validate_threshold(threshold)
     recognizer = get_recognizer()
     uploaded_image = read_image_from_upload(image)
 
@@ -171,6 +201,7 @@ async def verify_face_endpoint(
     threshold: float = Form(DEFAULT_THRESHOLD),
     nightMode: bool = Form(False),
 ):
+    threshold = validate_threshold(threshold)
     recognizer = get_recognizer()
     uploaded_image = read_image_from_upload(image)
 
