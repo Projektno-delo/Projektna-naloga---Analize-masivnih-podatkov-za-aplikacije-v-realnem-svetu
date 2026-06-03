@@ -7,8 +7,9 @@ const { ObjectId } = require('mongodb');
 const axios = require('axios');
 const FormData = require('form-data');
 
-const ORV_API_URL = process.env.ORV_API_URL || 'http://localhost:8000';
-const ORV_FACE_THRESHOLD = Number(process.env.ORV_FACE_THRESHOLD) || 0.7;
+const ORV_API_URL = normalizeOrvApiUrl(process.env.ORV_API_URL || 'http://localhost:8000');
+const ORV_FACE_THRESHOLD = readFaceThreshold(process.env.ORV_FACE_THRESHOLD, 0.7);
+const ORV_FACE_TIMEOUT_MS = readPositiveInteger(process.env.ORV_FACE_TIMEOUT_MS, 30000);
 
 const {
   scrapeAndStoreWeather,
@@ -32,6 +33,107 @@ const {
 const { getCollection, connect, initDb } = require('./db');
 
 const PORT = 3000;
+
+function normalizeOrvApiUrl(value) {
+  return String(value || 'http://localhost:8000').replace(/\/+$/, '');
+}
+
+function readFaceThreshold(value, fallback) {
+  if (value === undefined || value === null || value === '') {
+    return fallback;
+  }
+
+  const threshold = Number(value);
+
+  if (!Number.isFinite(threshold) || threshold < 0 || threshold > 1) {
+    console.warn(`[ORV] Neveljaven ORV_FACE_THRESHOLD="${value}", uporabljam ${fallback}.`);
+    return fallback;
+  }
+
+  return threshold;
+}
+
+function readPositiveInteger(value, fallback) {
+  if (value === undefined || value === null || value === '') {
+    return fallback;
+  }
+
+  const numberValue = Number(value);
+
+  if (!Number.isInteger(numberValue) || numberValue <= 0) {
+    console.warn(`[ORV] Neveljaven ORV_FACE_TIMEOUT_MS="${value}", uporabljam ${fallback}.`);
+    return fallback;
+  }
+
+  return numberValue;
+}
+
+function parseRequestedFaceThreshold(value) {
+  if (value === undefined || value === null || value === '') {
+    return ORV_FACE_THRESHOLD;
+  }
+
+  const threshold = Number(value);
+
+  if (!Number.isFinite(threshold) || threshold < 0 || threshold > 1) {
+    const error = new Error('ORV threshold mora biti stevilo med 0.0 in 1.0.');
+    error.statusCode = 400;
+    throw error;
+  }
+
+  return threshold;
+}
+
+function getOrvApiErrorStatus(error) {
+  if (error.statusCode) {
+    return error.statusCode;
+  }
+
+  if (error instanceof SyntaxError) {
+    return 400;
+  }
+
+  if (error.code === 'ECONNABORTED') {
+    return 504;
+  }
+
+  if (error.code === 'ECONNREFUSED' || error.code === 'ENOTFOUND') {
+    return 503;
+  }
+
+  if (error.response?.status) {
+    return error.response.status;
+  }
+
+  return 500;
+}
+
+function getOrvApiErrorMessage(error) {
+  if (error.statusCode === 400) {
+    return error.message;
+  }
+
+  if (error instanceof SyntaxError) {
+    return 'Neveljaven JSON v face-login zahtevku.';
+  }
+
+  if (error.code === 'ECONNABORTED') {
+    return `ORV API se ni odzval v ${ORV_FACE_TIMEOUT_MS} ms.`;
+  }
+
+  if (error.code === 'ECONNREFUSED' || error.code === 'ENOTFOUND') {
+    return `ORV API ni dosegljiv na ${ORV_API_URL}.`;
+  }
+
+  return 'Napaka pri preverjanju obraza prek ORV API-ja.';
+}
+
+function getOrvApiErrorDetail(error) {
+  return error.response?.data?.detail
+    || error.response?.data
+    || error.message
+    || String(error);
+}
 
 function calculateBmi(visina, teza) {
   const heightCm = Number(visina);
@@ -409,9 +511,9 @@ async function verifyFaceWithOrvApi({
 
   const response = await axios.post(`${ORV_API_URL}/verify-face`, form, {
     headers: form.getHeaders(),
-    timeout: 30000,
+    timeout: ORV_FACE_TIMEOUT_MS,
   });
-
+  
   return response.data;
 }
 
@@ -714,10 +816,12 @@ const server = http.createServer(async (req, res) => {
           return;
         }
 
+        const requestedThreshold = parseRequestedFaceThreshold(data.threshold);
+
         const result = await verifyFaceWithOrvApi({
           imageBase64: data.imageBase64,
           expectedUser: username,
-          threshold: Number(data.threshold || ORV_FACE_THRESHOLD),
+          threshold: requestedThreshold,
           nightMode: Boolean(data.nightMode),
         });
 
