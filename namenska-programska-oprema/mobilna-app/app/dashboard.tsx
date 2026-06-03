@@ -71,132 +71,165 @@ export default function Dashboard() {
   }, [isActive]);
 
   useEffect(() => {
-    AsyncStorage.getItem('user').then((data) => {
-      if (data) {
-        const user = JSON.parse(data);
-        const email = user.email || '';
-        const nextDeviceId = email || 'unknown-device';
+    let mounted = true;
+    let client: any = null;
 
-        userEmailRef.current = email;
-        deviceIdRef.current = nextDeviceId;
+    const loadIdentityAndConnectMqtt = async () => {
+      let email = '';
 
-        setUserEmail(email);
-        setDeviceId(nextDeviceId);
-      }
-    });
+      try {
+        const data = await AsyncStorage.getItem('user');
 
-    const client = mqtt.connect(CONFIG.MQTT_BROKER, {
-      will: {
-        topic: CONFIG.MQTT_TOPIC_STATUS,
-        payload: JSON.stringify({
-          deviceId: getCurrentDeviceId(),
-          userEmail: getCurrentUserEmail(),
-          status: 'offline',
-          timestamp: new Date().toISOString(),
-        }),
-        qos: 1,
-        retain: false,
-      },
-    });
-
-    clientRef.current = client;
-
-    client.on('connect', () => {
-      console.log('MQTT connected:', CONFIG.MQTT_BROKER);
-      setMqttConnected(true);
-
-      client.subscribe(CONFIG.MQTT_TOPIC_ORV_2FA_REQUEST, (error: Error | null) => {
-        if (error) {
-          console.log('MQTT ORV subscribe error:', error?.message);
+        if (data) {
+          const user = JSON.parse(data);
+          email = user.email || '';
         }
-      });
+      } catch (error) {
+        console.log('Napaka pri branju uporabnika iz AsyncStorage:', error);
+      }
 
-      client.publish(
-        CONFIG.MQTT_TOPIC_STATUS,
-        JSON.stringify({
-          deviceId: getCurrentDeviceId(),
-          userEmail: getCurrentUserEmail(),
-          status: 'online',
-          timestamp: new Date().toISOString(),
-        })
-      );
-    });
-
-    client.on('reconnect', () => {
-      console.log('MQTT reconnecting');
-      setMqttConnected(false);
-    });
-
-    client.on('offline', () => {
-      console.log('MQTT offline');
-      setMqttConnected(false);
-    });
-
-    client.on('close', () => {
-      console.log('MQTT closed');
-      setMqttConnected(false);
-    });
-
-    client.on('end', () => {
-      console.log('MQTT ended');
-      setMqttConnected(false);
-    });
-
-    client.on('error', (error) => {
-      console.log('MQTT error:', error?.message);
-      setMqttConnected(false);
-    });
-
-    client.on('message', (topic, payload) => {
-      if (topic !== CONFIG.MQTT_TOPIC_ORV_2FA_REQUEST) {
+      if (!mounted) {
         return;
       }
 
-      try {
-        const challenge = JSON.parse(payload.toString()) as Orv2faChallenge & { type?: string };
+      const nextDeviceId = email || 'unknown-device';
 
-        if (challenge.type !== 'orv-2fa-request' || !challenge.challengeId) {
-          return;
-        }
+      userEmailRef.current = email;
+      deviceIdRef.current = nextDeviceId;
 
-        if (!shouldAcceptOrvChallenge(challenge)) {
-          return;
-        }
+      setUserEmail(email);
+      setDeviceId(nextDeviceId);
 
-        setOrvChallenge(challenge);
-        setOrvStatus('ORV 2FA zahteva prejeta');
-        requestCameraPermission();
-        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      } catch (error) {
-        console.log('ORV MQTT parse error:', error);
-      }
-    });
+      client = mqtt.connect(CONFIG.MQTT_BROKER, {
+        clientId: `hribovc_mobile_${nextDeviceId.replace(/[^a-zA-Z0-9_-]/g, '_')}`,
+        clean: true,
+        connectTimeout: 5000,
+        reconnectPeriod: 3000,
+        will: {
+          topic: CONFIG.MQTT_TOPIC_STATUS,
+          payload: JSON.stringify({
+            deviceId: nextDeviceId,
+            userEmail: email || 'unknown',
+            status: 'offline',
+            timestamp: new Date().toISOString(),
+          }),
+          qos: 1,
+          retain: false,
+        },
+      });
 
-    heartbeatRef.current = setInterval(() => {
-      if (client.connected) {
-        client.publish(CONFIG.MQTT_TOPIC_HEARTBEAT, JSON.stringify({
-          status: 'alive',
-          deviceId: getCurrentDeviceId(),
-          userEmail: getCurrentUserEmail(),
-          timestamp: new Date().toISOString(),
-        }));
-      }
-    }, 5000);
+      clientRef.current = client;
 
-    return () => {
-      if (client.connected) {
+      client.on('connect', () => {
+        console.log('MQTT connected:', CONFIG.MQTT_BROKER);
+        setMqttConnected(true);
+
+        client.subscribe(CONFIG.MQTT_TOPIC_ORV_2FA_REQUEST, (error: Error | null) => {
+          if (error) {
+            console.log('MQTT ORV subscribe error:', error?.message);
+          }
+        });
+
         client.publish(
           CONFIG.MQTT_TOPIC_STATUS,
           JSON.stringify({
-            deviceId: getCurrentDeviceId(),
-            userEmail: getCurrentUserEmail(),
+            deviceId: nextDeviceId,
+            userEmail: email || 'unknown',
+            status: 'online',
+            timestamp: new Date().toISOString(),
+          }),
+          { qos: 1 }
+        );
+      });
+
+      client.on('reconnect', () => {
+        console.log('MQTT reconnecting');
+        setMqttConnected(false);
+      });
+
+      client.on('offline', () => {
+        console.log('MQTT offline');
+        setMqttConnected(false);
+      });
+
+      client.on('close', () => {
+        console.log('MQTT closed');
+        setMqttConnected(false);
+      });
+
+      client.on('end', () => {
+        console.log('MQTT ended');
+        setMqttConnected(false);
+      });
+
+      client.on('error', (error: any) => {
+        console.log('MQTT error:', error?.message);
+        setMqttConnected(false);
+      });
+
+      client.on('message', (topic: string, payload: any) => {
+        if (topic !== CONFIG.MQTT_TOPIC_ORV_2FA_REQUEST) {
+          return;
+        }
+
+        try {
+          const challenge = JSON.parse(payload.toString()) as Orv2faChallenge & { type?: string };
+
+          if (challenge.type !== 'orv-2fa-request' || !challenge.challengeId) {
+            return;
+          }
+
+          if (!shouldAcceptOrvChallenge(challenge)) {
+            return;
+          }
+
+          setOrvChallenge(challenge);
+          setOrvStatus('ORV 2FA zahteva prejeta');
+          requestCameraPermission();
+          Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+        } catch (error) {
+          console.log('ORV MQTT parse error:', error);
+        }
+      });
+
+      heartbeatRef.current = setInterval(() => {
+        if (client.connected) {
+          client.publish(
+            CONFIG.MQTT_TOPIC_HEARTBEAT,
+            JSON.stringify({
+              status: 'alive',
+              deviceId: nextDeviceId,
+              userEmail: email || 'unknown',
+              timestamp: new Date().toISOString(),
+            }),
+            { qos: 1 }
+          );
+        }
+      }, 5000);
+    };
+
+    loadIdentityAndConnectMqtt();
+
+    return () => {
+      mounted = false;
+
+      const finalDeviceId = getCurrentDeviceId();
+      const finalUserEmail = getCurrentUserEmail();
+
+      if (client?.connected) {
+        client.publish(
+          CONFIG.MQTT_TOPIC_STATUS,
+          JSON.stringify({
+            deviceId: finalDeviceId,
+            userEmail: finalUserEmail,
             status: 'offline',
             timestamp: new Date().toISOString(),
-          })
+          }),
+          { qos: 1 }
         );
       }
 
-      client.end();
+      client?.end();
       clearInterval(heartbeatRef.current);
     };
   }, []);
@@ -474,7 +507,7 @@ export default function Dashboard() {
             }]} />
 
             <Text style={styles.statusText}>
-              {isActive ? 'Senzorji tečejo' : 'Senzorji ustavljeni'}
+              {isActive ? 'Senzorji tecejo' : 'Senzorji ustavljeni'}
             </Text>
 
             <View style={[styles.statusDot, {
@@ -550,21 +583,21 @@ export default function Dashboard() {
           <View style={styles.divider} />
 
           <View style={styles.statItem}>
-            <Text style={styles.statLabel}>POSPEŠKOMER X</Text>
+            <Text style={styles.statLabel}>POSPESKOMER X</Text>
             <Text style={styles.statValue}>{accel.x.toFixed(3)}</Text>
           </View>
 
           <View style={styles.divider} />
 
           <View style={styles.statItem}>
-            <Text style={styles.statLabel}>POSPEŠKOMER Y</Text>
+            <Text style={styles.statLabel}>POSPESKOMER Y</Text>
             <Text style={styles.statValue}>{accel.y.toFixed(3)}</Text>
           </View>
 
           <View style={styles.divider} />
 
           <View style={styles.statItem}>
-            <Text style={styles.statLabel}>POSPEŠKOMER Z</Text>
+            <Text style={styles.statLabel}>POSPESKOMER Z</Text>
             <Text style={styles.statValue}>{accel.z.toFixed(3)}</Text>
           </View>
 
@@ -645,7 +678,7 @@ export default function Dashboard() {
               <Text style={styles.logoutText}>ZGODOVINA</Text>
             </TouchableOpacity>
 
-            <Text style={styles.logoutText}>·</Text>
+            <Text style={styles.logoutText}>.</Text>
 
             <TouchableOpacity onPress={() => router.replace('/')}>
               <Text style={styles.logoutText}>DOMOV</Text>
