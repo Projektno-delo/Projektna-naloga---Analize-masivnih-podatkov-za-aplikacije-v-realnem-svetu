@@ -47,6 +47,92 @@ POST /verify-face
 
 Ce je odgovor verified: true, se uporabniku dovoli nadaljevanje prijave.
 
+## ORV 2FA z izbiro kamere
+
+Spletna prijava zdaj omogoca izbiro:
+
+- PC kamera: backend pozene `face_name_preview.py login-users` in preveri obraz prek kamere na racunalniku.
+- Telefon kamera: backend ustvari 2FA zahtevo, jo poslje prek MQTT na mobilno aplikacijo, telefon zajame sliko in jo poslje nazaj backendu.
+
+### POST /orv-2fa/start
+
+Backend endpoint v spletni aplikaciji zacne ORV 2FA preverjanje.
+
+Primer za PC kamero:
+
+```json
+{
+  "email": "uporabnik@example.com",
+  "usernames": ["Uporabnik", "uporabnik"],
+  "cameraMode": "pc",
+  "threshold": 0.62,
+  "frames": 9,
+  "minAgreement": 0.7,
+  "margin": 0.08
+}
+```
+
+Primer za telefon kamero:
+
+```json
+{
+  "email": "uporabnik@example.com",
+  "usernames": ["Uporabnik", "uporabnik"],
+  "cameraMode": "phone",
+  "threshold": 0.62
+}
+```
+
+Pri `cameraMode: "phone"` backend objavi MQTT sporocilo na:
+
+```text
+hribovc/orv-2fa/request
+```
+
+Primer MQTT sporocila:
+
+```json
+{
+  "type": "orv-2fa-request",
+  "challengeId": "...",
+  "userEmail": "uporabnik@example.com",
+  "expectedUser": "uporabnik",
+  "threshold": 0.62,
+  "nightMode": false,
+  "expiresAt": "2026-06-03T16:00:00.000Z"
+}
+```
+
+### POST /orv-2fa/verify
+
+Mobilna aplikacija po zajemu slike poslje sliko nazaj backendu:
+
+```json
+{
+  "challengeId": "...",
+  "deviceId": "uporabnik@example.com",
+  "userEmail": "uporabnik@example.com",
+  "imageBase64": "data:image/jpeg;base64,..."
+}
+```
+
+Backend nato sliko posreduje ORV API endpointu `POST /verify-face`.
+
+### GET /orv-2fa/status
+
+Spletna aplikacija med telefonskim preverjanjem periodično preverja status:
+
+```text
+GET /orv-2fa/status?challengeId=...
+```
+
+Mozni statusi:
+
+- `pending`
+- `approved`
+- `rejected`
+- `expired`
+
 
 
 
