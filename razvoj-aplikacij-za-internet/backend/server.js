@@ -517,6 +517,14 @@ async function verifyFaceWithOrvApi({
   return response.data;
 }
 
+async function checkOrvApiHealth() {
+  const response = await axios.get(`${ORV_API_URL}/health`, {
+    timeout: ORV_FACE_TIMEOUT_MS,
+  });
+
+  return response.data;
+}
+
 const server = http.createServer(async (req, res) => {
   const corsHeaders = {
     'Access-Control-Allow-Origin': '*',
@@ -768,6 +776,41 @@ const server = http.createServer(async (req, res) => {
         res.end(JSON.stringify({ error: error.message || String(error) }));
       }
     });
+
+    return;
+  }
+
+  if (req.method === 'GET' && requestUrl.pathname === '/orv-health') {
+    try {
+      const health = await checkOrvApiHealth();
+
+      res.writeHead(200, {
+        'Content-Type': 'application/json',
+        ...corsHeaders,
+      });
+
+      res.end(JSON.stringify({
+        status: 'ok',
+        connected: true,
+        orvApiUrl: ORV_API_URL,
+        api: health,
+      }));
+    } catch (error) {
+      console.error('ORV API health check error:', error.response?.data || error.message || error);
+
+      res.writeHead(getOrvApiErrorStatus(error), {
+        'Content-Type': 'application/json',
+        ...corsHeaders,
+      });
+
+      res.end(JSON.stringify({
+        status: 'error',
+        connected: false,
+        orvApiUrl: ORV_API_URL,
+        error: getOrvApiErrorMessage(error),
+        detail: getOrvApiErrorDetail(error),
+      }));
+    }
 
     return;
   }
