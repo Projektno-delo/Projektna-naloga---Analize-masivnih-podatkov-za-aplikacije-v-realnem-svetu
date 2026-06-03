@@ -20,7 +20,11 @@ npm install leaflet react-leaflet
 
 npm run dev
 
-ORV
+## ORV
+Podrobna dokumentacija ORV API-ja je v datoteki:
+
+`osnove-racunalniskega-vida/API.md`
+
 
 cd "C:\Users\Ziga\Desktop\Projektna-naloga---Analize-masivnih-podatkov-za-aplikacije-v-realnem-svetu\osnove-racunalniskega-vida"
 python .\face_name_preview.py train
