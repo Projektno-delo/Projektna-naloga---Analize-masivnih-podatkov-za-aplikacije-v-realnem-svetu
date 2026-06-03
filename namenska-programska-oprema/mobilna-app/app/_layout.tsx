@@ -31,6 +31,8 @@ function Orv2faMqttListener() {
   const [isVerifying, setIsVerifying] = useState(false);
   const [cameraPermission, requestCameraPermission] = useCameraPermissions();
   const cameraRef = useRef<any>(null);
+  const previewInFlightRef = useRef(false);
+  const captureLockRef = useRef(false);
 
   useEffect(() => {
     const client = mqtt.connect(CONFIG.MQTT_BROKER, {
@@ -84,6 +86,73 @@ function Orv2faMqttListener() {
     };
   }, []);
 
+  useEffect(() => {
+    if (!challenge || !cameraPermission?.granted) {
+      return;
+    }
+
+    let stopped = false;
+
+    const sendPreviewFrame = async () => {
+      if (
+        stopped
+        || previewInFlightRef.current
+        || captureLockRef.current
+        || !cameraRef.current
+      ) {
+        return;
+      }
+
+      try {
+        previewInFlightRef.current = true;
+        captureLockRef.current = true;
+
+        const photo = await cameraRef.current.takePictureAsync({
+          base64: true,
+          quality: 0.2,
+          skipProcessing: true,
+        });
+
+        captureLockRef.current = false;
+
+        if (!photo?.base64) {
+          return;
+        }
+
+        const rawUser = await AsyncStorage.getItem("user");
+        const user = rawUser ? JSON.parse(rawUser) : {};
+        const userEmail = user.email || challenge.userEmail || "unknown";
+
+        await fetch(`${CONFIG.API_URL}/orv-2fa/preview`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            challengeId: challenge.challengeId,
+            imageBase64: `data:image/jpeg;base64,${photo.base64}`,
+            userEmail,
+            nightMode: Boolean(challenge.nightMode),
+          }),
+        });
+      } catch (error) {
+        console.log("ORV phone preview error:", error);
+      } finally {
+        captureLockRef.current = false;
+        previewInFlightRef.current = false;
+      }
+    };
+
+    sendPreviewFrame();
+    const previewInterval = setInterval(sendPreviewFrame, 850);
+
+    return () => {
+      stopped = true;
+      clearInterval(previewInterval);
+      fetch(`${CONFIG.API_URL}/orv-2fa/preview-close`, {
+        method: "POST",
+      }).catch(() => {});
+    };
+  }, [challenge, cameraPermission?.granted]);
+
   const verifyWithPhoneCamera = async () => {
     if (!challenge) {
       return;
@@ -107,11 +176,13 @@ function Orv2faMqttListener() {
       const user = rawUser ? JSON.parse(rawUser) : {};
       const userEmail = user.email || challenge.userEmail || "unknown";
 
+      captureLockRef.current = true;
       const photo = await cameraRef.current?.takePictureAsync({
-        base64: true,
-        quality: 0.55,
-        skipProcessing: true,
-      });
+          base64: true,
+          quality: 0.55,
+          skipProcessing: true,
+        });
+      captureLockRef.current = false;
 
       if (!photo?.base64) {
         throw new Error("Slika ni bila zajeta");
@@ -190,6 +261,9 @@ function Orv2faMqttListener() {
             style={styles.secondaryBtn}
             onPress={() => {
               setStatus("ORV 2FA zavrnjen lokalno");
+              fetch(`${CONFIG.API_URL}/orv-2fa/preview-close`, {
+                method: "POST",
+              }).catch(() => {});
               setChallenge(null);
             }}
           >

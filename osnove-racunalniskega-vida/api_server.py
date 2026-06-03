@@ -19,6 +19,7 @@ DEFAULT_THRESHOLD = 0.7
 MIN_THRESHOLD = 0.0
 MAX_THRESHOLD = 1.0
 IMAGE_SIZE = (128, 128)
+PHONE_PREVIEW_WINDOW = "ORV telefon kamera preview"
 
 app = FastAPI(
     title="Hribovc ORV Face Recognition API",
@@ -117,6 +118,46 @@ def prepare_face_from_image(image: np.ndarray, force_night_mode: bool = False):
     }
 
 
+def show_phone_preview_frame(
+    image: np.ndarray,
+    expected_user: str = "",
+    force_night_mode: bool = False,
+):
+    frame = image.copy()
+    gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+    detected_face = detect_largest_face(gray, force_night_mode=force_night_mode)
+    face_box = None
+
+    if detected_face is not None:
+        x, y, w, h = detected_face
+        face_box = {
+            "x": int(x),
+            "y": int(y),
+            "width": int(w),
+            "height": int(h),
+        }
+        cv2.rectangle(frame, (x, y), (x + w, y + h), (52, 107, 255), 2)
+
+    label = "Telefon kamera -> ORV"
+    if expected_user:
+        label = f"{label}: {expected_user}"
+
+    cv2.putText(
+        frame,
+        label,
+        (16, 32),
+        cv2.FONT_HERSHEY_SIMPLEX,
+        0.75,
+        (52, 107, 255),
+        2,
+        cv2.LINE_AA,
+    )
+    cv2.imshow(PHONE_PREVIEW_WINDOW, frame)
+    cv2.waitKey(1)
+
+    return face_box
+
+
 def is_model_available() -> bool:
     recognizer_model = MODEL_DIR / "recognizer.pkl"
     svm_model = MODEL_DIR / "svm_model.pkl"
@@ -139,6 +180,8 @@ def root():
             "GET /health",
             "POST /predict-face",
             "POST /verify-face",
+            "POST /phone-preview-frame",
+            "POST /phone-preview-close",
         ],
     }
 
@@ -236,4 +279,36 @@ async def verify_face_endpoint(
         "threshold": threshold,
         "faceBox": face_box,
         "message": "Uporabnik je potrjen." if verified else "Uporabnik ni potrjen.",
+    }
+
+
+@app.post("/phone-preview-frame")
+async def phone_preview_frame_endpoint(
+    image: UploadFile = File(...),
+    expectedUser: str = Form(""),
+    nightMode: bool = Form(False),
+):
+    uploaded_image = read_image_from_upload(image)
+    face_box = show_phone_preview_frame(
+        uploaded_image,
+        expected_user=expectedUser,
+        force_night_mode=nightMode,
+    )
+
+    return {
+        "success": True,
+        "faceDetected": face_box is not None,
+        "faceBox": face_box,
+    }
+
+
+@app.post("/phone-preview-close")
+async def phone_preview_close_endpoint():
+    try:
+        cv2.destroyWindow(PHONE_PREVIEW_WINDOW)
+    except cv2.error:
+        pass
+
+    return {
+        "success": True,
     }

@@ -522,6 +522,44 @@ async function verifyFaceWithOrvApi({
   return response.data;
 }
 
+async function sendPhonePreviewFrameToOrvApi({
+  imageBase64,
+  expectedUser,
+  nightMode = false,
+}) {
+  const imageBuffer = imageBase64ToBuffer(imageBase64);
+
+  if (!imageBuffer || imageBuffer.length === 0) {
+    throw new Error('Slika za ORV preview ni bila poslana.');
+  }
+
+  const form = new FormData();
+
+  form.append('image', imageBuffer, {
+    filename: 'phone-preview.jpg',
+    contentType: 'image/jpeg',
+  });
+  form.append('expectedUser', expectedUser || '');
+  form.append('nightMode', String(Boolean(nightMode)));
+
+  const response = await axios.post(`${ORV_API_URL}/phone-preview-frame`, form, {
+    headers: form.getHeaders(),
+    timeout: 5000,
+  });
+
+  return response.data;
+}
+
+async function closePhonePreviewWindow() {
+  try {
+    await axios.post(`${ORV_API_URL}/phone-preview-close`, null, {
+      timeout: 2000,
+    });
+  } catch (error) {
+    console.warn('[ORV] Phone preview close failed:', error.message || error);
+  }
+}
+
 function getFaceUsernameFromRequest(data = {}) {
   const usernameCandidates = Array.isArray(data.usernames)
     ? data.usernames
@@ -1007,6 +1045,78 @@ const server = http.createServer(async (req, res) => {
     return;
   }
 
+  if (req.method === 'POST' && requestUrl.pathname === '/orv-2fa/preview') {
+    try {
+      const data = await readJsonBody(req);
+      const challenge = refreshOrv2faChallengeStatus(orv2faChallenges.get(data.challengeId));
+
+      if (!challenge || challenge.status !== 'pending') {
+        res.writeHead(404, {
+          'Content-Type': 'application/json',
+          ...corsHeaders,
+        });
+        res.end(JSON.stringify({
+          success: false,
+          error: 'ORV 2FA zahteva ni aktivna.',
+        }));
+        return;
+      }
+
+      const senderEmail = String(data.userEmail || '').trim().toLowerCase();
+
+      if (challenge.userEmail && senderEmail && challenge.userEmail !== senderEmail) {
+        res.writeHead(403, {
+          'Content-Type': 'application/json',
+          ...corsHeaders,
+        });
+        res.end(JSON.stringify({
+          success: false,
+          error: 'ORV 2FA zahteva pripada drugemu uporabniku.',
+        }));
+        return;
+      }
+
+      const preview = await sendPhonePreviewFrameToOrvApi({
+        imageBase64: data.imageBase64,
+        expectedUser: challenge.username,
+        nightMode: Boolean(data.nightMode ?? challenge.nightMode),
+      });
+
+      res.writeHead(200, {
+        'Content-Type': 'application/json',
+        ...corsHeaders,
+      });
+      res.end(JSON.stringify({
+        success: true,
+        ...preview,
+      }));
+    } catch (error) {
+      res.writeHead(getOrvApiErrorStatus(error), {
+        'Content-Type': 'application/json',
+        ...corsHeaders,
+      });
+      res.end(JSON.stringify({
+        success: false,
+        error: getOrvApiErrorMessage(error),
+        detail: getOrvApiErrorDetail(error),
+      }));
+    }
+    return;
+  }
+
+  if (req.method === 'POST' && requestUrl.pathname === '/orv-2fa/preview-close') {
+    await closePhonePreviewWindow();
+
+    res.writeHead(200, {
+      'Content-Type': 'application/json',
+      ...corsHeaders,
+    });
+    res.end(JSON.stringify({
+      success: true,
+    }));
+    return;
+  }
+
   if (req.method === 'POST' && requestUrl.pathname === '/orv-2fa/verify') {
     try {
       const data = await readJsonBody(req);
@@ -1065,6 +1175,7 @@ const server = http.createServer(async (req, res) => {
         userEmail: senderEmail || challenge.userEmail,
         verifiedAt: new Date(),
       };
+      closePhonePreviewWindow();
 
       res.writeHead(normalized.verified ? 200 : 401, {
         'Content-Type': 'application/json',
