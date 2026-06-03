@@ -193,6 +193,12 @@
   transform: translateY(-1px);
 }
 
+.auth-btn:disabled {
+  cursor: wait;
+  opacity: 0.7;
+  transform: none;
+}
+
 .auth-btn-secondary {
   background: transparent;
   border: 1px solid #2A2A2A;
@@ -202,6 +208,35 @@
 
 .auth-btn-secondary:hover {
   background: #181818;
+}
+
+.auth-camera-mode {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+.auth-mode-btn {
+  background: #141414;
+  border: 1px solid #1E1E1E;
+  border-radius: 10px;
+  color: #aaa;
+  cursor: pointer;
+  font-size: 0.9rem;
+  font-weight: 700;
+  padding: 0.75rem 0.8rem;
+  transition: border-color 0.2s, color 0.2s, background 0.2s;
+}
+
+.auth-mode-btn:hover {
+  border-color: #333;
+  color: #fff;
+}
+
+.auth-mode-btn.active {
+  background: rgba(255, 107, 53, 0.12);
+  border-color: #FF6B35;
+  color: #fff;
 }
 
 .auth-face-status {
