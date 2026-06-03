@@ -513,7 +513,7 @@ async function verifyFaceWithOrvApi({
     headers: form.getHeaders(),
     timeout: ORV_FACE_TIMEOUT_MS,
   });
-  
+
   return response.data;
 }
 
@@ -844,7 +844,7 @@ const server = http.createServer(async (req, res) => {
       } catch (error) {
         console.error('ORV API face login error:', error.response?.data || error.message || error);
 
-        res.writeHead(500, {
+        res.writeHead(getOrvApiErrorStatus(error), {
           'Content-Type': 'application/json',
           ...corsHeaders,
         });
@@ -852,8 +852,9 @@ const server = http.createServer(async (req, res) => {
         res.end(JSON.stringify({
           success: false,
           verified: false,
-          error: 'Napaka pri preverjanju obraza prek ORV API-ja.',
-          detail: error.response?.data || error.message || String(error),
+          error: getOrvApiErrorMessage(error),
+          detail: getOrvApiErrorDetail(error),
+          orvApiUrl: ORV_API_URL,
         }));
       }
     });
