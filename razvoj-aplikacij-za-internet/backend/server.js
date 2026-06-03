@@ -803,43 +803,46 @@ const server = http.createServer(async (req, res) => {
           return;
         }
 
-        if (!data.imageBase64) {
-          res.writeHead(400, {
-            'Content-Type': 'application/json',
-            ...corsHeaders,
+        const requestedThreshold = parseRequestedFaceThreshold(data.threshold);
+        let result;
+
+        if (data.imageBase64) {
+          result = await verifyFaceWithOrvApi({
+            imageBase64: data.imageBase64,
+            expectedUser: username,
+            threshold: requestedThreshold,
+            nightMode: Boolean(data.nightMode),
           });
-          res.end(JSON.stringify({
-            success: false,
-            verified: false,
-            error: 'Slika za preverjanje obraza ni bila poslana.',
-          }));
-          return;
+        } else {
+          result = await runFaceLogin({
+            username,
+            threshold: requestedThreshold,
+            camera: Number(data.camera || 0),
+            frames: Number(data.frames || 9),
+            minAgreement: Number(data.minAgreement || 0.7),
+            margin: Number(data.margin || 0.08),
+            nightMode: Boolean(data.nightMode),
+          });
         }
 
-        const requestedThreshold = parseRequestedFaceThreshold(data.threshold);
+        const faceVerified = Boolean(result.verified ?? result.success);
 
-        const result = await verifyFaceWithOrvApi({
-          imageBase64: data.imageBase64,
-          expectedUser: username,
-          threshold: requestedThreshold,
-          nightMode: Boolean(data.nightMode),
-        });
-
-        res.writeHead(result.verified ? 200 : 401, {
+        res.writeHead(faceVerified ? 200 : 401, {
           'Content-Type': 'application/json',
           ...corsHeaders,
         });
 
         res.end(JSON.stringify({
-          success: result.success,
-          verified: result.verified,
+          success: Boolean(result.success ?? faceVerified),
+          verified: faceVerified,
           faceDetected: result.faceDetected,
-          expectedUser: result.expectedUser,
-          predictedUser: result.predictedUser,
-          probability: result.probability,
+          expectedUser: result.expectedUser ?? result.username,
+          predictedUser: result.predictedUser ?? result.recognized,
+          probability: result.probability ?? result.score,
           threshold: result.threshold,
           faceBox: result.faceBox,
-          message: result.message,
+          message: result.message || result.error,
+          error: result.error || undefined,
         }));
       } catch (error) {
         console.error('ORV API face login error:', error.response?.data || error.message || error);
