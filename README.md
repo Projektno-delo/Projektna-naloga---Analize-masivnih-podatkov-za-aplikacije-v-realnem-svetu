@@ -31,7 +31,6 @@ python .\face_name_preview.py train
 python .\face_name_preview.py preview
 python .\face_name_preview.py login-users ziga
 
-pip install fastapi uvicorn
 NPO
 
 Po ponovnem odprtju VS Code morajo za prenos in shranjevanje senzorjev teci stirje terminali.
