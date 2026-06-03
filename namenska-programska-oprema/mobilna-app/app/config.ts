@@ -50,4 +50,5 @@ export const CONFIG = {
   MQTT_TOPIC_SENSORS: 'hribovc/senzorji',
   MQTT_TOPIC_HEARTBEAT: 'hribovc/heartbeat',
   MQTT_TOPIC_STATUS: 'hribovc/status',
+  MQTT_TOPIC_ORV_2FA_REQUEST: 'hribovc/orv-2fa/request',
 };
