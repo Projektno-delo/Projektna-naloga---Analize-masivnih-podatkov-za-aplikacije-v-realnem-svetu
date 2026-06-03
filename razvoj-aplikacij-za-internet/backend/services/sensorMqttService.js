@@ -20,6 +20,7 @@ const MQTT_BROKER_URL = process.env.MQTT_BROKER_URL || `mqtt://${getLocalNetwork
 const MQTT_SENSORS_TOPIC = process.env.MQTT_SENSORS_TOPIC || 'hribovc/senzorji';
 const MQTT_HEARTBEAT_TOPIC = process.env.MQTT_HEARTBEAT_TOPIC || 'hribovc/heartbeat';
 const MQTT_STATUS_TOPIC = process.env.MQTT_STATUS_TOPIC || 'hribovc/status';
+const MQTT_ORV_2FA_REQUEST_TOPIC = process.env.MQTT_ORV_2FA_REQUEST_TOPIC || 'hribovc/orv-2fa/request';
 const SENSOR_READINGS_COLLECTION = 'mobileSensorReadings';
 const SENSOR_HEARTBEATS_COLLECTION = 'mobileSensorHeartbeats';
 
@@ -156,14 +157,45 @@ function startSensorMqttSubscriber() {
   return client;
 }
 
+function publishMqttMessage(topic, payload, options = { qos: 1 }) {
+  const mqttClient = startSensorMqttSubscriber();
+
+  return new Promise((resolve, reject) => {
+    const publishPayload = typeof payload === 'string'
+      ? payload
+      : JSON.stringify(payload);
+
+    const publish = () => {
+      mqttClient.publish(topic, publishPayload, options, error => {
+        if (error) {
+          reject(error);
+          return;
+        }
+
+        resolve();
+      });
+    };
+
+    if (mqttClient.connected) {
+      publish();
+      return;
+    }
+
+    mqttClient.once('connect', publish);
+    mqttClient.once('error', reject);
+  });
+}
+
 module.exports = {
   startSensorMqttSubscriber,
+  publishMqttMessage,
   normalizeSensorReading,
   saveSensorReading,
   MQTT_BROKER_URL,
   MQTT_SENSORS_TOPIC,
   MQTT_HEARTBEAT_TOPIC,
   MQTT_STATUS_TOPIC,
+  MQTT_ORV_2FA_REQUEST_TOPIC,
   SENSOR_READINGS_COLLECTION,
   SENSOR_HEARTBEATS_COLLECTION,
 };

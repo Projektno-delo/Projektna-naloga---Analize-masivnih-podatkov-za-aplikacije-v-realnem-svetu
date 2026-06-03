@@ -3,6 +3,7 @@ import { useRouter } from 'expo-router';
 import { useState, useEffect, useRef } from 'react';
 import { Accelerometer } from 'expo-sensors';
 import * as Location from 'expo-location';
+import { CameraView, useCameraPermissions } from 'expo-camera';
 import mqtt from 'mqtt';
 import { CONFIG } from './config';
 import { saveReading } from './service/sensorStorage';
@@ -10,6 +11,15 @@ import * as Haptics from 'expo-haptics';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const BACKEND_SAVE_INTERVAL_MS = 5000;
+
+type Orv2faChallenge = {
+  challengeId: string;
+  userEmail?: string;
+  expectedUser?: string;
+  threshold?: number;
+  nightMode?: boolean;
+  expiresAt?: string;
+};
 
 export default function Dashboard() {
   const router = useRouter();
@@ -22,9 +32,14 @@ export default function Dashboard() {
   const [userEmail, setUserEmail] = useState('');
   const [deviceId, setDeviceId] = useState('unknown-device');
   const [subscription, setSubscription] = useState<any>(null);
+  const [orvChallenge, setOrvChallenge] = useState<Orv2faChallenge | null>(null);
+  const [orvStatus, setOrvStatus] = useState('Ni ORV 2FA zahtev');
+  const [isVerifyingOrv, setIsVerifyingOrv] = useState(false);
+  const [cameraPermission, requestCameraPermission] = useCameraPermissions();
 
   const clientRef = useRef<any>(null);
   const heartbeatRef = useRef<any>(null);
+  const cameraRef = useRef<any>(null);
   const latestAccelRef = useRef({ x: 0, y: 0, z: 0 });
   const latestLocationRef = useRef<{ latitude: number; longitude: number } | null>(null);
   const userEmailRef = useRef('');
@@ -34,6 +49,13 @@ export default function Dashboard() {
 
   const getCurrentDeviceId = () => deviceIdRef.current || 'unknown-device';
   const getCurrentUserEmail = () => userEmailRef.current || 'unknown';
+
+  const shouldAcceptOrvChallenge = (challenge: Orv2faChallenge) => {
+    const targetEmail = String(challenge.userEmail || '').trim().toLowerCase();
+    const currentEmail = getCurrentUserEmail().trim().toLowerCase();
+
+    return !targetEmail || targetEmail === currentEmail;
+  };
 
   useEffect(() => {
     if (isActive) {
@@ -102,6 +124,12 @@ export default function Dashboard() {
         console.log('MQTT connected:', CONFIG.MQTT_BROKER);
         setMqttConnected(true);
 
+        client.subscribe(CONFIG.MQTT_TOPIC_ORV_2FA_REQUEST, (error: Error | null) => {
+          if (error) {
+            console.log('MQTT ORV subscribe error:', error?.message);
+          }
+        });
+
         client.publish(
           CONFIG.MQTT_TOPIC_STATUS,
           JSON.stringify({
@@ -137,6 +165,31 @@ export default function Dashboard() {
       client.on('error', (error: any) => {
         console.log('MQTT error:', error?.message);
         setMqttConnected(false);
+      });
+
+      client.on('message', (topic: string, payload: any) => {
+        if (topic !== CONFIG.MQTT_TOPIC_ORV_2FA_REQUEST) {
+          return;
+        }
+
+        try {
+          const challenge = JSON.parse(payload.toString()) as Orv2faChallenge & { type?: string };
+
+          if (challenge.type !== 'orv-2fa-request' || !challenge.challengeId) {
+            return;
+          }
+
+          if (!shouldAcceptOrvChallenge(challenge)) {
+            return;
+          }
+
+          setOrvChallenge(challenge);
+          setOrvStatus('ORV 2FA zahteva prejeta');
+          requestCameraPermission();
+          Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+        } catch (error) {
+          console.log('ORV MQTT parse error:', error);
+        }
       });
 
       heartbeatRef.current = setInterval(() => {
@@ -329,6 +382,64 @@ export default function Dashboard() {
     }
   };
 
+  const verifyOrvChallengeWithPhoneCamera = async () => {
+    if (!orvChallenge) {
+      return;
+    }
+
+    try {
+      setIsVerifyingOrv(true);
+      setOrvStatus('Zajemam sliko za ORV...');
+
+      let permission = cameraPermission;
+
+      if (!permission?.granted) {
+        permission = await requestCameraPermission();
+      }
+
+      if (!permission?.granted) {
+        throw new Error('Dovoljenje za kamero ni odobreno');
+      }
+
+      const photo = await cameraRef.current?.takePictureAsync({
+        base64: true,
+        quality: 0.55,
+        skipProcessing: true,
+      });
+
+      if (!photo?.base64) {
+        throw new Error('Slika ni bila zajeta');
+      }
+
+      const response = await fetch(`${CONFIG.API_URL}/orv-2fa/verify`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          challengeId: orvChallenge.challengeId,
+          imageBase64: `data:image/jpeg;base64,${photo.base64}`,
+          deviceId: getCurrentDeviceId(),
+          userEmail: getCurrentUserEmail(),
+          nightMode: Boolean(orvChallenge.nightMode),
+        }),
+      });
+      const data = await response.json();
+
+      if (!response.ok || !data.verified) {
+        throw new Error(data.result?.error || data.error || 'ORV preverjanje ni uspelo');
+      }
+
+      setOrvStatus('ORV 2FA potrjen');
+      setOrvChallenge(null);
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'ORV 2FA napaka';
+      setOrvStatus(`Napaka: ${message}`);
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
+    } finally {
+      setIsVerifyingOrv(false);
+    }
+  };
+
   const toggleAccelerometer = async () => {
     if (subscription) {
       subscription.remove();
@@ -411,6 +522,50 @@ export default function Dashboard() {
         </View>
 
         <View style={styles.statsSection}>
+          {orvChallenge && (
+            <View style={styles.orvPanel}>
+              <Text style={styles.orvTitle}>ORV 2FA</Text>
+              <Text style={styles.orvText}>
+                {orvChallenge.expectedUser || 'Uporabnik'} caka na potrditev.
+              </Text>
+
+              {cameraPermission?.granted ? (
+                <CameraView
+                  ref={cameraRef}
+                  style={styles.orvCamera}
+                  facing="front"
+                />
+              ) : (
+                <TouchableOpacity
+                  style={[styles.mainBtn, styles.secondaryBtn]}
+                  onPress={requestCameraPermission}
+                >
+                  <Text style={styles.btnText}>DOVOLI KAMERO</Text>
+                </TouchableOpacity>
+              )}
+
+              <TouchableOpacity
+                style={[styles.mainBtn, styles.btnActive]}
+                onPress={verifyOrvChallengeWithPhoneCamera}
+                disabled={isVerifyingOrv}
+              >
+                <Text style={styles.btnText}>
+                  {isVerifyingOrv ? 'PREVERJAM...' : 'POTRDI Z OBRAZOM'}
+                </Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={[styles.mainBtn, styles.secondaryBtn]}
+                onPress={() => {
+                  setOrvChallenge(null);
+                  setOrvStatus('ORV 2FA zavrnjen lokalno');
+                }}
+              >
+                <Text style={styles.btnText}>ZAVRNI</Text>
+              </TouchableOpacity>
+            </View>
+          )}
+
           <View style={styles.statItem}>
             <Text style={styles.statLabel}>DEVICE ID</Text>
             <Text style={[styles.statValue, { fontSize: 18, color: '#aaa' }]}>{deviceId}</Text>
@@ -488,6 +643,15 @@ export default function Dashboard() {
             <Text style={styles.statLabel}>ZADNJI ZAPIS</Text>
             <Text style={[styles.statValue, { fontSize: 16, color: '#666' }]}>
               {lastUploadStatus}
+            </Text>
+          </View>
+
+          <View style={styles.divider} />
+
+          <View style={styles.statItem}>
+            <Text style={styles.statLabel}>ORV 2FA STATUS</Text>
+            <Text style={[styles.statValue, { fontSize: 16, color: '#666' }]}>
+              {orvStatus}
             </Text>
           </View>
         </View>
@@ -602,6 +766,36 @@ const styles = StyleSheet.create({
   divider: {
     height: 1,
     backgroundColor: 'rgba(255,255,255,0.05)',
+  },
+
+  orvPanel: {
+    borderWidth: 1,
+    borderColor: '#ff6b35',
+    borderRadius: 12,
+    padding: 14,
+    marginBottom: 18,
+    gap: 12,
+    backgroundColor: 'rgba(255,107,53,0.08)',
+  },
+
+  orvTitle: {
+    color: '#ff6b35',
+    fontSize: 14,
+    fontWeight: '900',
+    letterSpacing: 1.5,
+  },
+
+  orvText: {
+    color: '#ddd',
+    fontSize: 13,
+    lineHeight: 18,
+  },
+
+  orvCamera: {
+    width: '100%',
+    aspectRatio: 3 / 4,
+    borderRadius: 10,
+    overflow: 'hidden',
   },
 
   footer: {
