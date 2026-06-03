@@ -9,7 +9,16 @@ const FormData = require('form-data');
 
 const ORV_API_URL = normalizeOrvApiUrl(process.env.ORV_API_URL || 'http://localhost:8000');
 const ORV_FACE_THRESHOLD = readFaceThreshold(process.env.ORV_FACE_THRESHOLD, 0.7);
-const ORV_FACE_TIMEOUT_MS = readPositiveInteger(process.env.ORV_FACE_TIMEOUT_MS, 30000);
+const ORV_FACE_TIMEOUT_MS = readPositiveInteger(
+  process.env.ORV_FACE_TIMEOUT_MS,
+  30000,
+  'ORV_FACE_TIMEOUT_MS'
+);
+const SENSOR_DEVICE_ACTIVE_TIMEOUT_MS = readPositiveInteger(
+  process.env.SENSOR_DEVICE_ACTIVE_TIMEOUT_MS,
+  15000,
+  'SENSOR_DEVICE_ACTIVE_TIMEOUT_MS'
+);
 
 const {
   scrapeAndStoreWeather,
@@ -53,7 +62,7 @@ function readFaceThreshold(value, fallback) {
   return threshold;
 }
 
-function readPositiveInteger(value, fallback) {
+function readPositiveInteger(value, fallback, label = 'value') {
   if (value === undefined || value === null || value === '') {
     return fallback;
   }
@@ -61,7 +70,7 @@ function readPositiveInteger(value, fallback) {
   const numberValue = Number(value);
 
   if (!Number.isInteger(numberValue) || numberValue <= 0) {
-    console.warn(`[ORV] Neveljaven ORV_FACE_TIMEOUT_MS="${value}", uporabljam ${fallback}.`);
+    console.warn(`[CONFIG] Neveljaven ${label}="${value}", uporabljam ${fallback}.`);
     return fallback;
   }
 
@@ -525,6 +534,148 @@ async function checkOrvApiHealth() {
   return response.data;
 }
 
+function toTimestamp(value) {
+  if (!value) {
+    return null;
+  }
+
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? null : date;
+}
+
+function serializeDate(value) {
+  const date = toTimestamp(value);
+  return date ? date.toISOString() : null;
+}
+
+function isLaterTimestamp(candidate, current) {
+  const candidateDate = toTimestamp(candidate);
+  const currentDate = toTimestamp(current);
+
+  if (!candidateDate) {
+    return false;
+  }
+
+  if (!currentDate) {
+    return true;
+  }
+
+  return candidateDate.getTime() >= currentDate.getTime();
+}
+
+function createSensorDevice(deviceId) {
+  return {
+    deviceId,
+    userEmail: 'unknown',
+    active: false,
+    status: 'unknown',
+    lastReading: null,
+    lastReadingAt: null,
+    lastHeartbeatAt: null,
+    lastStatusAt: null,
+  };
+}
+
+function getSensorDeviceId(payload) {
+  return payload?.deviceId
+    || payload?.device_id
+    || payload?.clientId
+    || payload?.id
+    || 'unknown-device';
+}
+
+function upsertSensorDevice(devices, deviceId) {
+  if (!devices.has(deviceId)) {
+    devices.set(deviceId, createSensorDevice(deviceId));
+  }
+
+  return devices.get(deviceId);
+}
+
+function applySensorReadingToDevice(devices, reading) {
+  const deviceId = getSensorDeviceId(reading);
+  const device = upsertSensorDevice(devices, deviceId);
+  const readingAt = serializeDate(reading.receivedAt || reading.deviceTimestamp);
+
+  device.userEmail = reading.userEmail || device.userEmail;
+
+  if (!isLaterTimestamp(readingAt, device.lastReadingAt)) {
+    return device;
+  }
+
+  device.lastReading = {
+    accelerometer: reading.accelerometer || null,
+    location: reading.location || null,
+    deviceTimestamp: serializeDate(reading.deviceTimestamp),
+    receivedAt: serializeDate(reading.receivedAt),
+    source: reading.source || 'unknown',
+  };
+  device.lastReadingAt = readingAt;
+
+  return device;
+}
+
+function applyHeartbeatToDevice(devices, heartbeat) {
+  const deviceId = getSensorDeviceId(heartbeat);
+  const device = upsertSensorDevice(devices, deviceId);
+  const source = heartbeat.source || '';
+  const status = heartbeat.status || 'unknown';
+  const eventAt = serializeDate(heartbeat.receivedAt || heartbeat.deviceTimestamp);
+
+  device.userEmail = heartbeat.userEmail || device.userEmail;
+
+  if (source.includes('status') || status === 'online' || status === 'offline') {
+    if (isLaterTimestamp(eventAt, device.lastStatusAt)) {
+      device.status = status;
+      device.lastStatusAt = eventAt;
+    }
+
+    return device;
+  }
+
+  if (isLaterTimestamp(eventAt, device.lastHeartbeatAt)) {
+    device.lastHeartbeatAt = eventAt;
+  }
+
+  return device;
+}
+
+function calculateSensorDeviceActivity(device, now = Date.now()) {
+  if (device.status === 'offline') {
+    return false;
+  }
+
+  if (!device.lastHeartbeatAt) {
+    return false;
+  }
+
+  const lastHeartbeatTime = new Date(device.lastHeartbeatAt).getTime();
+
+  if (Number.isNaN(lastHeartbeatTime)) {
+    return false;
+  }
+
+  return now - lastHeartbeatTime <= SENSOR_DEVICE_ACTIVE_TIMEOUT_MS;
+}
+
+function sortSensorDevices(devices) {
+  return [...devices.values()]
+    .map(device => ({
+      ...device,
+      active: calculateSensorDeviceActivity(device),
+    }))
+    .sort((a, b) => {
+      if (a.active !== b.active) {
+        return a.active ? -1 : 1;
+      }
+
+      const aTime = new Date(a.lastHeartbeatAt || a.lastReadingAt || 0).getTime();
+      const bTime = new Date(b.lastHeartbeatAt || b.lastReadingAt || 0).getTime();
+
+      return bTime - aTime;
+    });
+}
+
 const server = http.createServer(async (req, res) => {
   const corsHeaders = {
     'Access-Control-Allow-Origin': '*',
@@ -575,6 +726,67 @@ const server = http.createServer(async (req, res) => {
       });
       res.end(JSON.stringify({ error: error.message || String(error) }));
     }
+    return;
+  }
+
+  if (req.method === 'GET' && requestUrl.pathname === '/sensor-devices') {
+    try {
+      const limit = Math.min(
+        Math.max(parseInt(requestUrl.searchParams.get('limit') || '500', 10), 1),
+        1000
+      );
+
+      const sensorReadingsCollection = await getCollection(SENSOR_READINGS_COLLECTION);
+      const sensorHeartbeatsCollection = await getCollection(SENSOR_HEARTBEATS_COLLECTION);
+
+      const [readings, heartbeats] = await Promise.all([
+        sensorReadingsCollection
+          .find({})
+          .sort({ receivedAt: -1 })
+          .limit(limit)
+          .toArray(),
+        sensorHeartbeatsCollection
+          .find({})
+          .sort({ receivedAt: -1 })
+          .limit(limit)
+          .toArray(),
+      ]);
+
+      const devices = new Map();
+
+      for (const reading of readings) {
+        applySensorReadingToDevice(devices, reading);
+      }
+
+      for (const heartbeat of heartbeats) {
+        applyHeartbeatToDevice(devices, heartbeat);
+      }
+
+      const deviceList = sortSensorDevices(devices);
+      const activeDevicesCount = deviceList.filter(device => device.active).length;
+
+      res.writeHead(200, {
+        'Content-Type': 'application/json',
+        ...corsHeaders,
+      });
+
+      res.end(JSON.stringify({
+        activeDevicesCount,
+        inactiveDevicesCount: deviceList.length - activeDevicesCount,
+        totalDevicesCount: deviceList.length,
+        activeDeviceTimeoutMs: SENSOR_DEVICE_ACTIVE_TIMEOUT_MS,
+        generatedAt: new Date().toISOString(),
+        devices: deviceList,
+      }));
+    } catch (error) {
+      res.writeHead(500, {
+        'Content-Type': 'application/json',
+        ...corsHeaders,
+      });
+
+      res.end(JSON.stringify({ error: error.message || String(error) }));
+    }
+
     return;
   }
 
