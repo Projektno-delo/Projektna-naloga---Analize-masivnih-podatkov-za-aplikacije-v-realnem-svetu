@@ -142,6 +142,17 @@ const geocodeLocationQuery = async (query) => {
   };
 };
 
+const normalizeRoutePoint = (point) => {
+  const lat = Number(point?.lat);
+  const lng = Number(point?.lng);
+
+  if (!isValidCoordinate(lat, lng)) {
+    return null;
+  }
+
+  return { lat, lng };
+};
+
 const PeakMarkers = ({ vrhovi, onDelete }) => {
   const map = useMap();
 
@@ -187,7 +198,7 @@ const ChangeView = ({ center, zoom = 13 }) => {
   return null;
 };
 
-const ClickController = ({ onPointsSet, active }) => {
+const ClickController = ({ onPointsSet, active, fixedStartPoint = null }) => {
   const map = useMap();
   const points = useRef([]);
   const markers = useRef([]);
@@ -196,6 +207,14 @@ const ClickController = ({ onPointsSet, active }) => {
     if (!active) return;
 
     const handleClick = (e) => {
+      const normalizedFixedStart = normalizeRoutePoint(fixedStartPoint);
+
+      if (normalizedFixedStart) {
+        markers.current.forEach(m => m.remove());
+        markers.current = [];
+        points.current = [];
+      }
+
       const marker = L.circleMarker(e.latlng, {
         radius: 8,
         color: '#ff6b35',
@@ -204,6 +223,12 @@ const ClickController = ({ onPointsSet, active }) => {
       }).addTo(map);
 
       markers.current.push(marker);
+
+      if (normalizedFixedStart) {
+        onPointsSet(normalizedFixedStart, e.latlng);
+        return;
+      }
+
       points.current.push(e.latlng);
 
       if (points.current.length === 2) {
@@ -218,8 +243,9 @@ const ClickController = ({ onPointsSet, active }) => {
       map.off('click', handleClick);
       markers.current.forEach(m => m.remove());
       markers.current = [];
+      points.current = [];
     };
-  }, [map, onPointsSet, active]);
+  }, [map, onPointsSet, active, fixedStartPoint]);
 
   return null;
 };
@@ -265,6 +291,13 @@ const Profil = () => {
   const [currentCountryIdx, setCurrentCountryIdx] = useState(0);
   const [dosezeniVrhovi, setDosezeniVrhovi] = useState(() => readStoredList('pini_silhuete').map(cleanPeak).filter(Boolean));
   const [vsiPohodi, setVsiPohodi] = useState(() => readStoredList('moje_poti').map(cleanRoute).filter(Boolean));
+
+  const isUsingSensorGpsStart = Boolean(
+    latestSensorGps
+    && startPoint
+    && startPoint.lat === latestSensorGps.lat
+    && startPoint.lng === latestSensorGps.lng
+  );
 
   useEffect(() => {
     localStorage.setItem('moje_poti', JSON.stringify(vsiPohodi));
@@ -346,7 +379,8 @@ const Profil = () => {
       setStartPoint(point);
       setStartQuery('Zadnja GPS lokacija iz senzorjev');
       setMapCenter([point.lat, point.lng]);
-      setSensorGpsStatus(`Start poti nastavljen na GPS ${point.lat.toFixed(5)}, ${point.lng.toFixed(5)}.`);
+      setIsDrawing(true);
+      setSensorGpsStatus(`Start poti nastavljen na GPS ${point.lat.toFixed(5)}, ${point.lng.toFixed(5)}. Klikni cilj na zemljevidu ali vpisi konec poti.`);
     } catch (error) {
       const message = error instanceof Error ? error.message : 'GPS podatkov ni bilo mogoce uporabiti.';
       setSensorGpsStatus(message);
@@ -374,6 +408,36 @@ const Profil = () => {
     } catch (error) {
       console.error(error);
     }
+  };
+
+  const handleMapPointsSet = (start, end) => {
+    const normalizedStart = normalizeRoutePoint(start);
+    const normalizedEnd = normalizeRoutePoint(end);
+
+    if (!normalizedStart || !normalizedEnd) {
+      return;
+    }
+
+    setStartPoint(normalizedStart);
+    setEndPoint(normalizedEnd);
+    setEndQuery('Cilj iz zemljevida');
+    setMapCenter([normalizedStart.lat, normalizedStart.lng]);
+    setIsDrawing(false);
+
+    if (!isUsingSensorGpsStart) {
+      setStartQuery('Zacetek iz zemljevida');
+    }
+  };
+
+  const resetRoutePlanner = () => {
+    setSuggestedRoutes([]);
+    setIsDrawing(false);
+    setStartPoint(null);
+    setEndPoint(null);
+    setLatestSensorGps(null);
+    setStartQuery('');
+    setEndQuery('');
+    setSensorGpsStatus('GPS iz senzorjev se ni uporabljen.');
   };
 
   const fetchRouteOptions = async (start, end) => {
@@ -807,13 +871,7 @@ const Profil = () => {
                 </div>
 
                 <div className="btn-row">
-                  <button
-                    className="editor-small-btn"
-                    onClick={() => {
-                      setSuggestedRoutes([]);
-                      setIsDrawing(false);
-                    }}
-                  >
+                  <button className="editor-small-btn" onClick={resetRoutePlanner}>
                     Reset
                   </button>
                   <button
@@ -823,12 +881,14 @@ const Profil = () => {
                       setSuggestedRoutes([]);
                     }}
                   >
-                    {isDrawing ? 'Preklici' : 'Izberi tocki'}
+                    {isDrawing ? 'Preklici' : isUsingSensorGpsStart ? 'Izberi cilj' : 'Izberi tocki'}
                   </button>
                 </div>
 
                 {isDrawing && !isLoading && (
-                  <p className="map-hint-text">Klikni zacetek poti, nato konec poti na zemljevidu.</p>
+                  <p className="map-hint-text">
+                    {isUsingSensorGpsStart ? 'Klikni cilj poti na zemljevidu.' : 'Klikni zacetek poti, nato konec poti na zemljevidu.'}
+                  </p>
                 )}
 
                 {isLoading && (
@@ -864,7 +924,11 @@ const Profil = () => {
                 <MapContainer center={mapCenter} zoom={13} style={{ height: '100%', width: '100%' }}>
                   <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
                   <ChangeView center={mapCenter} />
-                  <ClickController onPointsSet={fetchRouteOptions} active={isDrawing} />
+                  <ClickController
+                    onPointsSet={handleMapPointsSet}
+                    active={isDrawing}
+                    fixedStartPoint={isUsingSensorGpsStart ? startPoint : null}
+                  />
                   {suggestedRoutes.map((route, idx) => (
                     <Polyline
                       key={idx}
