@@ -21,6 +21,15 @@ type Orv2faChallenge = {
   expiresAt?: string;
 };
 
+const isExpiredOrvChallenge = (challenge: Orv2faChallenge) => {
+  if (!challenge.expiresAt) {
+    return false;
+  }
+
+  const expiresAt = new Date(challenge.expiresAt).getTime();
+  return Number.isFinite(expiresAt) && expiresAt <= Date.now();
+};
+
 export default function Dashboard() {
   const router = useRouter();
 
@@ -54,7 +63,7 @@ export default function Dashboard() {
     const targetEmail = String(challenge.userEmail || '').trim().toLowerCase();
     const currentEmail = getCurrentUserEmail().trim().toLowerCase();
 
-    return !targetEmail || targetEmail === currentEmail;
+    return !targetEmail || !currentEmail || currentEmail === 'unknown' || targetEmail === currentEmail;
   };
 
   useEffect(() => {
@@ -176,6 +185,10 @@ export default function Dashboard() {
           const challenge = JSON.parse(payload.toString()) as Orv2faChallenge & { type?: string };
 
           if (challenge.type !== 'orv-2fa-request' || !challenge.challengeId) {
+            return;
+          }
+
+          if (isExpiredOrvChallenge(challenge)) {
             return;
           }
 
@@ -418,7 +431,7 @@ export default function Dashboard() {
           challengeId: orvChallenge.challengeId,
           imageBase64: `data:image/jpeg;base64,${photo.base64}`,
           deviceId: getCurrentDeviceId(),
-          userEmail: getCurrentUserEmail(),
+          userEmail: userEmail || orvChallenge.userEmail || 'unknown',
           nightMode: Boolean(orvChallenge.nightMode),
         }),
       });

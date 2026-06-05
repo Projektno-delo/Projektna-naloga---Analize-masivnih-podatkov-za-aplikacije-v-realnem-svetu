@@ -4,13 +4,25 @@ import './Auth.css'
 import heroImg from '../assets/hero.jpg'
 
 const preferredFaceProfiles = ['ziga', 'anze', 'anja']
+const defaultCameraMode = import.meta.env.VITE_ORV_DEFAULT_CAMERA_MODE === 'phone' ? 'phone' : 'pc'
+const getApiBaseUrl = () => {
+  const configuredUrl = import.meta.env.VITE_API_BASE_URL
+
+  if (configuredUrl) {
+    return configuredUrl.replace(/\/+$/, '')
+  }
+
+  return `http://${window.location.hostname || 'localhost'}:3000`
+}
+const apiBaseUrl = getApiBaseUrl()
+const apiUrl = (path) => `${apiBaseUrl}${path}`
 
 function Login() {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [faceStatus, setFaceStatus] = useState('')
   const [pendingUser, setPendingUser] = useState(null)
-  const [cameraMode, setCameraMode] = useState('pc')
+  const [cameraMode, setCameraMode] = useState(defaultCameraMode)
   const [faceProfiles, setFaceProfiles] = useState([])
   const [faceProfile, setFaceProfile] = useState('')
   const [loginPending, setLoginPending] = useState(false)
@@ -21,7 +33,7 @@ function Login() {
   useEffect(() => {
     let cancelled = false
 
-    fetch('http://localhost:3000/orv-face-profiles')
+    fetch(apiUrl('/orv-face-profiles'))
       .then(response => response.ok ? response.json() : { profiles: [] })
       .then(data => {
         if (cancelled) {
@@ -67,7 +79,7 @@ function Login() {
       await wait(2000)
 
       const response = await fetch(
-        `http://localhost:3000/orv-2fa/status?challengeId=${encodeURIComponent(challengeId)}`
+        apiUrl(`/orv-2fa/status?challengeId=${encodeURIComponent(challengeId)}`)
       )
       const data = await response.json()
 
@@ -109,7 +121,7 @@ function Login() {
     setLoginPending(true)
 
     try {
-      const response = await fetch('http://localhost:3000/login', {
+      const response = await fetch(apiUrl('/login'), {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -135,7 +147,7 @@ function Login() {
           : 'ORV face login: poglejte v kamero, night mode lahko vklopite v oknu kamere.'
       )
 
-      const faceResponse = await fetch('http://localhost:3000/orv-2fa/start', {
+      const faceResponse = await fetch(apiUrl('/orv-2fa/start'), {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

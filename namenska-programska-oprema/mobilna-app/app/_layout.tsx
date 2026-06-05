@@ -37,6 +37,15 @@ type OrvPreviewFeedback = {
   message?: string;
 };
 
+const isExpiredOrvChallenge = (challenge: Orv2faChallenge) => {
+  if (!challenge.expiresAt) {
+    return false;
+  }
+
+  const expiresAt = new Date(challenge.expiresAt).getTime();
+  return Number.isFinite(expiresAt) && expiresAt <= Date.now();
+};
+
 function Orv2faMqttListener() {
   const [challenge, setChallenge] = useState<Orv2faChallenge | null>(null);
   const [status, setStatus] = useState("Caka na potrditev s kamero telefona");
@@ -144,21 +153,21 @@ function Orv2faMqttListener() {
           return;
         }
 
-        const rawUser = await AsyncStorage.getItem("user");
-
-        if (!rawUser) {
+        if (isExpiredOrvChallenge(challenge)) {
           return;
         }
 
-        const user = JSON.parse(rawUser);
+        const rawUser = await AsyncStorage.getItem("user");
+        const user = rawUser ? JSON.parse(rawUser) : {};
         const currentEmail = String(user.email || "").trim().toLowerCase();
         const targetEmail = String(challenge.userEmail || "").trim().toLowerCase();
 
-        if (targetEmail && targetEmail !== currentEmail) {
+        if (targetEmail && currentEmail && targetEmail !== currentEmail) {
           return;
         }
 
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+        requestCameraPermission();
         setStatus("Vzpostavljam live preverjanje obraza...");
         setPreviewFeedback(null);
         bestPreviewImageRef.current = null;
@@ -174,7 +183,7 @@ function Orv2faMqttListener() {
     return () => {
       client.end();
     };
-  }, []);
+  }, [requestCameraPermission]);
 
   useEffect(() => {
     isVerifyingRef.current = isVerifying;
@@ -232,7 +241,7 @@ function Orv2faMqttListener() {
         const data = await response.json();
 
         if (!response.ok || !data.success) {
-          throw new Error(data.error || "ORV preview ni uspel");
+          throw new Error(data.detail || data.error || "ORV preview ni uspel");
         }
 
         const preview = (data.preview || data) as OrvPreviewFeedback;
@@ -270,6 +279,8 @@ function Orv2faMqttListener() {
           }
         }
       } catch (error) {
+        const message = error instanceof Error ? error.message : "ORV preview ni uspel";
+        setStatus(`Napaka pri preview: ${message}`);
         console.log("ORV phone preview error:", error);
       } finally {
         captureLockRef.current = false;
