@@ -1,5 +1,6 @@
 from pathlib import Path
 from typing import Any
+import unicodedata
 
 import cv2
 import numpy as np
@@ -10,8 +11,12 @@ from face_name_preview import (
     MODEL_DIR,
     detect_largest_face,
     enhance_dark_face,
+    is_accepted_prediction,
     load_model,
+    load_user_profiles,
     predict_face,
+    predict_from_user_profiles,
+    safe_username,
 )
 
 BASE_DIR = Path(__file__).resolve().parent
@@ -38,6 +43,7 @@ app.add_middleware(
 )
 
 _model_cache: Any = None
+_profiles_cache: Any = None
 
 
 def validate_threshold(threshold: float) -> float:
@@ -48,6 +54,80 @@ def validate_threshold(threshold: float) -> float:
         )
 
     return threshold
+
+
+def normalize_identity(value: str | None) -> str:
+    normalized = unicodedata.normalize("NFD", str(value or "").strip().lower())
+
+    return "".join(
+        char
+        for char in normalized
+        if unicodedata.category(char) != "Mn"
+        and (char.isalnum() or char in "_-")
+    )
+
+
+def users_match(predicted_user: str | None, expected_user: str | None) -> bool:
+    return bool(
+        predicted_user
+        and expected_user
+        and normalize_identity(predicted_user) == normalize_identity(expected_user)
+    )
+
+
+def get_user_profiles():
+    global _profiles_cache
+
+    if _profiles_cache is None:
+        try:
+            _profiles_cache = load_user_profiles()
+        except Exception as error:
+            raise HTTPException(
+                status_code=503,
+                detail=f"Napaka pri nalaganju ORV uporabniskih profilov: {error}",
+            ) from error
+
+    return _profiles_cache
+
+
+def predict_profile_face(
+    face: np.ndarray,
+    expected_user: str,
+    threshold: float,
+    min_margin: float = 0.0,
+):
+    expected_username = safe_username(expected_user)
+    profiles = get_user_profiles()
+
+    if expected_username not in profiles:
+        raise HTTPException(
+            status_code=404,
+            detail=f"ORV profil '{expected_username}' ni najden v data/users.",
+        )
+
+    predicted_user, score, margin, user_scores = predict_from_user_profiles(face, profiles)
+    verified = is_accepted_prediction(
+        predicted_user,
+        score,
+        margin,
+        expected_username,
+        threshold,
+        min_margin,
+    )
+
+    return {
+        "predictedUser": predicted_user,
+        "probability": round(float(score), 4),
+        "margin": round(float(margin), 4),
+        "threshold": threshold,
+        "verified": bool(verified),
+        "accepted": bool(score >= threshold),
+        "expectedUser": expected_username,
+        "userScores": {
+            name: round(float(value), 4)
+            for name, value in user_scores.items()
+        },
+    }
 
 
 def get_recognizer():
@@ -141,12 +221,19 @@ def resize_for_phone_preview(frame: np.ndarray) -> np.ndarray:
 def show_phone_preview_frame(
     image: np.ndarray,
     expected_user: str = "",
+    threshold: float = DEFAULT_THRESHOLD,
     force_night_mode: bool = False,
 ):
     frame = image.copy()
     gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
     detected_face = detect_largest_face(gray, force_night_mode=force_night_mode)
     face_box = None
+    predicted_user = None
+    probability = 0.0
+    accepted = False
+    verified = False
+    message = "Obraz ni zaznan. Poravnaj obraz v kameri."
+    box_color = (52, 107, 255)
 
     if detected_face is not None:
         x, y, w, h = detected_face
@@ -156,7 +243,38 @@ def show_phone_preview_frame(
             "width": int(w),
             "height": int(h),
         }
-        cv2.rectangle(frame, (x, y), (x + w, y + h), (52, 107, 255), 2)
+
+        face_crop = gray[y : y + h, x : x + w]
+        face_crop = enhance_dark_face(face_crop, force_night_mode=force_night_mode)
+        face_resized = cv2.resize(face_crop, IMAGE_SIZE)
+        face_equalized = cv2.equalizeHist(face_resized)
+        face_normalized = face_equalized.astype(np.float32) / 255.0
+
+        if expected_user:
+            profile_result = predict_profile_face(face_normalized, expected_user, threshold)
+            predicted_user = profile_result["predictedUser"]
+            probability = profile_result["probability"]
+            accepted = profile_result["accepted"]
+            verified = profile_result["verified"]
+        else:
+            predicted_user, probability = predict_face(face_normalized, get_recognizer())
+            accepted = probability >= threshold
+            verified = bool(accepted)
+
+        if verified:
+            box_color = (75, 210, 95)
+            message = "Ujemanje je dovolj dobro za potrditev."
+        elif expected_user and predicted_user != expected_user:
+            box_color = (54, 140, 255)
+            message = f"Prepoznan {predicted_user}, pricakovan {expected_user}."
+        elif not accepted:
+            box_color = (54, 190, 255)
+            message = "Ujemanje je prenizko, poravnaj obraz."
+        else:
+            box_color = (75, 210, 95)
+            message = "Obraz je stabilen."
+
+        cv2.rectangle(frame, (x, y), (x + w, y + h), box_color, 2)
 
     label = "Telefon kamera -> ORV"
     if expected_user:
@@ -172,6 +290,16 @@ def show_phone_preview_frame(
         2,
         cv2.LINE_AA,
     )
+    cv2.putText(
+        frame,
+        f"{message} ({probability:.0%})" if face_box is not None else message,
+        (16, 64),
+        cv2.FONT_HERSHEY_SIMPLEX,
+        0.58,
+        box_color,
+        2,
+        cv2.LINE_AA,
+    )
     display_frame = resize_for_phone_preview(frame)
     cv2.namedWindow(PHONE_PREVIEW_WINDOW, cv2.WINDOW_NORMAL)
     cv2.resizeWindow(
@@ -182,7 +310,18 @@ def show_phone_preview_frame(
     cv2.imshow(PHONE_PREVIEW_WINDOW, display_frame)
     cv2.waitKey(1)
 
-    return face_box
+    return {
+        "success": True,
+        "faceDetected": face_box is not None,
+        "expectedUser": expected_user or None,
+        "predictedUser": predicted_user,
+        "probability": round(float(probability), 4),
+        "threshold": threshold,
+        "accepted": bool(accepted),
+        "verified": bool(verified),
+        "faceBox": face_box,
+        "message": message,
+    }
 
 
 def is_model_available() -> bool:
@@ -272,7 +411,6 @@ async def verify_face_endpoint(
     nightMode: bool = Form(False),
 ):
     threshold = validate_threshold(threshold)
-    recognizer = get_recognizer()
     uploaded_image = read_image_from_upload(image)
 
     prepared_face, face_box = prepare_face_from_image(
@@ -293,8 +431,19 @@ async def verify_face_endpoint(
             "message": "Obraz ni bil zaznan na poslani sliki.",
         }
 
-    predicted_user, probability = predict_face(prepared_face, recognizer)
-    verified = predicted_user == expectedUser and probability >= threshold
+    if expectedUser:
+        profile_result = predict_profile_face(prepared_face, expectedUser, threshold)
+        predicted_user = profile_result["predictedUser"]
+        probability = profile_result["probability"]
+        verified = profile_result["verified"]
+        margin = profile_result["margin"]
+        user_scores = profile_result["userScores"]
+    else:
+        recognizer = get_recognizer()
+        predicted_user, probability = predict_face(prepared_face, recognizer)
+        verified = users_match(predicted_user, expectedUser) and probability >= threshold
+        margin = None
+        user_scores = None
 
     return {
         "success": True,
@@ -303,8 +452,10 @@ async def verify_face_endpoint(
         "expectedUser": expectedUser,
         "predictedUser": predicted_user,
         "probability": round(float(probability), 4),
+        "margin": margin,
         "threshold": threshold,
         "faceBox": face_box,
+        "userScores": user_scores,
         "message": "Uporabnik je potrjen." if verified else "Uporabnik ni potrjen.",
     }
 
@@ -313,20 +464,17 @@ async def verify_face_endpoint(
 async def phone_preview_frame_endpoint(
     image: UploadFile = File(...),
     expectedUser: str = Form(""),
+    threshold: float = Form(DEFAULT_THRESHOLD),
     nightMode: bool = Form(False),
 ):
+    threshold = validate_threshold(threshold)
     uploaded_image = read_image_from_upload(image)
-    face_box = show_phone_preview_frame(
+    return show_phone_preview_frame(
         uploaded_image,
         expected_user=expectedUser,
+        threshold=threshold,
         force_night_mode=nightMode,
     )
-
-    return {
-        "success": True,
-        "faceDetected": face_box is not None,
-        "faceBox": face_box,
-    }
 
 
 @app.post("/phone-preview-close")

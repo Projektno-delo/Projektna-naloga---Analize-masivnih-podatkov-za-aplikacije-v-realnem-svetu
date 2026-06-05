@@ -1,7 +1,9 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useNavigate, Link } from 'react-router-dom'
 import './Auth.css'
 import heroImg from '../assets/hero.jpg'
+
+const preferredFaceProfiles = ['ziga', 'anze', 'anja']
 
 function Login() {
   const [email, setEmail] = useState('')
@@ -9,10 +11,50 @@ function Login() {
   const [faceStatus, setFaceStatus] = useState('')
   const [pendingUser, setPendingUser] = useState(null)
   const [cameraMode, setCameraMode] = useState('pc')
+  const [faceProfiles, setFaceProfiles] = useState([])
+  const [faceProfile, setFaceProfile] = useState('')
   const [loginPending, setLoginPending] = useState(false)
   const navigate = useNavigate()
 
   const wait = (ms) => new Promise(resolve => setTimeout(resolve, ms))
+
+  useEffect(() => {
+    let cancelled = false
+
+    fetch('http://localhost:3000/orv-face-profiles')
+      .then(response => response.ok ? response.json() : { profiles: [] })
+      .then(data => {
+        if (cancelled) {
+          return
+        }
+
+        const sortedProfiles = Array.isArray(data.profiles)
+          ? [...data.profiles].sort((a, b) => {
+              const aIndex = preferredFaceProfiles.indexOf(a)
+              const bIndex = preferredFaceProfiles.indexOf(b)
+
+              if (aIndex !== -1 || bIndex !== -1) {
+                return (aIndex === -1 ? 999 : aIndex) - (bIndex === -1 ? 999 : bIndex)
+              }
+
+              return a.localeCompare(b)
+            })
+          : []
+        const demoProfiles = sortedProfiles.filter(profile => preferredFaceProfiles.includes(profile))
+        const profiles = demoProfiles.length > 0 ? demoProfiles : sortedProfiles
+        setFaceProfiles(profiles)
+
+        if (!faceProfile && profiles.length > 0) {
+          const preferred = profiles.find(profile => profile === 'ziga') || profiles[0]
+          setFaceProfile(preferred)
+        }
+      })
+      .catch(() => {})
+
+    return () => {
+      cancelled = true
+    }
+  }, [faceProfile])
 
   const completeLogin = (user, message) => {
     localStorage.setItem('user', JSON.stringify(user))
@@ -42,7 +84,17 @@ function Login() {
         return
       }
 
-      setFaceStatus('Cakam potrditev na telefonu...')
+      if (data.lastPreview?.faceDetected) {
+        const probability = Math.round(Number(data.lastPreview.probability || 0) * 100)
+        const threshold = Math.round(Number(data.lastPreview.threshold || 0.7) * 100)
+        setFaceStatus(
+          `Telefon: ${data.lastPreview.message || 'obraz zaznan'} (${probability}%, prag ${threshold}%).`
+        )
+      } else if (data.lastPreview) {
+        setFaceStatus('Telefon: obraz ni zaznan, poravnaj kamero.')
+      } else {
+        setFaceStatus('Cakam potrditev na telefonu...')
+      }
     }
 
     setPendingUser(user)
@@ -76,6 +128,7 @@ function Login() {
       }
 
       const emailUsername = data.user.email.split('@')[0].toLowerCase()
+      const selectedProfile = faceProfile || emailUsername
       setFaceStatus(
         cameraMode === 'phone'
           ? 'ORV 2FA: zahteva se posilja na telefon.'
@@ -88,10 +141,11 @@ function Login() {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          usernames: [data.user.ime, emailUsername, 'ziga'],
+          username: selectedProfile,
+          usernames: [selectedProfile],
           email: data.user.email,
           cameraMode,
-          threshold: 0.62,
+          threshold: 0.6,
           frames: 9,
           minAgreement: 0.7,
           margin: 0.08,
@@ -168,6 +222,18 @@ function Login() {
               >
                 Telefon kamera
               </button>
+            </div>
+            <div className="auth-field">
+              <label>ORV profil za obraz</label>
+              <select value={faceProfile} onChange={e => setFaceProfile(e.target.value)}>
+                {faceProfiles.length === 0 ? (
+                  <option value="">Ni profilov v data/users</option>
+                ) : (
+                  faceProfiles.map(profile => (
+                    <option key={profile} value={profile}>{profile}</option>
+                  ))
+                )}
+              </select>
             </div>
             {faceStatus && <p className="auth-face-status">{faceStatus}</p>}
             <button type="submit" className="auth-btn" disabled={loginPending}>

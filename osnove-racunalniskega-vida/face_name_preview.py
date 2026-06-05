@@ -24,6 +24,7 @@ LOGIN_WINDOW = "Hribovc ORV face login"
 MIN_EFFECTIVE_THRESHOLD = 0.58
 LOW_LIGHT_MEAN_THRESHOLD = 75.0
 LOGIN_RESULT_HOLD_SECONDS = 3.0
+ACTIVE_FACE_USERS = ("ziga", "anze", "anja")
 
 face_cascade = cv2.CascadeClassifier(
     cv2.data.haarcascades + "haarcascade_frontalface_default.xml"
@@ -435,6 +436,15 @@ def load_user_profiles(users_dir=DATA_DIR / "users"):
 
     if not profiles:
         raise RuntimeError(f"V mapi ni uporabniskih profilov: {users_dir}")
+
+    active_profiles = {
+        username: profiles[username]
+        for username in ACTIVE_FACE_USERS
+        if username in profiles
+    }
+
+    if active_profiles:
+        return active_profiles
 
     return profiles
 

@@ -1,80 +1,5 @@
 # Hribovc
 
-Mosquitto broker docker server
-
-cd ...\...\namenska-programska-oprema\
-
-docker compose up -d
-
-docker ps
-
-cd C:\Users\Ziga\Desktop\Projektna-naloga---Analize-masivnih-podatkov-za-aplikacije-v-realnem-svetu\razvoj-aplikacij-za-internet\backend
-
-node server.js
-
-cd "C:\Users\Ziga\Desktop\Projektna-naloga---Analize-masivnih-podatkov-za-aplikacije-v-realnem-svetu\razvoj-aplikacij-za-internet\Frontend\Hribovc\frontend\hribovc-website"
-
-npm install
-
-npm install leaflet react-leaflet
-
-npm run dev
-
-## ORV
-Podrobna dokumentacija ORV API-ja je v datoteki:
-
-`osnove-racunalniskega-vida/API.md`
-
-
-cd "C:\Users\Ziga\Desktop\Projektna-naloga---Analize-masivnih-podatkov-za-aplikacije-v-realnem-svetu\osnove-racunalniskega-vida"
-python .\face_name_preview.py train
-python .\face_name_preview.py preview
-python .\face_name_preview.py login-users ziga
-
-NPO
-
-Po ponovnem odprtju VS Code morajo za prenos in shranjevanje senzorjev teci stirje terminali.
-Telefon in racunalnik morata biti na istem Wi-Fi omrezju.
-
-Terminal 1 - backend in MongoDB shranjevanje:
-
-cd "C:\Users\Ziga\Desktop\Projektna-naloga---Analize-masivnih-podatkov-za-aplikacije-v-realnem-svetu\razvoj-aplikacij-za-internet\backend"
-npm install
-node server.js
-
-Backend mora ob zagonu izpisati vrstico podobno:
-
-MQTT backend connected to mqtt://192.168.0.138:1883
-
-Ce pise `mqtt://127.0.0.1:1883`, je backend priklopljen na lokalni Mosquitto service namesto na broker, ki ga uporabljata telefon in spletna aplikacija. Takrat ustavite backend in ga znova zazenite po zagonu MQTT brokerja iz Terminala 2.
-
-Terminal 2 - MQTT broker:
-
-cd "C:\Users\Ziga\Desktop\Projektna-naloga---Analize-masivnih-podatkov-za-aplikacije-v-realnem-svetu"
-& "C:\Program Files\mosquitto\mosquitto.exe" -c "C:\Users\Ziga\Desktop\Projektna-naloga---Analize-masivnih-podatkov-za-aplikacije-v-realnem-svetu\namenska-programska-oprema\mosquitto\mosquitto.conf" -v
-
-Terminal 3 - spletna aplikacija:
-
-cd "C:\Users\Ziga\Desktop\Projektna-naloga---Analize-masivnih-podatkov-za-aplikacije-v-realnem-svetu\razvoj-aplikacij-za-internet\Frontend\Hribovc\frontend\hribovc-website"
-npm install
-npm run dev
-
-V brskalniku odpri stran, ki jo izpise Vite, in pojdi na zavihek Senzorji.
-
-Terminal 4 - mobilna aplikacija:
-
-cd "C:\Users\Ziga\Desktop\Projektna-naloga---Analize-masivnih-podatkov-za-aplikacije-v-realnem-svetu\namenska-programska-oprema\mobilna-app"
-npm install
-npx expo start
-
-RUNNERS
-
-cd C:\tmp\actions-runner-from-repo
-
-.\run.cmd
-
---------------------------------------------
-
 Hribovc je projekt za varnejse nacrtovanje pohodov in vzponov. Zdruzuje spletno aplikacijo, backend z vremenskimi in pohodno-potnimi podatki, modul za prepoznavo obraza ter mobilno aplikacijo za zajem senzorskih podatkov.
 
 Projekt pokriva tri projektne predmete:
@@ -366,21 +291,76 @@ python .\face_name_preview.py preview --camera 1
 
 ## Kratek povzetek zagonov
 
-Backend:
+Mosquitto broker docker server
+
+cd ...\...\namenska-programska-oprema\
+
+docker compose up -d
+
+docker ps
+
+cd C:\Users\Ziga\Desktop\Projektna-naloga---Analize-masivnih-podatkov-za-aplikacije-v-realnem-svetu\razvoj-aplikacij-za-internet\backend
+
+node server.js
+
+cd "C:\Users\Ziga\Desktop\Projektna-naloga---Analize-masivnih-podatkov-za-aplikacije-v-realnem-svetu\razvoj-aplikacij-za-internet\Frontend\Hribovc\frontend\hribovc-website"
+
+npm install
+
+npm install leaflet react-leaflet
+
+npm run dev
+
+## ORV
+Podrobna dokumentacija ORV API-ja je v datoteki:
+
+`osnove-racunalniskega-vida/API.md`
+
+cd "C:\Users\Ziga\Desktop\Projektna-naloga---Analize-masivnih-podatkov-za-aplikacije-v-realnem-svetu\osnove-racunalniskega-vida"
+python .\face_name_preview.py train
+python .\face_name_preview.py preview
+python .\face_name_preview.py login-users ziga
+
+NPO
+
+Po ponovnem odprtju VS Code morajo za prenos in shranjevanje senzorjev teci stirje terminali.
+Telefon in racunalnik morata biti na istem Wi-Fi omrezju.
+
+Terminal 1 - backend in MongoDB shranjevanje:
 
 cd "C:\Users\Ziga\Desktop\Projektna-naloga---Analize-masivnih-podatkov-za-aplikacije-v-realnem-svetu\razvoj-aplikacij-za-internet\backend"
 npm install
 node server.js
 
-Frontend:
+Backend mora ob zagonu izpisati vrstico podobno:
+
+MQTT backend connected to mqtt://192.168.0.138:1883
+
+Ce pise `mqtt://127.0.0.1:1883`, je backend priklopljen na lokalni Mosquitto service namesto na broker, ki ga uporabljata telefon in spletna aplikacija. Takrat ustavite backend in ga znova zazenite po zagonu MQTT brokerja iz Terminala 2.
+
+Terminal 2 - MQTT broker:
+
+cd "C:\Users\Ziga\Desktop\Projektna-naloga---Analize-masivnih-podatkov-za-aplikacije-v-realnem-svetu"
+& "C:\Program Files\mosquitto\mosquitto.exe" -c "C:\Users\Ziga\Desktop\Projektna-naloga---Analize-masivnih-podatkov-za-aplikacije-v-realnem-svetu\namenska-programska-oprema\mosquitto\mosquitto.conf" -v
+
+Terminal 3 - spletna aplikacija:
 
 cd "C:\Users\Ziga\Desktop\Projektna-naloga---Analize-masivnih-podatkov-za-aplikacije-v-realnem-svetu\razvoj-aplikacij-za-internet\Frontend\Hribovc\frontend\hribovc-website"
 npm install
 npm run dev
 
-ORV:
+V brskalniku odpri stran, ki jo izpise Vite, in pojdi na zavihek Senzorji.
 
-cd "C:\Users\Ziga\Desktop\Projektna-naloga---Analize-masivnih-podatkov-za-aplikacije-v-realnem-svetu\osnove-racunalniskega-vida"
-pip install opencv-python numpy scikit-learn joblib
-python .\face_name_preview.py train
-python .\face_name_preview.py preview
+Terminal 4 - mobilna aplikacija:
+
+cd "C:\Users\Ziga\Desktop\Projektna-naloga---Analize-masivnih-podatkov-za-aplikacije-v-realnem-svetu\namenska-programska-oprema\mobilna-app"
+npm install
+npx expo start -c
+
+RUNNERS
+
+cd C:\tmp\actions-runner-from-repo
+
+.\run.cmd
+
+--------------------------------------------
