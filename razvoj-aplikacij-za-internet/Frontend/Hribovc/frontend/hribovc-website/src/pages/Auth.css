@@ -158,7 +158,8 @@
   color: #bbb;
 }
 
-.auth-field input {
+.auth-field input,
+.auth-field select {
   background: #141414;
   border: 1px solid #1E1E1E;
   border-radius: 10px;
@@ -169,7 +170,12 @@
   transition: all 0.2s;
 }
 
-.auth-field input:focus {
+.auth-field select {
+  cursor: pointer;
+}
+
+.auth-field input:focus,
+.auth-field select:focus {
   border-color: #FF6B35;
   background: #1A1A1A;
   box-shadow: 0 0 0 4px rgba(255, 107, 53, 0.08);

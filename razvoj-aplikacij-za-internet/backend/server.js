@@ -1,5 +1,6 @@
 const http = require('http');
 const bcrypt = require('bcryptjs');
+const fs = require('fs');
 const path = require('path');
 const { spawn } = require('child_process');
 const { ObjectId } = require('mongodb');
@@ -474,9 +475,32 @@ function faceProfilePath(username) {
   );
 }
 
-function findExistingFaceUsername(candidates) {
-  const fs = require('fs');
+function faceProfilesDir() {
+  return path.resolve(
+    __dirname,
+    '..',
+    '..',
+    'osnove-racunalniskega-vida',
+    'data',
+    'users'
+  );
+}
 
+function listFaceProfiles() {
+  const usersDir = faceProfilesDir();
+
+  if (!fs.existsSync(usersDir)) {
+    return [];
+  }
+
+  return fs.readdirSync(usersDir)
+    .filter(file => file.toLowerCase().endsWith('.npz'))
+    .map(file => path.basename(file, '.npz'))
+    .filter(Boolean)
+    .sort((a, b) => a.localeCompare(b));
+}
+
+function findExistingFaceUsername(candidates) {
   for (const candidate of candidates) {
     const username = safeFaceUsername(candidate);
     if (username && fs.existsSync(faceProfilePath(username))) {
@@ -534,6 +558,7 @@ async function verifyFaceWithOrvApi({
 async function sendPhonePreviewFrameToOrvApi({
   imageBase64,
   expectedUser,
+  threshold = ORV_FACE_THRESHOLD,
   nightMode = false,
 }) {
   const imageBuffer = imageBase64ToBuffer(imageBase64);
@@ -549,6 +574,7 @@ async function sendPhonePreviewFrameToOrvApi({
     contentType: 'image/jpeg',
   });
   form.append('expectedUser', expectedUser || '');
+  form.append('threshold', String(threshold));
   form.append('nightMode', String(Boolean(nightMode)));
 
   const response = await axios.post(`${ORV_API_URL}/phone-preview-frame`, form, {
@@ -621,6 +647,7 @@ function createOrv2faChallenge({ username, userEmail, threshold, nightMode }) {
     nightMode: Boolean(nightMode),
     createdAt: now,
     expiresAt,
+    lastPreview: null,
     result: null,
   };
 
@@ -679,6 +706,7 @@ function publicOrv2faChallenge(challenge) {
     expiresAt: current.expiresAt,
     expectedUser: current.username,
     userEmail: current.userEmail,
+    lastPreview: current.lastPreview,
     result: current.result,
   };
 }
@@ -1176,6 +1204,17 @@ const server = http.createServer(async (req, res) => {
     return;
   }
 
+  if (req.method === 'GET' && requestUrl.pathname === '/orv-face-profiles') {
+    res.writeHead(200, {
+      'Content-Type': 'application/json',
+      ...corsHeaders,
+    });
+    res.end(JSON.stringify({
+      profiles: listFaceProfiles(),
+    }));
+    return;
+  }
+
   if (req.method === 'POST' && requestUrl.pathname === '/orv-2fa/start') {
     try {
       const data = await readJsonBody(req);
@@ -1334,8 +1373,13 @@ const server = http.createServer(async (req, res) => {
       const preview = await sendPhonePreviewFrameToOrvApi({
         imageBase64: data.imageBase64,
         expectedUser: challenge.username,
+        threshold: challenge.threshold,
         nightMode: Boolean(data.nightMode ?? challenge.nightMode),
       });
+      challenge.lastPreview = {
+        ...preview,
+        updatedAt: new Date(),
+      };
 
       res.writeHead(200, {
         'Content-Type': 'application/json',
@@ -1343,7 +1387,8 @@ const server = http.createServer(async (req, res) => {
       });
       res.end(JSON.stringify({
         success: true,
-        ...preview,
+        preview: challenge.lastPreview,
+        ...challenge.lastPreview,
       }));
     } catch (error) {
       res.writeHead(getOrvApiErrorStatus(error), {
@@ -1436,7 +1481,11 @@ const server = http.createServer(async (req, res) => {
         'Content-Type': 'application/json',
         ...corsHeaders,
       });
-      res.end(JSON.stringify(publicOrv2faChallenge(challenge)));
+      res.end(JSON.stringify({
+        success: normalized.verified,
+        verified: normalized.verified,
+        ...publicOrv2faChallenge(challenge),
+      }));
     } catch (error) {
       console.error('ORV 2FA verify error:', error.response?.data || error.message || error);
 
