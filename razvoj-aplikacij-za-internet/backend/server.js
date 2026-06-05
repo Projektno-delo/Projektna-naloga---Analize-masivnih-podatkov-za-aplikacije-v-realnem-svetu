@@ -16,8 +16,10 @@ const ORV_FACE_TIMEOUT_MS = readPositiveInteger(
   30000,
   'ORV_FACE_TIMEOUT_MS'
 );
+const ORV_PC_FACE_LOGIN_ENABLED = process.env.ORV_PC_FACE_LOGIN_ENABLED !== 'false';
 const ORV_2FA_TTL_MS = readPositiveInteger(process.env.ORV_2FA_TTL_MS, 90000);
 const orv2faChallenges = new Map();
+let latestOrv2faChallengeId = null;
 const SENSOR_DEVICE_ACTIVE_TIMEOUT_MS = readPositiveInteger(
   process.env.SENSOR_DEVICE_ACTIVE_TIMEOUT_MS,
   15000,
@@ -603,6 +605,19 @@ async function closePhonePreviewWindow() {
   }
 }
 
+function clearRetainedOrv2faRequest(challengeId = null) {
+  if (challengeId && latestOrv2faChallengeId !== challengeId) {
+    return Promise.resolve();
+  }
+
+  latestOrv2faChallengeId = null;
+
+  return publishMqttMessage(MQTT_ORV_2FA_REQUEST_TOPIC, '', { qos: 1, retain: true })
+    .catch(error => {
+      console.warn('[ORV] Clearing retained 2FA request failed:', error.message || error);
+    });
+}
+
 function getFaceUsernameFromRequest(data = {}) {
   const usernameCandidates = Array.isArray(data.usernames)
     ? data.usernames
@@ -666,6 +681,7 @@ function createOrv2faChallenge({ username, userEmail, threshold, nightMode }) {
         expectedUser: current.username,
         error: 'ORV 2FA zahteva je potekla.',
       };
+      clearRetainedOrv2faRequest(current.challengeId);
     }
   }, ORV_2FA_TTL_MS + 1000);
 
@@ -687,6 +703,7 @@ function refreshOrv2faChallengeStatus(challenge) {
       expectedUser: challenge.username,
       error: 'ORV 2FA zahteva je potekla.',
     };
+    clearRetainedOrv2faRequest(challenge.challengeId);
   }
 
   return challenge;
@@ -1239,6 +1256,19 @@ const server = http.createServer(async (req, res) => {
       const nightMode = Boolean(data.nightMode);
 
       if (cameraMode === 'pc') {
+        if (!ORV_PC_FACE_LOGIN_ENABLED) {
+          res.writeHead(400, {
+            'Content-Type': 'application/json',
+            ...corsHeaders,
+          });
+          res.end(JSON.stringify({
+            success: false,
+            verified: false,
+            error: 'PC kamera ni omogocena v Docker nacinu. Uporabi Telefon kamera ali rocni zagon backenda na racunalniku.',
+          }));
+          return;
+        }
+
         const result = await runFaceLogin({
           username,
           threshold,
@@ -1267,6 +1297,7 @@ const server = http.createServer(async (req, res) => {
         threshold,
         nightMode,
       });
+      latestOrv2faChallengeId = challenge.challengeId;
 
       await publishMqttMessage(MQTT_ORV_2FA_REQUEST_TOPIC, {
         type: 'orv-2fa-request',
@@ -1277,7 +1308,7 @@ const server = http.createServer(async (req, res) => {
         nightMode: challenge.nightMode,
         createdAt: challenge.createdAt,
         expiresAt: challenge.expiresAt,
-      });
+      }, { qos: 1, retain: true });
 
       res.writeHead(202, {
         'Content-Type': 'application/json',
@@ -1391,6 +1422,7 @@ const server = http.createServer(async (req, res) => {
         ...challenge.lastPreview,
       }));
     } catch (error) {
+      console.error('ORV 2FA preview error:', error.response?.data || error.message || error);
       res.writeHead(getOrvApiErrorStatus(error), {
         'Content-Type': 'application/json',
         ...corsHeaders,
@@ -1399,6 +1431,7 @@ const server = http.createServer(async (req, res) => {
         success: false,
         error: getOrvApiErrorMessage(error),
         detail: getOrvApiErrorDetail(error),
+        orvApiUrl: ORV_API_URL,
       }));
     }
     return;
@@ -1476,6 +1509,7 @@ const server = http.createServer(async (req, res) => {
         verifiedAt: new Date(),
       };
       closePhonePreviewWindow();
+      clearRetainedOrv2faRequest(challenge.challengeId);
 
       res.writeHead(normalized.verified ? 200 : 401, {
         'Content-Type': 'application/json',
@@ -2030,6 +2064,7 @@ connect()
     }
 
     startSensorMqttSubscriber();
+    await clearRetainedOrv2faRequest();
 
     try {
       const { scrapeAndSaveTrails } = require('./trail-scraper');

@@ -1,5 +1,6 @@
 from pathlib import Path
 from typing import Any
+import os
 import unicodedata
 
 import cv2
@@ -27,6 +28,12 @@ IMAGE_SIZE = (128, 128)
 PHONE_PREVIEW_WINDOW = "ORV telefon kamera preview"
 PHONE_PREVIEW_MAX_WIDTH = 420
 PHONE_PREVIEW_MAX_HEIGHT = 560
+PHONE_PREVIEW_GUI_ENABLED = os.getenv("ORV_PHONE_PREVIEW_GUI", "false").lower() in {
+    "1",
+    "true",
+    "yes",
+    "on",
+}
 
 app = FastAPI(
     title="Hribovc ORV Face Recognition API",
@@ -300,15 +307,19 @@ def show_phone_preview_frame(
         2,
         cv2.LINE_AA,
     )
-    display_frame = resize_for_phone_preview(frame)
-    cv2.namedWindow(PHONE_PREVIEW_WINDOW, cv2.WINDOW_NORMAL)
-    cv2.resizeWindow(
-        PHONE_PREVIEW_WINDOW,
-        display_frame.shape[1],
-        display_frame.shape[0],
-    )
-    cv2.imshow(PHONE_PREVIEW_WINDOW, display_frame)
-    cv2.waitKey(1)
+    if PHONE_PREVIEW_GUI_ENABLED:
+        display_frame = resize_for_phone_preview(frame)
+        try:
+            cv2.namedWindow(PHONE_PREVIEW_WINDOW, cv2.WINDOW_NORMAL)
+            cv2.resizeWindow(
+                PHONE_PREVIEW_WINDOW,
+                display_frame.shape[1],
+                display_frame.shape[0],
+            )
+            cv2.imshow(PHONE_PREVIEW_WINDOW, display_frame)
+            cv2.waitKey(1)
+        except cv2.error:
+            pass
 
     return {
         "success": True,
@@ -479,10 +490,11 @@ async def phone_preview_frame_endpoint(
 
 @app.post("/phone-preview-close")
 async def phone_preview_close_endpoint():
-    try:
-        cv2.destroyWindow(PHONE_PREVIEW_WINDOW)
-    except cv2.error:
-        pass
+    if PHONE_PREVIEW_GUI_ENABLED:
+        try:
+            cv2.destroyWindow(PHONE_PREVIEW_WINDOW)
+        except cv2.error:
+            pass
 
     return {
         "success": True,

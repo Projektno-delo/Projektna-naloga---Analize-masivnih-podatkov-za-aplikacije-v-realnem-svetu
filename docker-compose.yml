@@ -1,0 +1,68 @@
+name: hribovc
+
+services:
+  mongodb:
+    image: mongo:7
+    container_name: hribovc-mongodb
+    restart: unless-stopped
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongodb-data:/data/db
+
+  mosquitto:
+    image: eclipse-mosquitto:2
+    container_name: hribovc-mosquitto
+    restart: unless-stopped
+    ports:
+      - "1883:1883"
+      - "9001:9001"
+    volumes:
+      - ./namenska-programska-oprema/mosquitto/mosquitto.conf:/mosquitto/config/mosquitto.conf:ro
+
+  orv-api:
+    build:
+      context: ./osnove-racunalniskega-vida
+    container_name: hribovc-orv-api
+    restart: unless-stopped
+    volumes:
+      - ./osnove-racunalniskega-vida/data/users:/app/data/users:ro
+      - ./osnove-racunalniskega-vida/model:/app/model:ro
+    ports:
+      - "8000:8000"
+
+  backend:
+    build:
+      context: ./razvoj-aplikacij-za-internet/backend
+    container_name: hribovc-backend
+    restart: unless-stopped
+    depends_on:
+      - mongodb
+      - mosquitto
+      - orv-api
+    environment:
+      MONGODB_URI: mongodb://mongodb:27017
+      MONGODB_DB: hribovc
+      MQTT_BROKER_URL: mqtt://mosquitto:1883
+      ORV_API_URL: http://orv-api:8000
+      ORV_PC_FACE_LOGIN_ENABLED: "false"
+    volumes:
+      - ./osnove-racunalniskega-vida/data/users:/osnove-racunalniskega-vida/data/users:ro
+    ports:
+      - "3000:3000"
+
+  frontend:
+    build:
+      context: ./razvoj-aplikacij-za-internet/Frontend/Hribovc/frontend/hribovc-website
+      args:
+        VITE_ORV_DEFAULT_CAMERA_MODE: phone
+    container_name: hribovc-frontend
+    restart: unless-stopped
+    depends_on:
+      - backend
+      - mosquitto
+    ports:
+      - "5173:80"
+
+volumes:
+  mongodb-data:
