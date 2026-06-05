@@ -39,7 +39,37 @@ jobs:
       - name: Preveri ESLint
         working-directory: ${{ env.APP_DIR }}
         run: npm run lint
-
       - name: Preveri TypeScript
         working-directory: ${{ env.APP_DIR }}
         run: npx tsc --noEmit
+
+  dockerhub:
+    name: Build and push Docker image
+    runs-on: [self-hosted, Windows, X64]
+    needs: test
+    if: github.ref == 'refs/heads/main'
+
+    steps:
+      - name: Prenesi kodo
+        uses: actions/checkout@v4
+
+      - name: Prijava v DockerHub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME_ANJA }}
+          password: ${{ secrets.DOCKERHUB_TOKEN_ANJA }}
+          
+      - name: Preveri Docker engine
+        shell: powershell
+        run: docker info
+
+      - name: Zgradi Docker sliko
+        shell: powershell
+        run: |
+          $app = Join-Path $env:GITHUB_WORKSPACE "namenska-programska-oprema/mobilna-app"
+          docker build -t anja21docker/npo-mobile-app:latest $app
+
+      - name: Objavi Docker sliko
+        shell: powershell
+        run: |
+          docker push anja21docker/npo-mobile-app:latest
