@@ -2,6 +2,8 @@ import { Stack } from "expo-router";
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
+  Alert,
+  Linking,
   Modal,
   SafeAreaView,
   ScrollView,
@@ -128,6 +130,30 @@ function Orv2faMqttListener() {
     }
   }, [challenge]);
 
+  const handleRequestCameraPermission = useCallback(async () => {
+    const permission = await requestCameraPermission();
+
+    if (permission?.granted) {
+      setStatus("Kamera dovoljena. Pripravljam preverjanje obraza...");
+      return permission;
+    }
+
+    setStatus("Dovoljenje za kamero ni odobreno");
+
+    if (permission && permission.canAskAgain === false) {
+      Alert.alert(
+        "Kamera ni dovoljena",
+        "Expo Go nima dovoljenja za kamero. Odpri nastavitve telefona in dovoli kamero za Expo Go.",
+        [
+          { text: "Preklici", style: "cancel" },
+          { text: "Nastavitve", onPress: () => Linking.openSettings() },
+        ]
+      );
+    }
+
+    return permission;
+  }, [requestCameraPermission]);
+
   useEffect(() => {
     const client = mqtt.connect(CONFIG.MQTT_BROKER, {
       reconnectPeriod: 3000,
@@ -167,7 +193,6 @@ function Orv2faMqttListener() {
         }
 
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-        requestCameraPermission();
         setStatus("Vzpostavljam live preverjanje obraza...");
         setPreviewFeedback(null);
         bestPreviewImageRef.current = null;
@@ -175,6 +200,7 @@ function Orv2faMqttListener() {
         readyFrameCountRef.current = 0;
         autoVerifyInFlightRef.current = false;
         setChallenge(challenge);
+        handleRequestCameraPermission();
       } catch (error) {
         console.log("ORV global MQTT parse error:", error);
       }
@@ -183,7 +209,7 @@ function Orv2faMqttListener() {
     return () => {
       client.end();
     };
-  }, [requestCameraPermission]);
+  }, [handleRequestCameraPermission]);
 
   useEffect(() => {
     isVerifyingRef.current = isVerifying;
@@ -317,7 +343,7 @@ function Orv2faMqttListener() {
       let permission = cameraPermission;
 
       if (!permission?.granted) {
-        permission = await requestCameraPermission();
+        permission = await handleRequestCameraPermission();
       }
 
       if (!permission?.granted) {
@@ -372,8 +398,10 @@ function Orv2faMqttListener() {
             ) : (
               <View style={styles.permissionBox}>
                 <Text style={styles.text}>Za preverjanje obraza dovoli kamero.</Text>
-                <TouchableOpacity style={styles.mainBtn} onPress={requestCameraPermission}>
-                  <Text style={styles.btnText}>DOVOLI KAMERO</Text>
+                <TouchableOpacity style={styles.mainBtn} onPress={handleRequestCameraPermission}>
+                  <Text style={styles.btnText}>
+                    {cameraPermission?.canAskAgain === false ? "ODPRI NASTAVITVE" : "DOVOLI KAMERO"}
+                  </Text>
                 </TouchableOpacity>
               </View>
             )}
