@@ -1,0 +1,169 @@
+name: ORV CI/CD
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - "osnove-racunalniskega-vida/**"
+      - ".github/workflows/orv_ci.yml"
+
+  pull_request:
+    branches:
+      - main
+    paths:
+      - "osnove-racunalniskega-vida/**"
+      - ".github/workflows/orv_ci.yml"
+
+  workflow_dispatch:
+
+env:
+  APP_DIR: osnove-racunalniskega-vida
+  IMAGE_NAME: hribovc-orv-api
+
+jobs:
+  test:
+    name: Test ORV API
+    runs-on: [self-hosted, Windows, X64]
+
+    steps:
+      - name: Omogoci dolge poti v Gitu
+        shell: powershell
+        run: git config --global core.longpaths true
+
+      - name: Prenesi kodo
+        uses: actions/checkout@v4
+
+      - name: Nastavi Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+          cache-dependency-path: ${{ env.APP_DIR }}/requirements.txt
+
+      - name: Namesti Python dependencyje
+        working-directory: ${{ env.APP_DIR }}
+        shell: powershell
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -r requirements.txt
+
+      - name: Zazeni ORV API teste
+        working-directory: ${{ env.APP_DIR }}
+        shell: powershell
+        run: |
+          python -m pytest `
+            tests/test_api_health.py `
+            tests/test_api_threshold_validation.py `
+            tests/test_api_no_face_response.py `
+            -q
+
+  dockerhub:
+    name: Build, test and push ORV Docker image
+    runs-on: [self-hosted, Windows, X64]
+    needs: test
+    if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
+
+    steps:
+      - name: Omogoci dolge poti v Gitu
+        shell: powershell
+        run: git config --global core.longpaths true
+
+      - name: Prenesi kodo
+        uses: actions/checkout@v4
+
+      - name: Prijava v DockerHub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Preveri Docker engine
+        shell: powershell
+        run: |
+          $dockerDesktop = Join-Path $env:ProgramFiles "Docker\Docker\Docker Desktop.exe"
+
+          if (Test-Path $dockerDesktop) {
+            Start-Process $dockerDesktop -WindowStyle Hidden
+          }
+
+          $timeout = (Get-Date).AddMinutes(3)
+
+          do {
+            docker info *> $null
+
+            if ($LASTEXITCODE -eq 0) {
+              Write-Host "Docker engine je pripravljen."
+              exit 0
+            }
+
+            Start-Sleep -Seconds 5
+          } while ((Get-Date) -lt $timeout)
+
+          throw "Docker engine ni zagnan."
+
+      - name: Zgradi ORV Docker sliko
+        shell: powershell
+        env:
+          DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
+        run: |
+          $app = Join-Path $env:GITHUB_WORKSPACE $env:APP_DIR
+          $image = "$env:DOCKERHUB_USERNAME/$env:IMAGE_NAME".ToLowerInvariant()
+
+          docker build `
+            -t "${image}:latest" `
+            -t "${image}:$env:GITHUB_SHA" `
+            $app
+
+      - name: Preveri delovanje Docker slike
+        shell: powershell
+        env:
+          DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
+        run: |
+          $image = "$env:DOCKERHUB_USERNAME/$env:IMAGE_NAME".ToLowerInvariant()
+          $container = "hribovc-orv-api-ci-$env:GITHUB_RUN_ID"
+
+          docker run -d `
+            --name $container `
+            -p 18000:8000 `
+            "${image}:$env:GITHUB_SHA"
+
+          try {
+            $timeout = (Get-Date).AddMinutes(2)
+            $healthy = $false
+
+            do {
+              try {
+                $response = Invoke-RestMethod `
+                  -Uri "http://localhost:18000/health" `
+                  -Method Get `
+                  -TimeoutSec 5
+
+                if ($response.status -eq "ok") {
+                  $healthy = $true
+                  break
+                }
+              } catch {
+                Start-Sleep -Seconds 5
+              }
+            } while ((Get-Date) -lt $timeout)
+
+            if (-not $healthy) {
+              docker logs $container
+              throw "ORV API Docker health check ni uspel."
+            }
+
+            Write-Host "ORV API Docker health check je uspel."
+          } finally {
+            docker rm -f $container 2>$null
+          }
+
+      - name: Objavi ORV Docker sliko
+        shell: powershell
+        env:
+          DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
+        run: |
+          $image = "$env:DOCKERHUB_USERNAME/$env:IMAGE_NAME".ToLowerInvariant()
+
+          docker push "${image}:latest"
+          docker push "${image}:$env:GITHUB_SHA"
