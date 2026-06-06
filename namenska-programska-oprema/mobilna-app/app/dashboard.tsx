@@ -1,6 +1,6 @@
-import { View, Text, StyleSheet, TouchableOpacity, SafeAreaView, ScrollView, Animated } from 'react-native';
+import { Alert, Linking, View, Text, StyleSheet, TouchableOpacity, SafeAreaView, ScrollView, Animated } from 'react-native';
 import { useRouter } from 'expo-router';
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { Accelerometer } from 'expo-sensors';
 import * as Location from 'expo-location';
 import { CameraView, useCameraPermissions } from 'expo-camera';
@@ -58,6 +58,30 @@ export default function Dashboard() {
 
   const getCurrentDeviceId = () => deviceIdRef.current || 'unknown-device';
   const getCurrentUserEmail = () => userEmailRef.current || 'unknown';
+
+  const requestOrvCameraPermission = useCallback(async () => {
+    const permission = await requestCameraPermission();
+
+    if (permission?.granted) {
+      setOrvStatus('Kamera dovoljena');
+      return permission;
+    }
+
+    setOrvStatus('Dovoljenje za kamero ni odobreno');
+
+    if (permission && permission.canAskAgain === false) {
+      Alert.alert(
+        'Kamera ni dovoljena',
+        'Expo Go nima dovoljenja za kamero. Odpri nastavitve telefona in dovoli kamero za Expo Go.',
+        [
+          { text: 'Preklici', style: 'cancel' },
+          { text: 'Nastavitve', onPress: () => Linking.openSettings() },
+        ]
+      );
+    }
+
+    return permission;
+  }, [requestCameraPermission]);
 
   const shouldAcceptOrvChallenge = (challenge: Orv2faChallenge) => {
     const targetEmail = String(challenge.userEmail || '').trim().toLowerCase();
@@ -407,7 +431,7 @@ export default function Dashboard() {
       let permission = cameraPermission;
 
       if (!permission?.granted) {
-        permission = await requestCameraPermission();
+        permission = await requestOrvCameraPermission();
       }
 
       if (!permission?.granted) {
@@ -551,9 +575,11 @@ export default function Dashboard() {
               ) : (
                 <TouchableOpacity
                   style={[styles.mainBtn, styles.secondaryBtn]}
-                  onPress={requestCameraPermission}
+                  onPress={requestOrvCameraPermission}
                 >
-                  <Text style={styles.btnText}>DOVOLI KAMERO</Text>
+                  <Text style={styles.btnText}>
+                    {cameraPermission?.canAskAgain === false ? 'ODPRI NASTAVITVE' : 'DOVOLI KAMERO'}
+                  </Text>
                 </TouchableOpacity>
               )}
 
