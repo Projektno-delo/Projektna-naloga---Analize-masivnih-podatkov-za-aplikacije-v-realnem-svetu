@@ -237,6 +237,27 @@ Primer JSON sporočila, ki ga mobilna aplikacija pošlje na temo `hribovc/senzor
   }
 }
 ```
+### Primer uporabe 1: Zajem senzorskih podatkov
+
+1. Zaženi mobilno aplikacijo.
+2. Prijavi se z uporabniškim računom.
+3. Na nadzorni plošči pritisni **AKTIVIRAJ ZAJEM**.
+4. Aplikacija začne zajemati GPS lokacijo in podatke pospeškomera.
+5. Podatki se pošiljajo preko MQTT.
+
+**Rezultat:**
+Uporabnik spremlja svoje meritve in lokacijo v realnem času.
+
+### Primer uporabe 2: Spremljanje podatkov v spletni aplikaciji
+
+1. Zaženi backend, frontend in MQTT broker.
+2. Odpri zavihek **Senzorji** v spletni aplikaciji.
+3. V mobilni aplikaciji aktiviraj zajem podatkov.
+4. Spletna aplikacija prejema MQTT sporočila.
+5. Meritve se shranjujejo v MongoDB.
+
+**Rezultat:**
+Uporabnik vidi zadnje meritve senzorjev in stanje povezave.
 
 ### Primer heartbeat payload-a
 
