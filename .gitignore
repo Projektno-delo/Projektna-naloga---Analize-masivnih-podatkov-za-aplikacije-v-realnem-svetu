@@ -4,3 +4,4 @@ dist/
 .env.local
 actions-runner/
 **/actions-runner/
+tools/create_website_presentation.py
