@@ -17,9 +17,13 @@ on:
 
   workflow_dispatch:
 
+permissions:
+  contents: read
+
 env:
   APP_DIR: osnove-racunalniskega-vida
   IMAGE_NAME: hribovc-orv-api
+  LOCAL_IMAGE: hribovc-orv-api-ci
 
 jobs:
   test:
@@ -32,58 +36,16 @@ jobs:
         run: git config --global core.longpaths true
 
       - name: Prenesi kodo
-        uses: actions/checkout@v4
-
-      - name: Nastavi Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: "3.11"
-          cache: pip
-          cache-dependency-path: ${{ env.APP_DIR }}/requirements.txt
-
-      - name: Namesti Python dependencyje
-        working-directory: ${{ env.APP_DIR }}
-        shell: powershell
-        run: |
-          python -m pip install --upgrade pip
-          python -m pip install -r requirements.txt
-
-      - name: Zazeni ORV API teste
-        working-directory: ${{ env.APP_DIR }}
-        shell: powershell
-        run: |
-          python -m pytest `
-            tests/test_api_health.py `
-            tests/test_api_threshold_validation.py `
-            tests/test_api_no_face_response.py `
-            -q
-
-  dockerhub:
-    name: Build, test and push ORV Docker image
-    runs-on: [self-hosted, Windows, X64]
-    needs: test
-    if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
-
-    steps:
-      - name: Omogoci dolge poti v Gitu
-        shell: powershell
-        run: git config --global core.longpaths true
-
-      - name: Prenesi kodo
-        uses: actions/checkout@v4
-
-      - name: Prijava v DockerHub
-        uses: docker/login-action@v3
-        with:
-          username: ${{ secrets.DOCKERHUB_USERNAME }}
-          password: ${{ secrets.DOCKERHUB_TOKEN }}
+        uses: actions/checkout@v6
 
       - name: Preveri Docker engine
         shell: powershell
         run: |
           $dockerDesktop = Join-Path $env:ProgramFiles "Docker\Docker\Docker Desktop.exe"
 
-          if (Test-Path $dockerDesktop) {
+          docker info *> $null
+
+          if ($LASTEXITCODE -ne 0 -and (Test-Path $dockerDesktop)) {
             Start-Process $dockerDesktop -WindowStyle Hidden
           }
 
@@ -100,33 +62,59 @@ jobs:
             Start-Sleep -Seconds 5
           } while ((Get-Date) -lt $timeout)
 
-          throw "Docker engine ni zagnan."
+          throw "Docker engine ni zagnan ali runner nima dostopa do njega."
 
       - name: Zgradi ORV Docker sliko
         shell: powershell
-        env:
-          DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
         run: |
           $app = Join-Path $env:GITHUB_WORKSPACE $env:APP_DIR
-          $image = "$env:DOCKERHUB_USERNAME/$env:IMAGE_NAME".ToLowerInvariant()
+          $image = "$env:LOCAL_IMAGE`:$env:GITHUB_SHA".ToLowerInvariant()
 
-          docker build `
-            -t "${image}:latest" `
-            -t "${image}:$env:GITHUB_SHA" `
-            $app
+          docker build -t $image $app
 
-      - name: Preveri delovanje Docker slike
+          if ($LASTEXITCODE -ne 0) {
+            throw "Izdelava ORV Docker slike ni uspela."
+          }
+
+      - name: Zazeni ORV API teste
         shell: powershell
-        env:
-          DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
         run: |
-          $image = "$env:DOCKERHUB_USERNAME/$env:IMAGE_NAME".ToLowerInvariant()
-          $container = "hribovc-orv-api-ci-$env:GITHUB_RUN_ID"
+          $image = "$env:LOCAL_IMAGE`:$env:GITHUB_SHA".ToLowerInvariant()
+
+          docker run --rm $image `
+            python -m pytest `
+            tests/test_api_health.py `
+            tests/test_api_threshold_validation.py `
+            tests/test_api_no_face_response.py `
+            -q
+
+          if ($LASTEXITCODE -ne 0) {
+            throw "ORV API testi niso uspeli."
+          }
+
+      - name: Preveri delovanje ORV API vsebnika
+        shell: powershell
+        run: |
+          $image = "$env:LOCAL_IMAGE`:$env:GITHUB_SHA".ToLowerInvariant()
+          $container = "hribovc-orv-api-ci-$env:GITHUB_RUN_ID-$env:GITHUB_RUN_ATTEMPT"
+
+          $listener = [System.Net.Sockets.TcpListener]::new(
+            [System.Net.IPAddress]::Loopback,
+            0
+          )
+
+          $listener.Start()
+          $port = $listener.LocalEndpoint.Port
+          $listener.Stop()
 
           docker run -d `
             --name $container `
-            -p 18000:8000 `
-            "${image}:$env:GITHUB_SHA"
+            -p "127.0.0.1:${port}:8000" `
+            $image
+
+          if ($LASTEXITCODE -ne 0) {
+            throw "ORV API Docker vsebnika ni bilo mogoce zagnati."
+          }
 
           try {
             $timeout = (Get-Date).AddMinutes(2)
@@ -135,7 +123,7 @@ jobs:
             do {
               try {
                 $response = Invoke-RestMethod `
-                  -Uri "http://localhost:18000/health" `
+                  -Uri "http://127.0.0.1:$port/health" `
                   -Method Get `
                   -TimeoutSec 5
 
@@ -150,7 +138,7 @@ jobs:
 
             if (-not $healthy) {
               docker logs $container
-              throw "ORV API Docker health check ni uspel."
+              throw "ORV API health check ni uspel."
             }
 
             Write-Host "ORV API Docker health check je uspel."
@@ -158,12 +146,35 @@ jobs:
             docker rm -f $container 2>$null
           }
 
+      - name: Prijava v DockerHub
+        if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
+        uses: docker/login-action@v4
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
       - name: Objavi ORV Docker sliko
+        if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
         shell: powershell
         env:
           DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
         run: |
-          $image = "$env:DOCKERHUB_USERNAME/$env:IMAGE_NAME".ToLowerInvariant()
+          $localImage = "$env:LOCAL_IMAGE`:$env:GITHUB_SHA".ToLowerInvariant()
+          $dockerHubImage = "$env:DOCKERHUB_USERNAME/$env:IMAGE_NAME".ToLowerInvariant()
 
-          docker push "${image}:latest"
-          docker push "${image}:$env:GITHUB_SHA"
+          docker tag $localImage "${dockerHubImage}:latest"
+          docker tag $localImage "${dockerHubImage}:$env:GITHUB_SHA"
+
+          docker push "${dockerHubImage}:latest"
+          docker push "${dockerHubImage}:$env:GITHUB_SHA"
+
+          if ($LASTEXITCODE -ne 0) {
+            throw "Objava ORV Docker slike ni uspela."
+          }
+
+      - name: Pocisti lokalno CI sliko
+        if: always()
+        shell: powershell
+        run: |
+          $image = "$env:LOCAL_IMAGE`:$env:GITHUB_SHA".ToLowerInvariant()
+          docker image rm -f $image 2>$null
